@@ -1,0 +1,11 @@
+# Database credentials
+config/db.php
+
+# OS & editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
