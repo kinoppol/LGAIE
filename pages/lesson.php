@@ -1,6 +1,12 @@
 <?php
 declare(strict_types=1);
 
+// Lesson content is not accessible to guests
+if (!is_logged_in()) {
+    $redir = urlencode('index.php?page=lesson&lesson_id=' . (int)($_GET['lesson_id'] ?? 0));
+    redirect('index.php?page=login&redirect=' . $redir);
+}
+
 $lesson_id = (int)($_GET['lesson_id'] ?? 0);
 $lesson    = get_lesson_with_prompt($lesson_id);
 if (!$lesson) { echo '<div class="empty"><h3>ไม่พบบทเรียน</h3></div>'; return; }

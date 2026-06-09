@@ -108,6 +108,9 @@ $theme_js = "var m=localStorage.getItem('ca-theme')||'system';document.documentE
     <div class="auth-link">
       ยังไม่มีบัญชี? <a href="<?= url('register') ?>">ลงทะเบียนที่นี่</a>
     </div>
+    <div class="auth-link" style="margin-top:.5rem;font-size:.82rem">
+      หรือ <a href="<?= url('explore') ?>">ค้นหารายวิชาสาธารณะ</a> โดยไม่ต้องเข้าสู่ระบบ
+    </div>
   </div>
 
 </div>

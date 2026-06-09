@@ -1,12 +1,24 @@
 <?php
 declare(strict_types=1);
 
-$course_id = (int)($_GET['course_id'] ?? 0);
-$c = get_course($course_id);
+$course_id  = (int)($_GET['course_id'] ?? 0);
+$c          = get_course($course_id);
+$guest_mode = !is_logged_in();
+
 if (!$c) { echo '<div class="empty"><h3>ไม่พบรายวิชา</h3></div>'; return; }
 
-$role    = current_role();
-$tab     = $_GET['tab'] ?? 'stream';
+// Guest ดูได้เฉพาะวิชาสาธารณะ
+if ($guest_mode && empty($c['is_public'])) {
+    echo '<div class="empty">'
+        . '<div class="e-ic">' . icon('lock', 30) . '</div>'
+        . '<h3>รายวิชานี้ไม่เปิดสาธารณะ</h3>'
+        . '<p>กรุณา <a href="index.php?page=login">เข้าสู่ระบบ</a> เพื่อเข้าถึงรายวิชา</p>'
+        . '</div>';
+    return;
+}
+
+$role    = $guest_mode ? 'guest' : current_role();
+$tab     = $_GET['tab'] ?? ($guest_mode ? 'lessons' : 'stream');
 $lessons = db_rows('SELECT l.*, lp.ai_id, lp.rating, (SELECT COUNT(*) FROM lesson_materials WHERE lesson_id = l.id) AS mat_count FROM lessons l LEFT JOIN lesson_prompts lp ON lp.lesson_id = l.id WHERE l.course_id = ? ORDER BY l.sort_order, l.id', [$course_id]);
 $works   = db_rows('SELECT a.*, ap.ai_id FROM assignments a LEFT JOIN assignment_prompts ap ON ap.assignment_id = a.id WHERE a.course_id = ? ORDER BY a.id', [$course_id]);
 $teacher = db_row('SELECT * FROM users WHERE id = ?', [$c['teacher_id']]);
@@ -14,7 +26,7 @@ $teacher = db_row('SELECT * FROM users WHERE id = ?', [$c['teacher_id']]);
 // ── Course header ──────────────────────────────────────────────
 ?>
 <?php
-$is_owner = is_teacher() && (int)$c['teacher_id'] === current_user_id();
+$is_owner = !$guest_mode && is_teacher() && (int)$c['teacher_id'] === current_user_id();
 ?>
 
 <div style="display:flex;align-items:center;margin-bottom:4px">
@@ -43,7 +55,9 @@ $is_owner = is_teacher() && (int)$c['teacher_id'] === current_user_id();
   </div>
   <div class="tabs" style="margin:0;padding:0 16px;border-top:none">
     <?php
-    $tabs = [
+    $tabs = $guest_mode ? [
+        ['lessons', 'book', 'เนื้อหาบทเรียน', count($lessons)],
+    ] : [
         ['stream',  'stream',    'ฟีดประกาศ',      null],
         ['lessons', 'book',      'เนื้อหาบทเรียน', count($lessons)],
         ['work',    'clipboard', 'งาน / การบ้าน',  count($works)],
@@ -182,36 +196,57 @@ if ($tab === 'stream'): ?>
 elseif ($tab === 'lessons'): ?>
 <div style="display:flex;align-items:center;margin-bottom:18px">
   <h2 style="font-size:19px">เนื้อหาบทเรียน</h2>
-  <?php if (is_teacher()): ?>
+  <?php if (!$guest_mode && is_teacher()): ?>
   <button class="btn btn-primary" style="margin-left:auto" onclick="openModal('add-lesson')">
     <?= icon('plus', 18, '#fff') ?> เพิ่มเนื้อหา + Prompt
   </button>
   <?php endif; ?>
 </div>
+
+<?php if ($guest_mode): ?>
+<div style="display:flex;align-items:center;gap:10px;background:var(--primary-soft);border:1px solid var(--primary-soft-2);
+            border-radius:11px;padding:12px 16px;margin-bottom:18px;font-size:13.5px;color:var(--primary)">
+  <?= icon('lock', 16, 'var(--primary)') ?>
+  <span>เข้าสู่ระบบเพื่อเข้าถึงเนื้อหา สื่อการสอน และ Prompt AI ในแต่ละหน่วย —
+    <a href="index.php?page=login" style="font-weight:700;color:var(--primary)">เข้าสู่ระบบ</a>
+    หรือ <a href="index.php?page=register" style="font-weight:700;color:var(--primary)">สมัครสมาชิก</a>
+  </span>
+</div>
+<?php endif; ?>
+
 <?php if (empty($lessons)): ?>
 <div class="empty">
   <div class="e-ic"><?= icon('book', 30) ?></div>
   <h3>ยังไม่มีเนื้อหา</h3>
-  <p><?= is_teacher() ? 'เริ่มเพิ่มบทเรียนแรกพร้อม Prompt AI ที่แนะนำ' : 'ครูยังไม่เพิ่มเนื้อหา' ?></p>
+  <p><?= (!$guest_mode && is_teacher()) ? 'เริ่มเพิ่มบทเรียนแรกพร้อม Prompt AI ที่แนะนำ' : 'ครูยังไม่เพิ่มเนื้อหา' ?></p>
 </div>
 <?php endif; ?>
-<?php foreach ($lessons as $l): ?>
-<a href="<?= url('lesson', ['lesson_id' => $l['id']]) ?>" class="lrow" style="align-items:flex-start;padding:18px 20px;text-decoration:none">
+<?php foreach ($lessons as $l):
+    $lesson_href = $guest_mode
+        ? 'index.php?page=login&redirect=' . urlencode('index.php?page=lesson&lesson_id=' . $l['id'])
+        : url('lesson', ['lesson_id' => $l['id']]);
+?>
+<a href="<?= $lesson_href ?>" class="lrow" style="align-items:flex-start;padding:18px 20px;text-decoration:none<?= $guest_mode ? ';opacity:.85' : '' ?>">
   <span class="lr-ic" style="background:var(--primary-soft);color:var(--primary)"><?= icon('book', 20) ?></span>
   <div style="min-width:0;flex:1">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
       <span class="badge gray" style="font-size:11px"><?= h($l['week_label']) ?></span>
       <span class="chip" style="font-size:11.5px;padding:3px 9px"><?= icon('sparkle', 13, 'var(--primary)') ?> Prompt AI</span>
+      <?php if ($guest_mode): ?>
+      <span class="badge" style="font-size:11px;background:var(--line-2);color:var(--sub)"><?= icon('lock', 11, 'var(--sub)') ?> ต้องเข้าสู่ระบบ</span>
+      <?php endif; ?>
     </div>
     <div class="lr-title"><?= h($l['title']) ?></div>
     <div class="lr-sub" style="margin-top:4px;white-space:normal;max-width:640px"><?= h(mb_substr($l['description'], 0, 110)) ?>…</div>
+    <?php if (!$guest_mode): ?>
     <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
       <?= $l['ai_id'] ? ai_pill($l['ai_id'], 'sm') : '' ?>
       <?= star_rating((int)($l['rating'] ?? 0), 13) ?>
       <span class="subtle" style="font-size:12px">· <?= $l['mat_count'] ?> ไฟล์แนบ</span>
     </div>
+    <?php endif; ?>
   </div>
-  <?= icon('chevron-right', 20, 'var(--faint)') ?>
+  <?= icon($guest_mode ? 'lock' : 'chevron-right', 18, 'var(--faint)') ?>
 </a>
 <?php endforeach; ?>
 
@@ -297,7 +332,7 @@ elseif ($tab === 'people'):
 
 <?php
 // ── Add Lesson Modal ──────────────────────────────────────────
-if (is_teacher()):
+if (!$guest_mode && is_teacher()):
     modal_start('add-lesson', 'เพิ่มเนื้อหาบทเรียน + Prompt AI', 'book', true);
 ?>
 <form id="add-lesson-form" method="post" action="api/add_lesson.php" data-ajax>

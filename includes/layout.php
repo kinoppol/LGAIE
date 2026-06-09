@@ -322,6 +322,79 @@ window.AI_TOOLS = <?= json_encode(array_values(get_ai_tools()), JSON_UNESCAPED_U
 <?php
 }
 
+// ── Guest layout (ไม่มี sidebar / notification) ──────────────────────────────
+function layout_start_guest(string $page_title = 'ClassroomAI'): void
+{
+    $theme = $_SESSION['theme'] ?? 'system';
+    ?>
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><?= h($page_title) ?> — ClassroomAI</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <script>
+    (function(){
+      var m = localStorage.getItem('ca-theme') || '<?= h($theme) ?>';
+      var dark = m === 'dark' || (m === 'system' && window.matchMedia('(prefers-color-scheme:dark)').matches);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    })();
+  </script>
+  <style>
+    .guest-wrap { max-width: 960px; margin: 0 auto; padding: 0 1.25rem 3rem; }
+  </style>
+</head>
+<body>
+
+<!-- Guest topbar -->
+<header style="background:var(--card);border-bottom:1px solid var(--line-2);padding:0 1.5rem;
+               height:58px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;
+               box-shadow:0 1px 4px rgba(0,0,0,.06)">
+  <a href="index.php?page=explore" style="display:flex;align-items:center;gap:9px;text-decoration:none">
+    <span style="width:34px;height:34px;border-radius:9px;background:var(--primary);display:grid;place-items:center">
+      <?= icon('sparkle', 18, '#fff') ?>
+    </span>
+    <span style="font-size:1rem;font-weight:800;color:var(--heading)">Classroom<span style="color:var(--primary)">AI</span></span>
+  </a>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+    <!-- Theme toggle -->
+    <div class="theme-switch" id="theme-switch" title="โหมดสี">
+      <button type="button" data-theme="light" title="สว่าง"><?= icon('sun', 17) ?></button>
+      <button type="button" data-theme="dark"  title="มืด"><?= icon('moon', 17) ?></button>
+      <button type="button" data-theme="system" title="ตามระบบ"><?= icon('monitor', 17) ?></button>
+    </div>
+    <a href="index.php?page=login" class="btn btn-ghost" style="text-decoration:none;font-size:.875rem">
+      เข้าสู่ระบบ
+    </a>
+    <a href="index.php?page=register" class="btn btn-primary" style="text-decoration:none;font-size:.875rem">
+      สมัครสมาชิก
+    </a>
+  </div>
+</header>
+
+<div class="guest-wrap">
+<?php
+}
+
+function layout_end_guest(): void
+{
+    ?>
+</div><!-- .guest-wrap -->
+
+<!-- Toast container -->
+<div id="toast-container" style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none"></div>
+
+<!-- AI data for JS -->
+<script>
+window.AI_TOOLS = <?= json_encode(array_values(get_ai_tools()), JSON_UNESCAPED_UNICODE) ?>;
+</script>
+<script src="js/app.js"></script>
+</body>
+</html>
+<?php
+}
+
 // ── Modal helper ─────────────────────────────────────────────────────────────
 function modal_start(string $id, string $title, string $icon_name = '', bool $wide = false): void
 {

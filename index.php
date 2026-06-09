@@ -9,10 +9,24 @@ require_once __DIR__ . '/includes/layout.php';
 $page = $_GET['page'] ?? 'dashboard';
 
 // ── Pages that render their own full HTML (no app shell) ──────
-$standalone = ['login', 'register'];
+$standalone = ['login', 'register', 'explore'];
 if (in_array($page, $standalone, true)) {
     $file = __DIR__ . "/pages/{$page}.php";
     if (file_exists($file)) require $file;
+    exit;
+}
+
+// ── Pages accessible without login (guest layout) ─────────────
+$public_pages = ['course'];
+if (!is_logged_in() && in_array($page, $public_pages, true)) {
+    $title_map_pub = ['course' => 'รายวิชา'];
+    $title_pub = $title_map_pub[$page] ?? 'ClassroomAI';
+    layout_start_guest($title_pub);
+    echo '<div class="content" style="padding-top:1.5rem">';
+    $file = __DIR__ . "/pages/{$page}.php";
+    if (file_exists($file)) require $file;
+    echo '</div>';
+    layout_end_guest();
     exit;
 }
 
@@ -39,6 +53,7 @@ $title_map = [
     'workqueue'  => 'คิวงาน',
     'profile'         => 'โปรไฟล์',
     'course_settings' => 'ตั้งค่ารายวิชา',
+    'explore'         => 'ค้นหารายวิชา',
 ];
 $title = $title_map[$page] ?? 'ClassroomAI';
 
