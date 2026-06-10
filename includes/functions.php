@@ -299,15 +299,35 @@ function upload_example_file(string $field = 'example_file', ?string $existing =
     $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     $allowed = ['jpg','jpeg','png','gif','webp','pdf','doc','docx','ppt','pptx','xls','xlsx','txt','zip'];
     if (!in_array($ext, $allowed)) json_err('ประเภทไฟล์ไม่รองรับ (.' . $ext . ')');
-    $dir = __DIR__ . '/../uploads/examples/';
-    if (!is_dir($dir)) {
-        if (!mkdir($dir, 0755, true)) json_err('สร้างโฟลเดอร์ uploads/ ไม่ได้');
+    // สร้างโฟลเดอร์ถ้ายังไม่มี และตั้ง permission ให้ Apache เขียนได้
+    $uploads_root = __DIR__ . '/../uploads/';
+    $dir          = $uploads_root . 'examples/';
+
+    if (!is_dir($uploads_root)) {
+        @mkdir($uploads_root, 0777, true);
+        // ป้องกันการรัน script ใน uploads/
+        @file_put_contents($uploads_root . '.htaccess',
+            "Options -ExecCGI\nAddHandler cgi-script .php .pl .py .rb\nRemoveHandler .php .php3\n");
     }
-    if (!is_writable($dir)) json_err('ไม่มีสิทธิ์เขียนโฟลเดอร์ uploads/ กรุณาแจ้งผู้ดูแลระบบ');
-    if ($existing) { $old = __DIR__ . '/../' . $existing; if (file_exists($old)) unlink($old); }
+    if (!is_dir($dir)) {
+        if (!@mkdir($dir, 0777, true)) {
+            json_err('สร้างโฟลเดอร์ uploads/examples/ ไม่ได้ — กรุณาสร้างด้วยตนเองแล้วให้สิทธิ์ write');
+        }
+        // ไฟล์ป้องกัน script execution
+        @file_put_contents($dir . '.htaccess',
+            "Options -ExecCGI\nAddHandler cgi-script .php .pl .py .rb\nRemoveHandler .php .php3\n");
+    }
+    // ตั้ง permission ซ้ำทุกครั้งเผื่อ Apache user ต่างกัน (Windows XAMPP)
+    @chmod($dir, 0777);
+
+    if (!is_writable($dir)) {
+        json_err('ไม่มีสิทธิ์เขียนโฟลเดอร์ uploads/examples/ — เปิด XAMPP Shell แล้วรัน: icacls "' .
+            realpath($dir) . '" /grant Everyone:F');
+    }
+    if ($existing) { $old = __DIR__ . '/../' . $existing; if (file_exists($old)) @unlink($old); }
     $filename = uniqid('ex_') . '.' . $ext;
     if (!move_uploaded_file($file['tmp_name'], $dir . $filename)) {
-        json_err('บันทึกไฟล์ล้มเหลว ตรวจสอบสิทธิ์โฟลเดอร์ uploads/');
+        json_err('บันทึกไฟล์ล้มเหลว — กรุณาตรวจสอบสิทธิ์โฟลเดอร์ uploads/examples/');
     }
     return ['path' => 'uploads/examples/' . $filename, 'name' => $file['name']];
 }
