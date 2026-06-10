@@ -299,35 +299,51 @@ function upload_example_file(string $field = 'example_file', ?string $existing =
     $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     $allowed = ['jpg','jpeg','png','gif','webp','pdf','doc','docx','ppt','pptx','xls','xlsx','txt','zip'];
     if (!in_array($ext, $allowed)) json_err('ประเภทไฟล์ไม่รองรับ (.' . $ext . ')');
-    // สร้างโฟลเดอร์ถ้ายังไม่มี และตั้ง permission ให้ Apache เขียนได้
+    // สร้างโฟลเดอร์ถ้ายังไม่มี และตั้ง permission ให้ Apache/web server เขียนได้
     $uploads_root = __DIR__ . '/../uploads/';
     $dir          = $uploads_root . 'examples/';
+    $htaccess     = "Options -ExecCGI\nAddHandler cgi-script .php .pl .py .rb\nRemoveHandler .php .php3\nphp_flag engine off\n";
+    $is_windows   = DIRECTORY_SEPARATOR === '\\';
 
+    // สร้าง uploads/ root ถ้ายังไม่มี
     if (!is_dir($uploads_root)) {
-        @mkdir($uploads_root, 0777, true);
-        // ป้องกันการรัน script ใน uploads/
-        @file_put_contents($uploads_root . '.htaccess',
-            "Options -ExecCGI\nAddHandler cgi-script .php .pl .py .rb\nRemoveHandler .php .php3\n");
+        @mkdir($uploads_root, 0775, true);
+        @chmod($uploads_root, 0775);
+        @file_put_contents($uploads_root . '.htaccess', $htaccess);
     }
-    if (!is_dir($dir)) {
-        if (!@mkdir($dir, 0777, true)) {
-            json_err('สร้างโฟลเดอร์ uploads/examples/ ไม่ได้ — กรุณาสร้างด้วยตนเองแล้วให้สิทธิ์ write');
-        }
-        // ไฟล์ป้องกัน script execution
-        @file_put_contents($dir . '.htaccess',
-            "Options -ExecCGI\nAddHandler cgi-script .php .pl .py .rb\nRemoveHandler .php .php3\n");
-    }
-    // ตั้ง permission ซ้ำทุกครั้งเผื่อ Apache user ต่างกัน (Windows XAMPP)
-    @chmod($dir, 0777);
 
-    if (!is_writable($dir)) {
-        json_err('ไม่มีสิทธิ์เขียนโฟลเดอร์ uploads/examples/ — เปิด XAMPP Shell แล้วรัน: icacls "' .
-            realpath($dir) . '" /grant Everyone:F');
+    // สร้าง uploads/examples/ ถ้ายังไม่มี
+    if (!is_dir($dir)) {
+        if (!@mkdir($dir, 0775, true)) {
+            $path = realpath($uploads_root) ?: $uploads_root;
+            $cmd  = $is_windows
+                ? "mkdir \"{$path}examples\" && icacls \"{$path}examples\" /grant Everyone:F"
+                : "mkdir -p {$path}examples && chmod 775 {$path}examples";
+            json_err("สร้างโฟลเดอร์ uploads/examples/ ไม่ได้ — รันคำสั่งนี้บน server: {$cmd}");
+        }
+        @chmod($dir, 0775);
+        @file_put_contents($dir . '.htaccess', $htaccess);
     }
+
+    // พยายาม chmod ก่อน write (อาจล้มเหลวถ้า owner ต่างกัน — ไม่เป็นไร)
+    @chmod($dir, 0775);
+
+    // ถ้ายังเขียนไม่ได้ ให้แสดงคำสั่งที่ถูกต้องตาม OS
+    if (!is_writable($dir)) {
+        $real = realpath($dir) ?: $dir;
+        if ($is_windows) {
+            $fix = "icacls \"{$real}\" /grant Everyone:(OI)(CI)F";
+        } else {
+            $fix = "chmod 775 {$real}  (หรือ chown www-data:www-data {$real} && chmod 755 {$real})";
+        }
+        json_err("ไม่มีสิทธิ์เขียนโฟลเดอร์ uploads/examples/ — รันคำสั่งนี้บน server แล้ว reload:\n{$fix}");
+    }
+
     if ($existing) { $old = __DIR__ . '/../' . $existing; if (file_exists($old)) @unlink($old); }
     $filename = uniqid('ex_') . '.' . $ext;
     if (!move_uploaded_file($file['tmp_name'], $dir . $filename)) {
-        json_err('บันทึกไฟล์ล้มเหลว — กรุณาตรวจสอบสิทธิ์โฟลเดอร์ uploads/examples/');
+        $real = realpath($dir) ?: $dir;
+        json_err("บันทึกไฟล์ล้มเหลว — ตรวจสอบ: ls -la {$real}");
     }
     return ['path' => 'uploads/examples/' . $filename, 'name' => $file['name']];
 }
