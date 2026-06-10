@@ -273,6 +273,21 @@ function get_submissions_for_assignment(int $assignment_id): array
     return $subs;
 }
 
+function thai_due_ts(string $due): int
+{
+    static $months = [
+        'ม.ค.' => 1, 'ก.พ.' => 2, 'มี.ค.' => 3, 'เม.ย.' => 4,
+        'พ.ค.' => 5, 'มิ.ย.' => 6, 'ก.ค.' => 7, 'ส.ค.' => 8,
+        'ก.ย.' => 9, 'ต.ค.' => 10, 'พ.ย.' => 11, 'ธ.ค.' => 12,
+    ];
+    if (!preg_match('/(\d+)\s+(\S+)\s+(\d{4})(?:.*?(\d{2}:\d{2}))?/', $due, $m)) return 0;
+    $month = $months[$m[2]] ?? 0;
+    if (!$month) return 0;
+    $y    = (int)$m[3] - 543;
+    [$h, $min] = explode(':', $m[4] ?? '23:59');
+    return (int)mktime((int)$h, (int)$min, 0, $month, (int)$m[1], $y);
+}
+
 function count_pending_for_teacher(): int
 {
     return (int) db_val('

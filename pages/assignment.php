@@ -39,7 +39,11 @@ $total_enrolled = (int)db_val('SELECT COUNT(*) FROM course_enrollments WHERE cou
       <?php if ($a['allow_improve']): ?>
       <span class="badge blue"><?= icon('sparkle', 12) ?> ปรับ prompt ได้</span>
       <?php endif; ?>
-      <span class="badge orange" style="margin-left:auto"><?= icon('clock', 13) ?> กำหนดส่ง <?= h($a['due_date']) ?></span>
+      <?php $due_ts = thai_due_ts($a['due_date']); ?>
+      <span class="badge orange" style="margin-left:auto" id="due-badge">
+        <?= icon('clock', 13) ?> กำหนดส่ง <?= h($a['due_date']) ?><?php if ($due_ts): ?>
+        <span id="due-remain" data-due-ts="<?= $due_ts ?>" style="opacity:.85"></span><?php endif; ?>
+      </span>
       <?php if (is_teacher()): ?>
       <button class="btn btn-sm btn-ghost" onclick="openModal('edit-assignment')"><?= icon('edit', 15) ?> แก้ไข</button>
       <?php endif; ?>
@@ -444,3 +448,50 @@ document.addEventListener('DOMContentLoaded', function() {
   <?php endif; // my_sub ?>
   <?php endif; // is_teacher ?>
 </div>
+
+<script>
+(function () {
+  var el = document.getElementById('due-remain');
+  if (!el) return;
+  var ts = parseInt(el.dataset.dueTs, 10) * 1000;
+  if (!ts) return;
+  var badge = document.getElementById('due-badge');
+
+  function fmt(n) { return String(n).padStart(2, '0'); }
+
+  function tick() {
+    var diff = ts - Date.now();
+    if (diff <= 0) {
+      el.textContent = ' · เกินกำหนดแล้ว';
+      if (badge) { badge.style.background = '#fca5a5'; badge.style.color = '#7f1d1d'; }
+      return;
+    }
+    var days  = Math.floor(diff / 86400000);
+    var hours = Math.floor(diff % 86400000 / 3600000);
+    var mins  = Math.floor(diff % 3600000 / 60000);
+    var secs  = Math.floor(diff % 60000 / 1000);
+    var next;
+
+    if (days >= 7) {
+      el.textContent = ' · อีก ' + days + ' วัน';
+      next = 3600000;
+    } else if (days >= 2) {
+      el.textContent = ' · อีก ' + days + ' วัน';
+      next = 60000;
+    } else if (days >= 1) {
+      el.textContent = ' · อีก 1 วัน ' + hours + ' ชม.';
+      next = 60000;
+    } else if (hours >= 1) {
+      el.textContent = ' · อีก ' + fmt(hours) + ':' + fmt(mins) + ':' + fmt(secs);
+      if (badge) { badge.style.background = '#fed7aa'; badge.style.color = '#7c2d12'; }
+      next = 1000;
+    } else {
+      el.textContent = ' · อีก ' + fmt(mins) + ':' + fmt(secs);
+      if (badge) { badge.style.background = '#fca5a5'; badge.style.color = '#7f1d1d'; }
+      next = 1000;
+    }
+    setTimeout(tick, next);
+  }
+  tick();
+})();
+</script>
