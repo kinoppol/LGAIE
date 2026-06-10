@@ -142,33 +142,52 @@ function get_ai(string $id): array|false
 
 function get_courses_with_stats(bool $include_archived = false): array
 {
-    $where = $include_archived ? '' : 'WHERE c.is_archived = 0';
-    try {
-        return db_rows("
+    $uid = current_user_id();
+
+    if (is_teacher()) {
+        $archived_clause = $include_archived ? '' : 'AND c.is_archived = 0';
+        $sql    = "
             SELECT c.*,
                 u.avatar_class AS teacher_av,
                 u.initials     AS teacher_initials,
                 u.name         AS teacher_name,
-                (SELECT COUNT(*) FROM lessons        WHERE course_id = c.id) AS lesson_count,
-                (SELECT COUNT(*) FROM assignments     WHERE course_id = c.id) AS assignment_count,
-                (SELECT COUNT(*) FROM course_enrollments WHERE course_id = c.id) AS student_count
+                (SELECT COUNT(*) FROM lessons             WHERE course_id = c.id) AS lesson_count,
+                (SELECT COUNT(*) FROM assignments          WHERE course_id = c.id) AS assignment_count,
+                (SELECT COUNT(*) FROM course_enrollments  WHERE course_id = c.id) AS student_count
             FROM courses c
             JOIN users u ON u.id = c.teacher_id
-            {$where} ORDER BY c.id
-        ");
+            WHERE c.teacher_id = ? {$archived_clause}
+            ORDER BY c.id
+        ";
+        $params = [$uid];
+    } else {
+        $archived_clause = $include_archived ? '' : 'AND c.is_archived = 0';
+        $sql    = "
+            SELECT c.*,
+                u.avatar_class AS teacher_av,
+                u.initials     AS teacher_initials,
+                u.name         AS teacher_name,
+                (SELECT COUNT(*) FROM lessons             WHERE course_id = c.id) AS lesson_count,
+                (SELECT COUNT(*) FROM assignments          WHERE course_id = c.id) AS assignment_count,
+                (SELECT COUNT(*) FROM course_enrollments  WHERE course_id = c.id) AS student_count
+            FROM courses c
+            JOIN users u ON u.id = c.teacher_id
+            JOIN course_enrollments e ON e.course_id = c.id AND e.user_id = ?
+            WHERE 1=1 {$archived_clause}
+            ORDER BY c.id
+        ";
+        $params = [$uid];
+    }
+
+    try {
+        return db_rows($sql, $params);
     } catch (PDOException $e) {
         // Column is_archived not yet in DB — auto-add it then retry
         if (str_contains($e->getMessage(), 'is_archived')) {
             get_db()->exec("ALTER TABLE courses
                 ADD COLUMN IF NOT EXISTS is_archived TINYINT(1) DEFAULT 0,
                 ADD COLUMN IF NOT EXISTS archived_at DATETIME NULL");
-            return db_rows("
-                SELECT c.*,
-                    (SELECT COUNT(*) FROM lessons        WHERE course_id = c.id) AS lesson_count,
-                    (SELECT COUNT(*) FROM assignments     WHERE course_id = c.id) AS assignment_count,
-                    (SELECT COUNT(*) FROM course_enrollments WHERE course_id = c.id) AS student_count
-                FROM courses c {$where} ORDER BY c.id
-            ");
+            return db_rows($sql, $params);
         }
         throw $e;
     }

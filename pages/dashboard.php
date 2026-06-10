@@ -4,7 +4,10 @@ declare(strict_types=1);
 $role    = current_role();
 $user    = current_user();
 $courses = get_courses_with_stats();
-$all_assignments = db_rows('SELECT a.*, c.name AS course_name, c.primary_color AS course_color FROM assignments a JOIN courses c ON c.id = a.course_id WHERE c.is_archived = 0 ORDER BY a.id LIMIT 6');
+$_dash_uid = current_user_id();
+$all_assignments = is_teacher()
+    ? db_rows('SELECT a.*, c.name AS course_name, c.primary_color AS course_color FROM assignments a JOIN courses c ON c.id = a.course_id WHERE c.is_archived = 0 AND c.teacher_id = ? ORDER BY a.due_date ASC LIMIT 6', [$_dash_uid])
+    : db_rows('SELECT a.*, c.name AS course_name, c.primary_color AS course_color FROM assignments a JOIN courses c ON c.id = a.course_id JOIN course_enrollments e ON e.course_id = c.id AND e.user_id = ? WHERE c.is_archived = 0 AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.assignment_id = a.id AND s.student_id = ?) ORDER BY a.due_date ASC LIMIT 6', [$_dash_uid, $_dash_uid]);
 $first_name = $user['name'] ?? '';
 ?>
 
@@ -45,19 +48,19 @@ $first_name = $user['name'] ?? '';
         SELECT COUNT(*) FROM lesson_prompts lp
         JOIN lessons l ON l.id = lp.lesson_id
         JOIN courses c ON c.id = l.course_id
-        WHERE c.is_archived = 0
-    ') + (int)db_val('
+        WHERE c.is_archived = 0 AND c.teacher_id = ?
+    ', [$_dash_uid]) + (int)db_val('
         SELECT COUNT(*) FROM assignment_prompts ap
         JOIN assignments a ON a.id = ap.assignment_id
         JOIN courses c     ON c.id = a.course_id
-        WHERE c.is_archived = 0
-    ');
+        WHERE c.is_archived = 0 AND c.teacher_id = ?
+    ', [$_dash_uid]);
   $student_cnt = (int)db_val('
         SELECT COUNT(DISTINCT e.user_id) FROM course_enrollments e
         JOIN courses c ON c.id = e.course_id
         JOIN users u   ON u.id = e.user_id
-        WHERE c.is_archived = 0 AND u.role = "student"
-    ');
+        WHERE c.is_archived = 0 AND c.teacher_id = ? AND u.role = "student"
+    ', [$_dash_uid]);
   ?>
   <div class="card card-pad" style="flex:1">
     <div class="stat">
