@@ -114,6 +114,7 @@ $c = get_course((int)$lesson['course_id']);
     <div class="field">
       <label>ผลลัพธ์ตัวอย่าง <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
       <textarea class="textarea" name="example_text" style="min-height:70px"><?= h($p['example_text'] ?? '') ?></textarea>
+      <?php example_file_input($p['example_file'] ?? null) ?>
     </div>
     <div class="field">
       <label>หมายเหตุ/คำแนะนำ <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>

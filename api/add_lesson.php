@@ -20,10 +20,11 @@ if (!$title || !$week || !$prompt_txt || !$course_id) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
 
-// Allow ai_id to be NULL for existing installations
-try {
-    get_db()->exec("ALTER TABLE lesson_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL");
-} catch (PDOException) {}
+// Auto-migrate columns
+try { get_db()->exec("ALTER TABLE lesson_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL"); } catch (PDOException) {}
+try { get_db()->exec("ALTER TABLE lesson_prompts ADD COLUMN example_file VARCHAR(255) NULL"); } catch (PDOException) {}
+
+$example_file = upload_example_file();
 
 $db = get_db();
 $db->beginTransaction();
@@ -34,8 +35,8 @@ try {
         [$course_id, $title, $week, $desc, $sort]
     );
     db_run(
-        'INSERT INTO lesson_prompts (lesson_id, prompt_text, ai_id, rating, example_text, note_text) VALUES (?,?,?,?,?,?)',
-        [$lesson_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $note ?: null]
+        'INSERT INTO lesson_prompts (lesson_id, prompt_text, ai_id, rating, example_text, example_file, note_text) VALUES (?,?,?,?,?,?,?)',
+        [$lesson_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $note ?: null]
     );
     $db->commit();
     json_ok(['lesson_id' => $lesson_id, 'message' => 'เพิ่มบทเรียนเรียบร้อยแล้ว']);

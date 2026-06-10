@@ -28,8 +28,12 @@ $owns = db_val('
 ', [$lesson_id, current_user_id()]);
 if (!$owns) json_err('ไม่มีสิทธิ์แก้ไขบทเรียนนี้', 403);
 
-// Allow ai_id to be NULL for existing installations
+// Auto-migrate columns
 try { get_db()->exec("ALTER TABLE lesson_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL"); } catch (PDOException) {}
+try { get_db()->exec("ALTER TABLE lesson_prompts ADD COLUMN example_file VARCHAR(255) NULL"); } catch (PDOException) {}
+
+$existing_file = db_val('SELECT example_file FROM lesson_prompts WHERE lesson_id = ?', [$lesson_id]) ?: null;
+$example_file  = upload_example_file('example_file', $existing_file);
 
 $db = get_db();
 $db->beginTransaction();
@@ -42,13 +46,13 @@ try {
     $has_prompt = db_val('SELECT 1 FROM lesson_prompts WHERE lesson_id = ?', [$lesson_id]);
     if ($has_prompt) {
         db_run(
-            'UPDATE lesson_prompts SET prompt_text = ?, ai_id = ?, rating = ?, example_text = ?, note_text = ? WHERE lesson_id = ?',
-            [$prompt_txt, $ai_id ?: null, $rating, $example ?: null, $note ?: null, $lesson_id]
+            'UPDATE lesson_prompts SET prompt_text = ?, ai_id = ?, rating = ?, example_text = ?, example_file = ?, note_text = ? WHERE lesson_id = ?',
+            [$prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $note ?: null, $lesson_id]
         );
     } else {
         db_run(
-            'INSERT INTO lesson_prompts (lesson_id, prompt_text, ai_id, rating, example_text, note_text) VALUES (?,?,?,?,?,?)',
-            [$lesson_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $note ?: null]
+            'INSERT INTO lesson_prompts (lesson_id, prompt_text, ai_id, rating, example_text, example_file, note_text) VALUES (?,?,?,?,?,?,?)',
+            [$lesson_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $note ?: null]
         );
     }
 

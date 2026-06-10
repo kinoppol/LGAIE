@@ -231,6 +231,10 @@ ALTER TABLE course_enrollments
 ALTER TABLE lesson_prompts     MODIFY COLUMN ai_id VARCHAR(20) NULL;
 ALTER TABLE assignment_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL;
 
+-- Example output file upload support (image / PDF / document, max 10 MB)
+ALTER TABLE lesson_prompts     ADD COLUMN IF NOT EXISTS example_file VARCHAR(255) NULL;
+ALTER TABLE assignment_prompts ADD COLUMN IF NOT EXISTS example_file VARCHAR(255) NULL;
+
 
 -- ============================================================
 -- SEED DATA

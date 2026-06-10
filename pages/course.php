@@ -433,6 +433,7 @@ if (!$guest_mode && is_teacher()):
     <div class="field">
       <label>ผลลัพธ์ตัวอย่าง <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
       <textarea class="textarea" name="example_text" style="min-height:70px" placeholder="สรุปสั้น ๆ ว่า AI ตอบกลับมาอย่างไร…"></textarea>
+      <?php example_file_input() ?>
     </div>
     <div class="field">
       <label>หมายเหตุ/คำแนะนำ <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
@@ -508,6 +509,7 @@ if (!$guest_mode && is_teacher()):
     <div class="field">
       <label>ผลลัพธ์ตัวอย่าง <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
       <textarea class="textarea" name="example_text" style="min-height:70px" placeholder="สรุปสั้น ๆ ว่า AI ตอบกลับมาอย่างไร…"></textarea>
+      <?php example_file_input() ?>
     </div>
     <div class="field">
       <label>หมายเหตุ/คำแนะนำ <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
