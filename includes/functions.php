@@ -5,6 +5,38 @@ date_default_timezone_set('Asia/Bangkok');
 
 require_once __DIR__ . '/provinces.php';
 
+// ── App Version ────────────────────────────────────────────────────────────
+
+function get_app_version(): string
+{
+    static $ver = null;
+    if ($ver !== null) return $ver;
+
+    // 1) อ่านจาก .git/logs/HEAD (แม่นยำ, ทำงานได้แม้ refs ถูก pack)
+    $git_log = __DIR__ . '/../.git/logs/HEAD';
+    if (is_readable($git_log)) {
+        $last = '';
+        $fh   = fopen($git_log, 'r');
+        while (($line = fgets($fh)) !== false) $last = $line;
+        fclose($fh);
+        // format: <old> <new> Name <email> <unix_ts> <tz>\t<msg>
+        if (preg_match('/>\s+(\d{10,})\s+[+-]\d{4}/', $last, $m)) {
+            $ver = '0.' . date('ymdHi', (int)$m[1]);
+            return $ver;
+        }
+    }
+
+    // 2) fallback: อ่านจาก version.php (สร้างตอน deploy)
+    $vfile = __DIR__ . '/../version.php';
+    if (is_readable($vfile)) {
+        require_once $vfile;
+        if (defined('APP_VERSION')) { $ver = APP_VERSION; return $ver; }
+    }
+
+    $ver = '0.000000000';
+    return $ver;
+}
+
 // ── HTML / Output ──────────────────────────────────────────────────────────
 
 function h(string $s): string

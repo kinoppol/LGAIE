@@ -130,6 +130,9 @@ function layout_start(string $page_title = 'ClassroomAI'): void
         <div class="cm-sub">ตรวจสอบคำตอบเสมอ</div>
       </div>
     </div>
+    <div style="margin-top:10px;text-align:center;font-size:11px;color:var(--faint);letter-spacing:.04em;user-select:none">
+      v<?= get_app_version() ?>
+    </div>
   </div>
 </aside>
 
