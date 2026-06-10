@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+date_default_timezone_set('Asia/Bangkok');
+
 require_once __DIR__ . '/provinces.php';
 
 // ── HTML / Output ──────────────────────────────────────────────────────────
