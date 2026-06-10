@@ -67,6 +67,7 @@ function redirect(string $url): never
 
 function json_ok(array $data = []): never
 {
+    while (ob_get_level() > 0) ob_end_clean();
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['ok' => true, ...$data], JSON_UNESCAPED_UNICODE);
     exit;
@@ -74,6 +75,7 @@ function json_ok(array $data = []): never
 
 function json_err(string $msg, int $code = 400): never
 {
+    while (ob_get_level() > 0) ob_end_clean();
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['ok' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE);
@@ -277,18 +279,35 @@ function get_submissions_for_assignment(int $assignment_id): array
 
 function upload_example_file(string $field = 'example_file', ?string $existing = null): ?string
 {
-    if (empty($_FILES[$field]['name'])) return $existing;
+    if (!isset($_FILES[$field]) || $_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE || empty($_FILES[$field]['name'])) {
+        return $existing;
+    }
     $file = $_FILES[$field];
-    if ($file['error'] !== UPLOAD_ERR_OK) return $existing;
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        $msgs = [
+            UPLOAD_ERR_INI_SIZE   => 'ไฟล์ใหญ่เกินที่ PHP กำหนด (upload_max_filesize)',
+            UPLOAD_ERR_FORM_SIZE  => 'ไฟล์ใหญ่เกินที่กำหนดในฟอร์ม',
+            UPLOAD_ERR_PARTIAL    => 'อัปโหลดไม่ครบ กรุณาลองอีกครั้ง',
+            UPLOAD_ERR_NO_TMP_DIR => 'ไม่มีโฟลเดอร์ชั่วคราว กรุณาแจ้งผู้ดูแลระบบ',
+            UPLOAD_ERR_CANT_WRITE => 'บันทึกไฟล์ไม่ได้ กรุณาแจ้งผู้ดูแลระบบ',
+            UPLOAD_ERR_EXTENSION  => 'PHP extension บล็อกการอัปโหลด',
+        ];
+        json_err($msgs[$file['error']] ?? 'อัปโหลดล้มเหลว (PHP error ' . $file['error'] . ')');
+    }
     if ($file['size'] > 10 * 1024 * 1024) json_err('ไฟล์ตัวอย่างใหญ่เกิน 10 MB');
     $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     $allowed = ['jpg','jpeg','png','gif','webp','pdf','doc','docx','ppt','pptx','xls','xlsx','txt','zip'];
-    if (!in_array($ext, $allowed)) json_err('ประเภทไฟล์ไม่รองรับ');
+    if (!in_array($ext, $allowed)) json_err('ประเภทไฟล์ไม่รองรับ (.' . $ext . ')');
     $dir = __DIR__ . '/../uploads/examples/';
-    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    if (!is_dir($dir)) {
+        if (!mkdir($dir, 0755, true)) json_err('สร้างโฟลเดอร์ uploads/ ไม่ได้');
+    }
+    if (!is_writable($dir)) json_err('ไม่มีสิทธิ์เขียนโฟลเดอร์ uploads/ กรุณาแจ้งผู้ดูแลระบบ');
     if ($existing) { $old = __DIR__ . '/../' . $existing; if (file_exists($old)) unlink($old); }
     $filename = uniqid('ex_') . '.' . $ext;
-    move_uploaded_file($file['tmp_name'], $dir . $filename);
+    if (!move_uploaded_file($file['tmp_name'], $dir . $filename)) {
+        json_err('บันทึกไฟล์ล้มเหลว ตรวจสอบสิทธิ์โฟลเดอร์ uploads/');
+    }
     return 'uploads/examples/' . $filename;
 }
 

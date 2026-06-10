@@ -75,7 +75,7 @@ $c = get_course((int)$lesson['course_id']);
     modal_start('edit-lesson', 'แก้ไขบทเรียน', 'book', true, true);
     $p = $lesson['prompt'];
 ?>
-<form method="post" action="api/edit_lesson.php" data-ajax>
+<form method="post" action="api/edit_lesson.php" data-ajax enctype="multipart/form-data">
   <input type="hidden" name="lesson_id" value="<?= $lesson_id ?>">
   <div class="field">
     <label>หัวข้อบทเรียน <span style="color:var(--danger)">*</span></label>

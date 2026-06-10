@@ -390,7 +390,7 @@ if (!$guest_mode && is_teacher()):
 // ── Add Lesson Modal ──────────────────────────────────────────
     modal_start('add-lesson', 'เพิ่มเนื้อหาบทเรียน + Prompt AI', 'book', true);
 ?>
-<form id="add-lesson-form" method="post" action="api/add_lesson.php" data-ajax>
+<form id="add-lesson-form" method="post" action="api/add_lesson.php" data-ajax enctype="multipart/form-data">
   <input type="hidden" name="course_id" value="<?= $course_id ?>">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;color:var(--muted);font-size:13px">
     <?= icon('grid', 15) ?> <?= h($c['name']) ?> · <?= h($c['section']) ?>
@@ -447,7 +447,7 @@ if (!$guest_mode && is_teacher()):
 // ── Add Assignment Modal ──────────────────────────────────────
     modal_start('add-assignment', 'เพิ่มงาน / การบ้าน + Prompt AI', 'clipboard', true, true);
 ?>
-<form id="add-assignment-form" method="post" action="api/add_assignment.php" data-ajax>
+<form id="add-assignment-form" method="post" action="api/add_assignment.php" data-ajax enctype="multipart/form-data">
   <input type="hidden" name="course_id" value="<?= $course_id ?>">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;color:var(--muted);font-size:13px">
     <?= icon('grid', 15) ?> <?= h($c['name']) ?> · <?= h($c['section']) ?>

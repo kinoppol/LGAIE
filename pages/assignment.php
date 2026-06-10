@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', function() {
   $ep = $a['prompt'];
   modal_start('edit-assignment', 'แก้ไขงาน', 'clipboard', true, true);
   ?>
-  <form method="post" action="api/edit_assignment.php" data-ajax>
+  <form method="post" action="api/edit_assignment.php" data-ajax enctype="multipart/form-data">
     <input type="hidden" name="assignment_id" value="<?= $assignment_id ?>">
     <div class="field">
       <label>ชื่องาน <span style="color:var(--danger)">*</span></label>
