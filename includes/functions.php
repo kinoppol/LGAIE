@@ -351,12 +351,44 @@ function upload_example_file(string $field = 'example_file', ?string $existing =
 function example_file_input(?string $existing = null, ?string $existing_name = null): void
 {
     $display = $existing ? ($existing_name ?? basename($existing)) : null;
-    $lbl = $display ?? 'แนบไฟล์ (ภาพ / PDF / เอกสาร ไม่เกิน 10 MB)';
+    $lbl     = $display ?? 'แนบไฟล์ (ภาพ / PDF / เอกสาร ไม่เกิน 10 MB)';
+    $uid     = 'ef_' . substr(md5(uniqid()), 0, 6); // unique id สำหรับ DOM
     ?>
-    <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <label style="cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-size:12.5px;
-                    color:var(--sub);padding:7px 12px;border:1.5px dashed var(--line-2);border-radius:8px;
-                    transition:border-color .15s,color .15s"
+    <div style="margin-top:6px" id="<?= $uid ?>-wrap">
+      <!-- hidden input: เมื่อกดลบจะถูก set เป็น "1" -->
+      <input type="hidden" name="remove_example_file" id="<?= $uid ?>-rm" value="0">
+
+      <?php if ($existing): ?>
+      <!-- แสดงไฟล์ที่มีอยู่ -->
+      <div id="<?= $uid ?>-existing"
+           style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;
+                  border:1.5px solid var(--line-2);border-radius:8px;background:var(--surface-2)">
+        <?= icon('paperclip', 14, 'var(--sub)') ?>
+        <span style="font-size:12.5px;color:var(--body);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          <?= h($display) ?>
+        </span>
+        <a href="<?= h($existing) ?>" target="_blank" class="btn btn-sm btn-ghost" style="font-size:12px;padding:3px 9px">
+          <?= icon('download', 13) ?> ดูไฟล์
+        </a>
+        <button type="button"
+                style="width:28px;height:28px;border-radius:7px;border:none;cursor:pointer;
+                       background:var(--danger-soft,#fee2e2);color:#ef4444;display:grid;place-items:center;flex:0 0 auto"
+                title="ลบไฟล์นี้"
+                onclick="
+                  document.getElementById('<?= $uid ?>-existing').style.display='none';
+                  document.getElementById('<?= $uid ?>-new').style.display='flex';
+                  document.getElementById('<?= $uid ?>-rm').value='1';
+                ">
+          <?= icon('x', 14, '#ef4444') ?>
+        </button>
+      </div>
+      <?php endif; ?>
+
+      <!-- ช่องเลือกไฟล์ใหม่ (ซ่อนถ้ามีไฟล์อยู่แล้ว จนกว่าจะกดลบ) -->
+      <label id="<?= $uid ?>-new"
+             style="cursor:pointer;display:<?= $existing ? 'none' : 'inline-flex' ?>;align-items:center;gap:7px;
+                    font-size:12.5px;color:var(--sub);padding:7px 12px;
+                    border:1.5px dashed var(--line-2);border-radius:8px;transition:border-color .15s,color .15s"
              onmouseenter="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'"
              onmouseleave="this.style.borderColor='var(--line-2)';this.style.color='var(--sub)'">
         <?= icon('paperclip', 14) ?>
@@ -364,13 +396,12 @@ function example_file_input(?string $existing = null, ?string $existing_name = n
         <input type="file" name="example_file"
                accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip"
                style="display:none"
-               onchange="var s=this.closest('label').querySelector('.ef-lbl');s.textContent=this.files[0]?this.files[0].name:'แนบไฟล์ (ภาพ / PDF / เอกสาร ไม่เกิน 10 MB)'">
+               onchange="
+                 var s=this.closest('label').querySelector('.ef-lbl');
+                 s.textContent=this.files[0]?this.files[0].name:'แนบไฟล์ (ภาพ / PDF / เอกสาร ไม่เกิน 10 MB)';
+                 if(this.files[0]) document.getElementById('<?= $uid ?>-rm').value='0';
+               ">
       </label>
-      <?php if ($existing): ?>
-      <a href="<?= h($existing) ?>" target="_blank" class="btn btn-sm btn-ghost" style="font-size:12px">
-        <?= icon('download', 13) ?> ดูไฟล์เดิม
-      </a>
-      <?php endif; ?>
     </div>
     <?php
 }

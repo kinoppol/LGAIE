@@ -35,7 +35,14 @@ try { get_db()->exec("ALTER TABLE lesson_prompts ADD COLUMN example_file_name VA
 
 $existing_file      = db_val('SELECT example_file      FROM lesson_prompts WHERE lesson_id = ?', [$lesson_id]) ?: null;
 $existing_file_name = db_val('SELECT example_file_name FROM lesson_prompts WHERE lesson_id = ?', [$lesson_id]) ?: null;
-['path' => $example_file, 'name' => $example_file_name] = upload_example_file('example_file', $existing_file, $existing_file_name);
+
+// ถ้ากดลบไฟล์เดิม
+if (($_POST['remove_example_file'] ?? '0') === '1') {
+    if ($existing_file) { $old = __DIR__ . '/../' . $existing_file; if (file_exists($old)) @unlink($old); }
+    $example_file = null; $example_file_name = null;
+} else {
+    ['path' => $example_file, 'name' => $example_file_name] = upload_example_file('example_file', $existing_file, $existing_file_name);
+}
 
 $db = get_db();
 $db->beginTransaction();
