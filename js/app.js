@@ -147,8 +147,7 @@ function setStars(svg) {
     const path = s.querySelector('path');
     if (path) path.setAttribute('fill', fill);
   });
-  // update display badge — next sibling element of the star-input wrapper
-  const disp = wrap.nextElementSibling;
+  const disp = wrap.querySelector('.star-badge');
   if (disp) disp.textContent = value + '/5';
 }
 

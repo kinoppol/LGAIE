@@ -426,11 +426,12 @@ function star_rating(int $value, int $size = 15): string
 
 function star_input(int $value = 4, string $name = 'rating'): string
 {
-    $out = "<div class=\"star-input\" data-name=\"{$name}\" data-value=\"{$value}\" style=\"display:inline-flex;gap:4px;cursor:pointer\">";
+    $out = "<div class=\"star-input\" data-name=\"{$name}\" data-value=\"{$value}\" style=\"display:inline-flex;align-items:center;gap:4px;cursor:pointer\">";
     for ($i = 1; $i <= 5; $i++) {
         $fill = $i <= $value ? '#ff9f43' : '#e4e7ee';
         $out .= "<svg data-v=\"{$i}\" width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" onclick=\"setStars(this)\" style=\"cursor:pointer\"><path d=\"M12 3.5l2.6 5.6 6 .8-4.4 4.1 1.1 6L12 17.3 6.7 20l1.1-6L3.4 9.9l6-.8z\" fill=\"{$fill}\"/></svg>";
     }
+    $out .= "<span class=\"badge gray star-badge\" style=\"margin-left:4px\">{$value}/5</span>";
     $out .= "<input type=\"hidden\" name=\"{$name}\" value=\"{$value}\"></div>";
     return $out;
 }

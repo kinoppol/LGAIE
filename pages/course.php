@@ -419,10 +419,7 @@ if (!$guest_mode && is_teacher()):
       </div>
       <div class="field" style="flex:1">
         <label>ระดับความพอใจ</label>
-        <div style="display:flex;align-items:center;gap:10px;height:44px">
-          <?= star_input(4, 'rating') ?>
-          <span class="badge gray" id="rating-display">4/5</span>
-        </div>
+        <?= star_input(4, 'rating') ?>
       </div>
     </div>
     <div class="field">
@@ -497,10 +494,7 @@ if (!$guest_mode && is_teacher()):
       </div>
       <div class="field" style="flex:1">
         <label>ระดับความพอใจ</label>
-        <div style="display:flex;align-items:center;gap:10px;height:44px">
-          <?= star_input(4, 'rating') ?>
-          <span class="badge gray" id="asgn-rating-display">4/5</span>
-        </div>
+        <?= star_input(4, 'rating') ?>
       </div>
     </div>
     <div class="field">

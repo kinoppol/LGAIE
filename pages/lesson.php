@@ -108,10 +108,7 @@ $c = get_course((int)$lesson['course_id']);
       </div>
       <div class="field" style="flex:1">
         <label>ระดับความพอใจ</label>
-        <div style="display:flex;align-items:center;gap:10px;height:44px">
-          <?= star_input((int)($p['rating'] ?? 4), 'rating') ?>
-          <span class="badge gray"><?= (int)($p['rating'] ?? 4) ?>/5</span>
-        </div>
+        <?= star_input((int)($p['rating'] ?? 4), 'rating') ?>
       </div>
     </div>
     <div class="field">
