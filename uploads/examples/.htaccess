@@ -1,0 +1,4 @@
+# Prevent script execution in the uploads directory
+Options -ExecCGI -Indexes
+AddType text/plain .php .php3 .php4 .php5 .php7 .phtml .phar
+RemoveHandler .php .php3 .php4 .php5 .php7 .phtml .phar

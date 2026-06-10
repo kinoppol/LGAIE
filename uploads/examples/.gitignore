@@ -1,0 +1,4 @@
+# Ignore all uploaded files; keep only the security config
+*
+!.gitignore
+!.htaccess
