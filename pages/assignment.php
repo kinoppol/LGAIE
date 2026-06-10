@@ -286,13 +286,15 @@ document.addEventListener('DOMContentLoaded', function() {
       <label>คำอธิบาย / คำสั่งงาน</label>
       <textarea class="textarea" name="instructions"><?= h($a['instructions']) ?></textarea>
     </div>
+    <div class="subtle" style="font-size:12px;margin-bottom:4px">
+      <?= icon('clock', 13, 'var(--warn)') ?> วันเดิม: <?= h($a['due_date']) ?> &nbsp;·&nbsp; ปล่อยว่างเพื่อใช้วันเดิม
+    </div>
     <div class="row" style="gap:14px">
-      <div class="field" style="flex:1">
-        <label>วันกำหนดส่งใหม่ <span class="subtle" style="font-weight:400;font-size:12px">(ปล่อยว่างเพื่อใช้วันเดิม)</span></label>
-        <div class="subtle" style="font-size:12px;margin-bottom:6px">วันเดิม: <?= h($a['due_date']) ?></div>
+      <div class="field" style="flex:1;margin-bottom:0">
+        <label>วันกำหนดส่งใหม่</label>
         <input class="input" type="date" name="due_date" min="<?= date('Y-m-d') ?>">
       </div>
-      <div class="field" style="flex:0 0 130px">
+      <div class="field" style="flex:0 0 130px;margin-bottom:0">
         <label>เวลา <span class="subtle" style="font-weight:400;font-size:12px">(ค่าเริ่มต้น 23:59)</span></label>
         <input class="input" type="time" name="due_time">
       </div>
