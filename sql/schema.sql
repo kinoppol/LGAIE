@@ -185,6 +185,21 @@ CREATE TABLE IF NOT EXISTS submission_votes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
+-- -------- Course Posts (Announcements) --------
+CREATE TABLE IF NOT EXISTS course_posts (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  course_id   INT UNSIGNED NOT NULL,
+  teacher_id  INT UNSIGNED NOT NULL,
+  body        TEXT         NOT NULL,
+  prompt_text TEXT         NULL,
+  ai_id       VARCHAR(20)  NULL,
+  created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_course (course_id),
+  FOREIGN KEY (course_id)  REFERENCES courses(id) ON DELETE CASCADE,
+  FOREIGN KEY (teacher_id) REFERENCES users(id)   ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
 -- ============================================================
 -- BACKWARD-COMPAT: Add new columns to existing tables
 -- (Safe to run on both fresh and existing installations)

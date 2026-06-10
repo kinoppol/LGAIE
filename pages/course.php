@@ -22,6 +22,11 @@ $tab     = $_GET['tab'] ?? ($guest_mode ? 'lessons' : 'stream');
 $lessons = db_rows('SELECT l.*, lp.ai_id, lp.rating, (SELECT COUNT(*) FROM lesson_materials WHERE lesson_id = l.id) AS mat_count FROM lessons l LEFT JOIN lesson_prompts lp ON lp.lesson_id = l.id WHERE l.course_id = ? ORDER BY l.sort_order, l.id', [$course_id]);
 $works   = db_rows('SELECT a.*, ap.ai_id FROM assignments a LEFT JOIN assignment_prompts ap ON ap.assignment_id = a.id WHERE a.course_id = ? ORDER BY a.id', [$course_id]);
 $teacher = db_row('SELECT * FROM users WHERE id = ?', [$c['teacher_id']]);
+try {
+    $posts = db_rows('SELECT * FROM course_posts WHERE course_id = ? ORDER BY created_at DESC', [$course_id]);
+} catch (PDOException) {
+    $posts = [];
+}
 
 // ── Course header ──────────────────────────────────────────────
 ?>
@@ -87,12 +92,37 @@ if ($tab === 'stream'): ?>
     <div class="card card-pad" style="margin-bottom:18px;display:flex;align-items:center;gap:12px">
       <?= avatar($teacher, 42) ?>
       <button class="input" style="text-align:left;color:var(--muted);background:var(--surface-2);cursor:pointer"
-              onclick="openModal('add-lesson')">
-        ประกาศหรือเพิ่มเนื้อหาให้นักเรียน…
+              onclick="openModal('add-post')">
+        ประกาศหรือแจ้งข้อมูลให้นักเรียน…
       </button>
     </div>
     <?php endif; ?>
 
+
+    <?php foreach ($posts as $p): ?>
+    <div class="post">
+      <div class="post__head">
+        <?= avatar($teacher, 42) ?>
+        <div>
+          <div class="ph-name"><?= h($teacher['name'] ?? '') ?></div>
+          <div class="ph-meta">โพสต์ประกาศ · <?= h(date('j M Y', strtotime($p['created_at']))) ?></div>
+        </div>
+      </div>
+      <div class="post__body">
+        <p style="margin:0;color:var(--body);line-height:1.7;white-space:pre-wrap"><?= h($p['body']) ?></p>
+        <?php if ($p['prompt_text']): ?>
+        <div class="ai-tint-box" style="margin-top:14px;padding:14px 16px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <?= icon('sparkle', 15, 'var(--primary)') ?>
+            <span style="font-size:13px;font-weight:700;color:var(--primary)">Prompt AI ที่แนะนำ</span>
+            <?= $p['ai_id'] ? ai_pill($p['ai_id'], 'sm') : '' ?>
+          </div>
+          <pre style="margin:0;font-size:12.5px;font-family:ui-monospace,monospace;color:var(--body);white-space:pre-wrap;line-height:1.6"><?= h($p['prompt_text']) ?></pre>
+        </div>
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php endforeach; ?>
 
     <?php foreach ($lessons as $l): ?>
     <div class="post">
@@ -316,8 +346,65 @@ elseif ($tab === 'people'):
 <?php endif; ?>
 
 <?php
-// ── Add Lesson Modal ──────────────────────────────────────────
+// ── Add Post Modal ────────────────────────────────────────────
 if (!$guest_mode && is_teacher()):
+    modal_start('add-post', 'โพสต์ประกาศ', 'stream', false, true);
+?>
+<form id="add-post-form" method="post" action="api/create_post.php" data-ajax>
+  <input type="hidden" name="course_id" value="<?= $course_id ?>">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;color:var(--muted);font-size:13px">
+    <?= icon('grid', 15) ?> <?= h($c['name']) ?> · <?= h($c['section']) ?>
+  </div>
+  <div class="field">
+    <label>ข้อความประกาศ <span style="color:var(--danger)">*</span></label>
+    <textarea class="textarea" name="body" rows="4"
+              placeholder="เช่น สัปดาห์นี้เราจะเรียนเรื่อง… อย่าลืมเตรียมงาน…" required
+              style="min-height:110px"></textarea>
+  </div>
+
+  <!-- Optional AI prompt section (hidden by default) -->
+  <div id="post-prompt-section" style="display:none">
+    <div class="ai-tint-box" style="padding:16px 16px 10px;margin-top:4px">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
+        <span style="width:30px;height:30px;border-radius:8px;background:var(--card);color:var(--primary);display:grid;place-items:center"><?= icon('sparkle', 16) ?></span>
+        <div>
+          <div style="font-weight:700;color:var(--heading);font-size:14px">Prompt AI ที่แนะนำ <span style="font-weight:400;color:var(--sub);font-size:12px">(ไม่บังคับ)</span></div>
+          <div class="subtle" style="font-size:11.5px">แชร์ prompt ที่ทดลองแล้วเพื่อให้นักเรียนเริ่มต้นได้เลย</div>
+        </div>
+        <button type="button"
+                onclick="document.getElementById('post-prompt-section').style.display='none';document.getElementById('post-prompt-text').value='';document.getElementById('post-add-prompt-btn').style.display='flex'"
+                style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--sub);display:flex;align-items:center;gap:4px;font-size:12px">
+          <?= icon('x', 14) ?> ลบออก
+        </button>
+      </div>
+      <div class="field">
+        <label>ข้อความ Prompt</label>
+        <textarea id="post-prompt-text" class="textarea" name="prompt_text"
+                  style="font-family:ui-monospace,monospace;font-size:13px;min-height:90px"
+                  placeholder="วาง prompt ที่คุณใช้กับ AI…"></textarea>
+      </div>
+      <div class="field">
+        <label>AI ที่แนะนำ</label>
+        <?= ai_select('ai_id', 'chatgpt') ?>
+      </div>
+    </div>
+  </div>
+
+  <button type="button" id="post-add-prompt-btn"
+          onclick="document.getElementById('post-prompt-section').style.display='block';this.style.display='none'"
+          style="display:flex;align-items:center;gap:7px;margin-top:10px;background:none;
+                 border:1.5px dashed var(--line-2);border-radius:9px;padding:8px 14px;
+                 cursor:pointer;color:var(--sub);font-size:13px;width:100%;justify-content:center;
+                 transition:border-color .15s,color .15s"
+          onmouseenter="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'"
+          onmouseleave="this.style.borderColor='var(--line-2)';this.style.color='var(--sub)'">
+    <?= icon('sparkle', 15) ?> + เพิ่ม Prompt AI ที่แนะนำ
+  </button>
+</form>
+<?php modal_foot('add-post', 'ยกเลิก', 'โพสต์ประกาศ', 'btn-primary'); ?>
+
+<?php
+// ── Add Lesson Modal ──────────────────────────────────────────
     modal_start('add-lesson', 'เพิ่มเนื้อหาบทเรียน + Prompt AI', 'book', true);
 ?>
 <form id="add-lesson-form" method="post" action="api/add_lesson.php" data-ajax>
