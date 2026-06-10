@@ -54,6 +54,11 @@ function get_db(): PDO
     return \$pdo;
 }
 PHP;
+    // Create the config/ directory if it does not exist yet
+    $dir = dirname(CONFIG_FILE);
+    if (!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)) {
+        return false;
+    }
     return (bool) file_put_contents(CONFIG_FILE, $content);
 }
 
@@ -184,7 +189,12 @@ try {
 $php_ok  = version_compare(PHP_VERSION, '8.0.0', '>=');
 $pdo_ok  = extension_loaded('pdo_mysql');
 $sql_ok  = file_exists(SQL_FILE);
-$cfg_writable = is_writable(CONFIG_FILE) || (!file_exists(CONFIG_FILE) && is_writable(dirname(CONFIG_FILE)));
+// Writable if: the file exists and is writable; OR the config/ dir exists and is writable;
+// OR config/ does not exist yet but its parent dir is writable (so we can create it).
+$config_dir = dirname(CONFIG_FILE);
+$cfg_writable = is_writable(CONFIG_FILE)
+    || (!file_exists(CONFIG_FILE) && is_dir($config_dir) && is_writable($config_dir))
+    || (!is_dir($config_dir) && is_writable(dirname($config_dir)));
 ?>
 <!DOCTYPE html>
 <html lang="th">
