@@ -464,6 +464,10 @@ if (!$guest_mode && is_teacher()):
       <label>กำหนดส่ง <span style="color:var(--danger)">*</span></label>
       <input class="input" type="date" name="due_date" min="<?= date('Y-m-d') ?>" required>
     </div>
+    <div class="field" style="flex:0 0 110px">
+      <label>เวลา <span style="color:var(--sub);font-weight:400;font-size:11.5px">(ถ้าไม่ระบุ = 23:59)</span></label>
+      <input class="input" type="time" name="due_time" placeholder="23:59">
+    </div>
     <div class="field" style="flex:0 0 120px">
       <label>คะแนนเต็ม</label>
       <input class="input" type="number" name="points" value="10" min="1">

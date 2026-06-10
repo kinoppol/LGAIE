@@ -9,6 +9,7 @@ if (!is_teacher()) json_err('Forbidden', 403);
 $title      = trim($_POST['title'] ?? '');
 $type       = trim($_POST['assignment_type'] ?? 'งาน');
 $due        = trim($_POST['due_date'] ?? '');
+$due_time   = trim($_POST['due_time'] ?? '');
 $points     = max(1, (int)($_POST['points'] ?? 10));
 $instr      = trim($_POST['instructions'] ?? '');
 $prompt_txt = trim($_POST['prompt_text'] ?? '');
@@ -25,12 +26,13 @@ if (!$title || !$due || !$prompt_txt || !$course_id) {
 
 // Convert ISO date (YYYY-MM-DD CE) → Thai display strings
 $th_months = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+$time_str  = (preg_match('/^\d{2}:\d{2}$/', $due_time)) ? $due_time : '23:59';
 $ts = strtotime($due);
 if ($ts) {
     $d   = (int)date('j', $ts);
     $m   = (int)date('n', $ts);
-    $y   = (int)date('Y', $ts) + 543;  // CE → BE
-    $due_display = "{$d} {$th_months[$m]} {$y}";
+    $y   = (int)date('Y', $ts) + 543;
+    $due_display = "{$d} {$th_months[$m]} {$y} เวลา {$time_str} น.";
     $due_short   = "{$d} {$th_months[$m]}";
 } else {
     $due_display = $due;
