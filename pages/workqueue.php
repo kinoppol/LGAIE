@@ -12,9 +12,9 @@ if (is_teacher()) {
             (SELECT COUNT(*) FROM submissions s WHERE s.assignment_id = a.id AND s.status = "submitted") AS pending_count
         FROM assignments a
         JOIN courses c ON c.id = a.course_id
-        WHERE c.is_archived = 0
+        WHERE c.is_archived = 0 AND c.teacher_id = ?
         ORDER BY a.due_date
-    ');
+    ', [$uid]);
 } else {
     $items = db_rows('
         SELECT a.*, c.name AS course_name, c.primary_color AS course_color,
