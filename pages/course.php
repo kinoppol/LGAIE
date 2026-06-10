@@ -294,9 +294,13 @@ elseif ($tab === 'work'): ?>
 // ── PEOPLE tab ─────────────────────────────────────────────────
 elseif ($tab === 'people'):
     $students = db_rows('SELECT u.* FROM users u JOIN course_enrollments e ON e.user_id = u.id WHERE e.course_id = ? AND u.role = "student" ORDER BY u.id', [$course_id]);
+    // Auto-migrate: ensure invite table exists
+    try { get_db()->exec('CREATE TABLE IF NOT EXISTS course_invites (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, course_id INT UNSIGNED NOT NULL, invite_type ENUM("link","code","email") NOT NULL DEFAULT "code", invite_token VARCHAR(40) NULL, invite_code VARCHAR(10) NULL, invited_email VARCHAR(150) NULL, created_by INT UNSIGNED NOT NULL, expires_at DATETIME NULL, max_uses INT UNSIGNED NULL, use_count INT UNSIGNED DEFAULT 0, is_active TINYINT(1) DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE, FOREIGN KEY (created_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'); } catch (PDOException) {}
+    $invite_code_row = db_row('SELECT * FROM course_invites WHERE course_id = ? AND invite_type = "code" ORDER BY id DESC LIMIT 1', [$course_id]);
 ?>
 <div class="row wrap" style="align-items:flex-start">
-  <div style="flex:1 1 380px">
+  <div style="flex:1 1 340px;display:flex;flex-direction:column;gap:18px">
+    <!-- Teacher card -->
     <div class="card">
       <div class="card-head"><?= icon('edit', 18, 'var(--primary)') ?><h3>ครูผู้สอน</h3></div>
       <div class="card-pad" style="display:flex;align-items:center;gap:12px">
@@ -307,7 +311,69 @@ elseif ($tab === 'people'):
         </div>
       </div>
     </div>
+
+    <?php if ($is_owner): ?>
+    <!-- Invite code card -->
+    <div class="card">
+      <div class="card-head"><?= icon('globe', 18, 'var(--primary)') ?><h3>รหัสเชิญนักเรียน</h3></div>
+      <div class="card-pad" style="padding-top:10px">
+        <?php if ($invite_code_row && $invite_code_row['is_active']): ?>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <span id="invite-code-display"
+                style="flex:1;font-size:1.5rem;font-weight:800;letter-spacing:.2em;color:var(--primary);
+                       background:var(--primary-soft);border-radius:10px;padding:10px 14px;text-align:center;
+                       font-family:ui-monospace,monospace">
+            <?= h($invite_code_row['invite_code']) ?>
+          </span>
+          <button class="btn btn-ghost" style="padding:10px 14px"
+                  onclick="navigator.clipboard.writeText('<?= h($invite_code_row['invite_code']) ?>').then(()=>showToast('คัดลอกรหัสแล้ว'))"
+                  title="คัดลอกรหัส">
+            <?= icon('copy', 18) ?>
+          </button>
+        </div>
+        <div class="subtle" style="font-size:12px;margin-bottom:12px">
+          ใช้แล้ว <?= (int)$invite_code_row['use_count'] ?> ครั้ง · รหัสนี้ใช้งานได้อยู่
+        </div>
+        <?php elseif ($invite_code_row && !$invite_code_row['is_active']): ?>
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--line-1);border-radius:10px;margin-bottom:14px">
+          <?= icon('lock', 18, 'var(--sub)') ?>
+          <span style="color:var(--sub);font-size:14px">การลงทะเบียนด้วยรหัสถูกปิดอยู่</span>
+        </div>
+        <?php else: ?>
+        <p class="subtle" style="font-size:13.5px;margin-bottom:14px">ยังไม่มีรหัสเชิญ กดสร้างรหัสเพื่อเปิดรับนักเรียน</p>
+        <?php endif; ?>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-soft" style="gap:6px;font-size:13px" id="reset-code-btn"
+                  onclick="manageInvite('reset_code')">
+            <?= icon('refresh', 15) ?>
+            <?= $invite_code_row ? 'รีเซ็ตรหัสใหม่' : 'สร้างรหัสเชิญ' ?>
+          </button>
+          <?php if ($invite_code_row): ?>
+          <button class="btn btn-ghost" style="gap:6px;font-size:13px" id="toggle-code-btn"
+                  onclick="manageInvite('toggle_code')">
+            <?= $invite_code_row['is_active'] ? icon('lock', 15) . ' ปิดการลงทะเบียน' : icon('globe', 15) . ' เปิดการลงทะเบียน' ?>
+          </button>
+          <?php endif; ?>
+        </div>
+      </div>
+    </div>
+
+    <!-- Invite by email card -->
+    <div class="card">
+      <div class="card-head"><?= icon('edit', 18, 'var(--accent)') ?><h3>เชิญโดยระบุอีเมล</h3></div>
+      <div class="card-pad" style="padding-top:10px">
+        <form id="invite-email-form" onsubmit="inviteByEmail(event)">
+          <div style="display:flex;gap:8px">
+            <input class="input" type="email" id="invite-email-input"
+                   placeholder="อีเมลของนักเรียน" style="flex:1" required>
+            <button class="btn btn-primary" type="submit">เชิญ</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <?php endif; ?>
   </div>
+
   <div style="flex:1 1 420px">
     <div class="card">
       <div class="card-head">
@@ -316,16 +382,103 @@ elseif ($tab === 'people'):
       </div>
       <div style="padding:10px">
         <?php foreach ($students as $i => $s): ?>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px">
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px" id="student-row-<?= $s['id'] ?>">
           <?= avatar($s, 38) ?>
           <span style="font-weight:600;color:var(--heading);font-size:14px"><?= h($s['name']) ?></span>
+          <?php if ($is_owner): ?>
+          <button class="btn btn-sm btn-ghost" style="margin-left:auto;color:var(--danger)"
+                  onclick="removeStudent(<?= (int)$s['id'] ?>, <?= $course_id ?>, '<?= h(addslashes($s['name'])) ?>')">
+            <?= icon('x', 14) ?>
+          </button>
+          <?php else: ?>
           <span class="subtle" style="margin-left:auto;font-size:12.5px">เลขที่ <?= $i + 1 ?></span>
+          <?php endif; ?>
         </div>
         <?php endforeach; ?>
+        <?php if (empty($students)): ?>
+        <p class="subtle" style="font-size:13px;padding:10px 12px">ยังไม่มีนักเรียนในรายวิชานี้</p>
+        <?php endif; ?>
       </div>
     </div>
   </div>
 </div>
+
+<?php if ($is_owner): ?>
+<script>
+const _cid = <?= $course_id ?>;
+
+function manageInvite(action) {
+    var btn = document.getElementById(action === 'reset_code' ? 'reset-code-btn' : 'toggle-code-btn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+    var fd = new FormData();
+    fd.append('course_id', _cid);
+    fd.append('action', action);
+    fetch('api/manage_invite.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            if (res.ok) {
+                showToast(res.message || 'สำเร็จ');
+                setTimeout(() => location.reload(), 900);
+            } else {
+                showToast(res.error || 'เกิดข้อผิดพลาด', true);
+                if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+            }
+        })
+        .catch(() => {
+            showToast('เกิดข้อผิดพลาด', true);
+            if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        });
+}
+
+function inviteByEmail(e) {
+    e.preventDefault();
+    var email = document.getElementById('invite-email-input').value.trim();
+    if (!email) return;
+    var btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.style.opacity = '.6';
+    var fd = new FormData();
+    fd.append('course_id', _cid);
+    fd.append('action', 'invite_email');
+    fd.append('email', email);
+    fetch('api/manage_invite.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            if (res.ok) {
+                showToast(res.message || 'เชิญแล้ว');
+                document.getElementById('invite-email-input').value = '';
+                setTimeout(() => location.reload(), 900);
+            } else {
+                showToast(res.error || 'เกิดข้อผิดพลาด', true);
+            }
+            btn.disabled = false; btn.style.opacity = '1';
+        })
+        .catch(() => {
+            showToast('เกิดข้อผิดพลาด', true);
+            btn.disabled = false; btn.style.opacity = '1';
+        });
+}
+
+function removeStudent(sid, cid, name) {
+    if (!confirm('นำ "' + name + '" ออกจากรายวิชานี้?')) return;
+    var fd = new FormData();
+    fd.append('course_id', cid);
+    fd.append('action', 'remove_student');
+    fd.append('student_id', sid);
+    fetch('api/manage_invite.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            if (res.ok) {
+                showToast(res.message || 'นำออกแล้ว');
+                var row = document.getElementById('student-row-' + sid);
+                if (row) { row.style.opacity = '0'; row.style.transition = 'opacity .3s'; setTimeout(() => row.remove(), 300); }
+            } else {
+                showToast(res.error || 'เกิดข้อผิดพลาด', true);
+            }
+        });
+}
+</script>
+<?php endif; ?>
+
 <?php endif; ?>
 
 <?php
