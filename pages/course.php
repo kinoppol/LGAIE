@@ -20,7 +20,7 @@ if ($guest_mode && empty($c['is_public'])) {
 $role    = $guest_mode ? 'guest' : current_role();
 $tab     = $_GET['tab'] ?? ($guest_mode ? 'lessons' : 'stream');
 $lessons = db_rows('SELECT l.*, lp.ai_id, lp.rating, (SELECT COUNT(*) FROM lesson_materials WHERE lesson_id = l.id) AS mat_count FROM lessons l LEFT JOIN lesson_prompts lp ON lp.lesson_id = l.id WHERE l.course_id = ? ORDER BY l.sort_order, l.id', [$course_id]);
-$works   = db_rows('SELECT a.*, ap.ai_id FROM assignments a LEFT JOIN assignment_prompts ap ON ap.assignment_id = a.id WHERE a.course_id = ? ORDER BY a.id', [$course_id]);
+$works   = db_rows('SELECT a.*, ap.ai_id, ap.prompt_text AS prompt_text FROM assignments a LEFT JOIN assignment_prompts ap ON ap.assignment_id = a.id WHERE a.course_id = ? ORDER BY a.id', [$course_id]);
 $teacher = db_row('SELECT * FROM users WHERE id = ?', [$c['teacher_id']]);
 try {
     $posts = db_rows('SELECT * FROM course_posts WHERE course_id = ? ORDER BY created_at DESC', [$course_id]);
@@ -115,7 +115,11 @@ if ($tab === 'stream'): ?>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <?= icon('sparkle', 15, 'var(--primary)') ?>
             <span style="font-size:13px;font-weight:700;color:var(--primary)">Prompt AI ที่แนะนำ</span>
-            <?= $p['ai_id'] ? ai_pill($p['ai_id'], 'sm') : '' ?>
+            <?php if ($p['ai_id']): ?>
+            <a href="<?= h(ai_prompt_url($p['ai_id'], $p['prompt_text'] ?? '')) ?>" target="_blank" rel="noopener" style="text-decoration:none">
+                <?= ai_pill($p['ai_id'], 'sm') ?>
+            </a>
+            <?php endif; ?>
           </div>
           <pre style="margin:0;font-size:12.5px;font-family:ui-monospace,monospace;color:var(--body);white-space:pre-wrap;line-height:1.6"><?= h($p['prompt_text']) ?></pre>
         </div>
@@ -142,7 +146,11 @@ if ($tab === 'stream'): ?>
         </p>
         <div style="display:flex;align-items:center;gap:10px">
           <span class="chip"><?= icon('sparkle', 14, 'var(--primary)') ?> มี Prompt AI แนบ</span>
-          <?= $w['ai_id'] ? ai_pill($w['ai_id'], 'sm') : '' ?>
+          <?php if ($w['ai_id']): ?>
+          <a href="<?= h(ai_prompt_url($w['ai_id'], $w['prompt_text'] ?? '')) ?>" target="_blank" rel="noopener" style="text-decoration:none">
+              <?= ai_pill($w['ai_id'], 'sm') ?>
+          </a>
+          <?php endif; ?>
           <a href="<?= url('assignment', ['assignment_id' => $w['id']]) ?>" class="btn btn-sm btn-soft" style="margin-left:auto;text-decoration:none">
             ดูรายละเอียดงาน <?= icon('arrow-right', 15) ?>
           </a>

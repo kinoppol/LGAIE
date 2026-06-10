@@ -436,69 +436,6 @@ function star_input(int $value = 4, string $name = 'rating'): string
     return $out;
 }
 
-function prompt_block(array $p, string $title = 'Prompt ที่ครูแนะนำ'): string
-{
-    $id       = 'pb' . substr(md5((string)($p['id'] ?? uniqid())), 0, 6);
-    $ai       = get_ai($p['ai_id'] ?? '');
-    $ai_html  = $ai ? ai_pill($p['ai_id'], 'sm') : '';
-    $rating   = (int)($p['rating'] ?? 0);
-    $ex_html  = '';
-    $note_html = '';
-
-    if (!empty($p['example_text'])) {
-        $ai_name = $ai ? h($ai['name']) : '';
-        $ex_html = '<div class="ex-box" id="' . $id . '-ex" style="margin-top:12px;padding:12px 14px;display:none">'
-            . '<div style="font-size:12px;font-weight:700;color:var(--accent-700);margin-bottom:6px;display:flex;align-items:center;gap:6px">'
-            . icon('robot', 15, 'var(--accent-700)')
-            . " ผลลัพธ์ตัวอย่างจาก {$ai_name}</div>"
-            . '<div style="font-size:13.5px;color:var(--heading);line-height:1.6">' . h($p['example_text']) . '</div>'
-            . '</div>';
-    }
-    if (!empty($p['note_text'])) {
-        $note_html = '<div class="note-box" style="margin-top:12px;display:flex;gap:9px;align-items:flex-start;padding:11px 13px">'
-            . icon('flag', 16, 'var(--warn-ink)')
-            . '<div style="font-size:13px;color:var(--warn-ink);line-height:1.55"><b>หมายเหตุจากครู:</b> ' . h($p['note_text']) . '</div>'
-            . '</div>';
-    }
-
-    $prompt_js = h($p['prompt_text'] ?? '');
-    $prompt_h  = h($p['prompt_text'] ?? '');
-    $title_h   = h($title);
-    $ex_btn    = !empty($p['example_text'])
-        ? '<button type="button" class="btn btn-sm btn-ghost" style="margin-left:auto" onclick="toggleEl(\'' . $id . '-ex\',\'' . $id . '-lbl\',\'ดูผลลัพธ์ตัวอย่างที่ครูได้\',\'ซ่อนผลลัพธ์ตัวอย่าง\')">'
-          . icon('bulb', 15) . ' <span id="' . $id . '-lbl">ดูผลลัพธ์ตัวอย่างที่ครูได้</span></button>'
-        : '';
-
-    return <<<HTML
-    <div class="prompt-block">
-        <div class="prompt-block__head">
-            <span class="pb-title">{icon_sp} {$title_h}</span>
-            <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
-                <span class="subtle" style="font-size:12px">AI ที่แนะนำ</span>
-                {$ai_html}
-            </span>
-        </div>
-        <div class="prompt-body">
-            <div style="display:flex;align-items:center;margin-bottom:9px">
-                <span class="subtle" style="font-size:12.5px;font-weight:600">ข้อความ Prompt</span>
-                <button type="button" class="btn btn-sm btn-ghost copy-btn" data-copy="{$prompt_js}" style="margin-left:auto">
-                    {icon_cp} <span>คัดลอก</span>
-                </button>
-            </div>
-            <div class="prompt-text">{$prompt_h}</div>
-            <div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap">
-                <span class="subtle" style="font-size:12.5px;font-weight:600">ระดับความพอใจของครู</span>
-                {stars} <span class="badge gray" style="font-size:11px">{$rating}/5</span>
-                {$ex_btn}
-            </div>
-            {$ex_html}
-            {$note_html}
-        </div>
-    </div>
-    HTML;
-    // replace placeholders
-}
-
 function ai_prompt_url(string $ai_id, string $prompt = ''): string
 {
     $q = urlencode($prompt);
