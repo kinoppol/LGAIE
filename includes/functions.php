@@ -406,6 +406,8 @@ function icon(
         'folder'     => '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
         'globe'      => '<circle cx="12" cy="12" r="9"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>',
         'lock'       => '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+        'external-link' => '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
+        'paperclip'  => '<path d="M21.4 11.6 12 21a6 6 0 0 1-8.5-8.5l9.4-9.4a4 4 0 0 1 5.7 5.7L9.2 18.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/>',
     ];
     $inner = $paths[$name] ?? '';
     $ca    = $cls ? " class=\"" . h($cls) . "\"" : '';
@@ -583,16 +585,43 @@ function render_prompt_block(array $p, string $title = 'Prompt ที่คร�
                 <div style="font-size:13.5px;color:var(--heading);line-height:1.6"><?= h($p['example_text']) ?></div>
                 <?php endif; ?>
                 <?php if (!empty($p['example_file'])): ?>
-                <?php $ef = $p['example_file']; $ef_ext = strtolower(pathinfo($ef, PATHINFO_EXTENSION)); ?>
-                <?php if (in_array($ef_ext, ['jpg','jpeg','png','gif','webp'])): ?>
-                <img src="<?= h($ef) ?>" alt="ผลลัพธ์ตัวอย่าง"
-                     style="max-width:100%;max-height:320px;object-fit:contain;border-radius:8px;margin-top:8px;display:block">
-                <?php else: ?>
+                <?php
+                    $ef    = $p['example_file'];
+                    $fname = basename($ef);
+                    $ext   = strtolower(pathinfo($ef, PATHINFO_EXTENSION));
+                    $fmap  = [
+                        'jpg' => ['#a371f7','IMG'], 'jpeg' => ['#a371f7','IMG'],
+                        'png' => ['#a371f7','IMG'], 'gif'  => ['#a371f7','IMG'],
+                        'webp'=> ['#a371f7','IMG'],
+                        'pdf' => ['#ea5455','PDF'],
+                        'ppt' => ['#ff9f43','PPT'], 'pptx' => ['#ff9f43','PPT'],
+                        'doc' => ['#3b7df5','DOC'], 'docx' => ['#3b7df5','DOC'],
+                        'xls' => ['#28c76f','XLS'], 'xlsx' => ['#28c76f','XLS'],
+                        'txt' => ['#8a94a6','TXT'],
+                        'zip' => ['#c778dd','ZIP'],
+                    ];
+                    [$fc, $fl] = $fmap[$ext] ?? ['#8a94a6','FILE'];
+                ?>
                 <a href="<?= h($ef) ?>" target="_blank" rel="noopener"
-                   class="btn btn-sm btn-ghost" style="margin-top:8px;display:inline-flex">
-                    <?= icon('download', 14) ?> <?= $ef_ext === 'pdf' ? 'ดาวน์โหลด PDF ตัวอย่าง' : 'ดาวน์โหลดไฟล์ตัวอย่าง' ?>
+                   style="display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px 14px;
+                          border:1px solid var(--line-2);border-radius:10px;text-decoration:none;
+                          background:var(--card);transition:border-color .15s,background .15s"
+                   onmouseenter="this.style.borderColor='var(--primary)';this.style.background='var(--primary-soft)'"
+                   onmouseleave="this.style.borderColor='var(--line-2)';this.style.background='var(--card)'">
+                  <span style="width:40px;height:40px;border-radius:9px;background:<?= $fc ?>22;color:<?= $fc ?>;
+                               display:grid;place-items:center;font-size:10px;font-weight:800;
+                               flex:0 0 auto;font-family:ui-monospace,monospace">
+                    <?= $fl ?>
+                  </span>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:13px;font-weight:600;color:var(--heading);
+                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                      <?= h($fname) ?>
+                    </div>
+                    <div style="font-size:11.5px;color:var(--sub)">ดูผลลัพธ์ตัวอย่าง · เปิดในแท็บใหม่</div>
+                  </div>
+                  <?= icon('external-link', 16, 'var(--muted)') ?>
                 </a>
-                <?php endif; ?>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
