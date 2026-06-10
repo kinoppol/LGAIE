@@ -372,15 +372,35 @@ function example_file_input(?string $existing = null, ?string $existing_name = n
         </a>
         <button type="button"
                 style="width:28px;height:28px;border-radius:7px;border:none;cursor:pointer;
-                       background:var(--danger-soft,#fee2e2);color:#ef4444;display:grid;place-items:center;flex:0 0 auto"
+                       background:#fee2e2;color:#ef4444;display:grid;place-items:center;flex:0 0 auto"
                 title="ลบไฟล์นี้"
                 onclick="
                   document.getElementById('<?= $uid ?>-existing').style.display='none';
+                  document.getElementById('<?= $uid ?>-pending').style.display='flex';
                   document.getElementById('<?= $uid ?>-new').style.display='flex';
                   document.getElementById('<?= $uid ?>-rm').value='1';
                 ">
           <?= icon('x', 14, '#ef4444') ?>
         </button>
+      </div>
+
+      <!-- แถบแจ้งเตือน: ไฟล์รอถูกลบ -->
+      <div id="<?= $uid ?>-pending"
+           style="display:none;align-items:center;gap:8px;padding:7px 12px;margin-bottom:6px;
+                  border:1.5px solid #fca5a5;border-radius:8px;background:#fff1f2">
+        <?= icon('x', 14, '#ef4444') ?>
+        <span style="font-size:12.5px;color:#b91c1c;flex:1">
+          ไฟล์นี้จะถูกลบเมื่อกดบันทึก
+        </span>
+        <button type="button"
+                style="font-size:12px;color:#b91c1c;background:none;border:none;cursor:pointer;
+                       text-decoration:underline;padding:0"
+                onclick="
+                  document.getElementById('<?= $uid ?>-existing').style.display='flex';
+                  document.getElementById('<?= $uid ?>-pending').style.display='none';
+                  document.getElementById('<?= $uid ?>-new').style.display='none';
+                  document.getElementById('<?= $uid ?>-rm').value='0';
+                ">ยกเลิก</button>
       </div>
       <?php endif; ?>
 
@@ -392,14 +412,19 @@ function example_file_input(?string $existing = null, ?string $existing_name = n
              onmouseenter="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'"
              onmouseleave="this.style.borderColor='var(--line-2)';this.style.color='var(--sub)'">
         <?= icon('paperclip', 14) ?>
-        <span class="ef-lbl"><?= h($lbl) ?></span>
+        <span class="ef-lbl">แนบไฟล์ใหม่แทน (ภาพ / PDF / เอกสาร ไม่เกิน 10 MB)</span>
         <input type="file" name="example_file"
                accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip"
                style="display:none"
                onchange="
                  var s=this.closest('label').querySelector('.ef-lbl');
-                 s.textContent=this.files[0]?this.files[0].name:'แนบไฟล์ (ภาพ / PDF / เอกสาร ไม่เกิน 10 MB)';
-                 if(this.files[0]) document.getElementById('<?= $uid ?>-rm').value='0';
+                 if(this.files[0]){
+                   s.textContent=this.files[0].name;
+                   document.getElementById('<?= $uid ?>-rm').value='0';
+                   document.getElementById('<?= $uid ?>-pending').style.display='none';
+                 } else {
+                   s.textContent='แนบไฟล์ใหม่แทน (ภาพ / PDF / เอกสาร ไม่เกิน 10 MB)';
+                 }
                ">
       </label>
     </div>
