@@ -23,15 +23,26 @@ if (!$title || !$due || !$prompt_txt || !$course_id) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
 
-// Build short due display (first ~8 chars e.g. "12 มิ.ย.")
-$due_short = mb_substr($due, 0, 10);
+// Convert ISO date (YYYY-MM-DD CE) → Thai display strings
+$th_months = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+$ts = strtotime($due);
+if ($ts) {
+    $d   = (int)date('j', $ts);
+    $m   = (int)date('n', $ts);
+    $y   = (int)date('Y', $ts) + 543;  // CE → BE
+    $due_display = "{$d} {$th_months[$m]} {$y}";
+    $due_short   = "{$d} {$th_months[$m]}";
+} else {
+    $due_display = $due;
+    $due_short   = mb_substr($due, 0, 10);
+}
 
 $db = get_db();
 $db->beginTransaction();
 try {
     $assignment_id = db_run(
         'INSERT INTO assignments (course_id, title, assignment_type, due_date, due_short, points, instructions, allow_improve) VALUES (?,?,?,?,?,?,?,?)',
-        [$course_id, $title, $type, $due, $due_short, $points, $instr, $allow]
+        [$course_id, $title, $type, $due_display, $due_short, $points, $instr, $allow]
     );
     db_run(
         'INSERT INTO assignment_prompts (assignment_id, prompt_text, ai_id, rating, example_text, note_text) VALUES (?,?,?,?,?,?)',

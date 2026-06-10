@@ -439,7 +439,7 @@ if (!$guest_mode && is_teacher()):
 
 <?php
 // ── Add Assignment Modal ──────────────────────────────────────
-    modal_start('add-assignment', 'เพิ่มงาน / การบ้าน + Prompt AI', 'clipboard', true);
+    modal_start('add-assignment', 'เพิ่มงาน / การบ้าน + Prompt AI', 'clipboard', true, true);
 ?>
 <form id="add-assignment-form" method="post" action="api/add_assignment.php" data-ajax>
   <input type="hidden" name="course_id" value="<?= $course_id ?>">
@@ -462,7 +462,7 @@ if (!$guest_mode && is_teacher()):
     </div>
     <div class="field" style="flex:1">
       <label>กำหนดส่ง <span style="color:var(--danger)">*</span></label>
-      <input class="input" name="due_date" placeholder="เช่น 12 มิ.ย. 2569" required>
+      <input class="input" type="date" name="due_date" min="<?= date('Y-m-d') ?>" required>
     </div>
     <div class="field" style="flex:0 0 120px">
       <label>คะแนนเต็ม</label>
