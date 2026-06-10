@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="row" style="gap:14px">
       <div class="field" style="flex:1;margin-bottom:0">
         <label>วันกำหนดส่ง</label>
-        <input class="input" type="date" name="due_date" min="<?= date('Y-m-d') ?>" value="<?= $_due_iso ?>">
+        <input class="input" type="date" name="due_date" value="<?= $_due_iso ?>">
       </div>
       <div class="field" style="flex:0 0 130px;margin-bottom:0">
         <label>เวลา</label>

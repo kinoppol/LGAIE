@@ -468,7 +468,7 @@ if (!$guest_mode && is_teacher()):
     </div>
     <div class="field" style="flex:1">
       <label>กำหนดส่ง <span style="color:var(--danger)">*</span></label>
-      <input class="input" type="date" name="due_date" min="<?= date('Y-m-d') ?>" required>
+      <input class="input" type="date" name="due_date" required>
     </div>
     <div class="field" style="flex:0 0 110px">
       <label>เวลา <span style="color:var(--sub);font-weight:400;font-size:11.5px">(ถ้าไม่ระบุ = 23:59)</span></label>
