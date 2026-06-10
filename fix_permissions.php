@@ -1,107 +1,76 @@
 <?php
 /**
  * fix_permissions.php — ตั้ง permission โฟลเดอร์ uploads/ ให้ web server เขียนได้
- *
- * วิธีใช้:
- *   - ผ่าน SSH: php fix_permissions.php
- *   - ผ่านเบราว์เซอร์: http://your-domain/LGAIE/fix_permissions.php?secret=YOUR_SECRET
- *
  * ลบไฟล์นี้ออกหลังใช้งานเสร็จแล้ว
  */
 
-// ── Security: ต้องใส่ secret ถ้าเรียกผ่าน HTTP ──────────────────────────
-$secret = 'classroomai_fix_2024'; // เปลี่ยนก่อนใช้งานจริง
-
+$secret = 'classroomai_fix_2024';
 $via_cli = PHP_SAPI === 'cli';
 if (!$via_cli) {
     header('Content-Type: text/plain; charset=utf-8');
     if (($_GET['secret'] ?? '') !== $secret) {
         http_response_code(403);
-        exit("403 Forbidden — เพิ่ม ?secret={$secret} ใน URL\n");
+        exit("403 Forbidden\n");
     }
 }
 
 $base = __DIR__;
-$dirs = [
-    $base . '/uploads',
-    $base . '/uploads/examples',
-];
+$uploads = $base . '/uploads';
+$examples = $base . '/uploads/examples';
+$htaccess = "Options -ExecCGI\nAddHandler cgi-script .php .pl .py .rb\nRemoveHandler .php .php3\n";
 
-$htaccess = <<<'HTA'
-Options -ExecCGI
-AddHandler cgi-script .php .pl .py .rb
-RemoveHandler .php .php3
-<IfModule mod_php.c>
-    php_flag engine off
-</IfModule>
-HTA;
+echo "=== ClassroomAI — Fix Permissions ===\n\n";
+echo "PHP running as: " . get_current_user() . " (uid=" . (function_exists('posix_geteuid') ? posix_geteuid() : 'n/a') . ")\n";
+echo "Base path: {$base}\n\n";
 
-$ok  = true;
-$log = [];
-
-foreach ($dirs as $dir) {
-    // สร้างถ้ายังไม่มี
+// ── สร้างโฟลเดอร์ผ่าน PHP (ให้ owner เป็น Apache user) ──────────────
+foreach ([$uploads, $examples] as $dir) {
     if (!is_dir($dir)) {
-        if (@mkdir($dir, 0775, true)) {
-            $log[] = "✓ สร้างโฟลเดอร์: {$dir}";
+        if (@mkdir($dir, 0777, true)) {
+            echo "✓ mkdir: {$dir}\n";
         } else {
-            $log[] = "✗ สร้างไม่ได้: {$dir} — ลอง: mkdir -p {$dir}";
-            $ok = false;
-            continue;
+            // อ่าน error จริง
+            $err = error_get_last();
+            echo "✗ mkdir ล้มเหลว: {$dir}\n";
+            echo "  error: " . ($err['message'] ?? 'unknown') . "\n";
+        }
+    } else {
+        echo "  มีอยู่แล้ว: {$dir}\n";
+        // แสดง owner ปัจจุบัน
+        if (function_exists('posix_getpwuid') && function_exists('fileowner')) {
+            $owner = posix_getpwuid(fileowner($dir));
+            echo "  owner: " . ($owner['name'] ?? fileowner($dir)) . "\n";
         }
     }
 
-    // ตั้ง permission
-    if (@chmod($dir, 0775)) {
-        $log[] = "✓ chmod 775: {$dir}";
-    } else {
-        $log[] = "! chmod ล้มเหลว (อาจต้องรัน: chmod 775 {$dir})";
-    }
+    @chmod($dir, 0777);
+    echo "  permissions: " . substr(sprintf('%o', fileperms($dir)), -4) . "\n";
+    echo "  writable: " . (is_writable($dir) ? "YES ✓" : "NO ✗") . "\n\n";
+}
 
-    // ตรวจสอบ
-    if (is_writable($dir)) {
-        $log[] = "✓ เขียนได้แล้ว: {$dir}";
-    } else {
-        $log[] = "✗ ยังเขียนไม่ได้: {$dir}";
-        $log[] = "  → ลองรัน: sudo chown -R www-data:www-data {$dir} && sudo chmod -R 775 {$dir}";
-        $ok = false;
+// ── วาง .htaccess ──────────────────────────────────────────────────────
+foreach ([$uploads, $examples] as $dir) {
+    if (is_dir($dir) && !file_exists($dir . '/.htaccess')) {
+        @file_put_contents($dir . '/.htaccess', $htaccess);
     }
 }
 
-// วาง .htaccess ถ้ายังไม่มี
-foreach ($dirs as $dir) {
-    $htpath = $dir . '/.htaccess';
-    if (is_dir($dir) && !file_exists($htpath)) {
-        if (@file_put_contents($htpath, $htaccess) !== false) {
-            $log[] = "✓ สร้าง .htaccess: {$htpath}";
-        }
-    }
-}
-
-// ทดสอบเขียนไฟล์จริง
-$test = $base . '/uploads/examples/.write_test';
+// ── ทดสอบเขียนไฟล์ ────────────────────────────────────────────────────
+$test = $examples . '/.write_test_' . time();
 if (@file_put_contents($test, 'ok') !== false) {
     @unlink($test);
-    $log[] = "✓ ทดสอบเขียนไฟล์สำเร็จ";
+    echo "✅ เขียนไฟล์ได้แล้ว — อัปโหลดใช้งานได้ปกติ\n";
+    echo "\nลบไฟล์นี้ด้วย: rm {$base}/fix_permissions.php\n";
 } else {
-    $log[] = "✗ ทดสอบเขียนไฟล์ล้มเหลว";
-    $ok = false;
-}
+    echo "❌ ยังเขียนไม่ได้ — ต้องรันผ่าน SSH:\n\n";
+    echo "  sudo chown -R www-data:www-data {$uploads}\n";
+    echo "  sudo chmod -R 775 {$uploads}\n\n";
+    echo "  ถ้าไม่มี sudo:\n";
+    echo "  chmod 777 {$examples}\n\n";
 
-// Output
-echo ($ok ? "✅ สำเร็จ — อัปโหลดไฟล์ได้แล้ว\n" : "❌ ยังมีปัญหา — ดูรายละเอียดด้านล่าง\n");
-echo str_repeat('─', 60) . "\n";
-echo implode("\n", $log) . "\n";
-echo str_repeat('─', 60) . "\n";
-
-if (!$ok) {
-    echo "\n📋 คำสั่ง SSH สำหรับ Linux:\n";
-    echo "  sudo chown -R www-data:www-data {$base}/uploads\n";
-    echo "  sudo chmod -R 775 {$base}/uploads\n";
-    echo "\n  หรือ (ถ้าไม่มี sudo):\n";
-    echo "  chmod 777 {$base}/uploads/examples\n";
-}
-
-if (!$via_cli) {
-    echo "\n⚠️  ลบไฟล์นี้ออกหลังใช้งานเสร็จแล้ว:\n  rm {$base}/fix_permissions.php\n";
+    // ลองหา user ที่ถูกต้อง
+    if (function_exists('posix_getpwuid') && function_exists('fileowner')) {
+        $web_uid = posix_geteuid();
+        echo "  หรือ: sudo chown -R {$web_uid} {$uploads} && sudo chmod -R 775 {$uploads}\n";
+    }
 }
