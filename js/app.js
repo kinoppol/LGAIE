@@ -156,12 +156,18 @@ function setStars(svg) {
 window.AI_TOOLS = window.AI_TOOLS || [];
 
 function updateAiSelect(sel) {
-  const name   = sel.name;
-  const logo   = document.getElementById('logo-' + name);
-  const ai     = (window.AI_TOOLS || []).find(t => t.id === sel.value);
-  if (logo && ai) {
+  const name = sel.name;
+  const logo = document.getElementById('logo-' + name);
+  if (!logo) return;
+  const ai = (window.AI_TOOLS || []).find(t => t.id === sel.value);
+  if (ai) {
     logo.style.background = ai.color;
     logo.textContent      = ai.letter;
+    logo.style.fontSize   = '';
+  } else {
+    logo.style.background = 'var(--line-2)';
+    logo.textContent      = '—';
+    logo.style.fontSize   = '10px';
   }
 }
 

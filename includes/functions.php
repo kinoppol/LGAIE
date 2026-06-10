@@ -387,16 +387,17 @@ function ai_pill(string $id, string $size = 'md'): string
     );
 }
 
-function ai_select(string $name, string $selected = 'chatgpt'): string
+function ai_select(string $name, string $selected = ''): string
 {
-    $tools = get_ai_tools();
-    $opts  = '';
+    $tools  = get_ai_tools();
+    $none   = $selected === '' ? ' selected' : '';
+    $opts   = "<option value=\"\"{$none}>— ไม่ระบุ AI —</option>";
     foreach ($tools as $t) {
         $sel   = $t['id'] === $selected ? ' selected' : '';
         $opts .= "<option value=\"" . h($t['id']) . "\"{$sel}>" . h($t['name']) . "</option>";
     }
-    $color  = isset($tools[$selected]) ? h($tools[$selected]['color'])  : '#999';
-    $letter = isset($tools[$selected]) ? h($tools[$selected]['letter']) : '?';
+    $color  = ($selected && isset($tools[$selected])) ? h($tools[$selected]['color'])  : 'var(--line-2)';
+    $letter = ($selected && isset($tools[$selected])) ? h($tools[$selected]['letter']) : '—';
     return <<<HTML
     <div class="ai-select-wrap" style="position:relative">
         <select class="select" name="{$name}" id="sel-{$name}"
@@ -405,7 +406,7 @@ function ai_select(string $name, string $selected = 'chatgpt'): string
             {$opts}
         </select>
         <span class="ai-logo ai-sel-logo" id="logo-{$name}"
-              style="background:{$color};position:absolute;left:11px;top:50%;transform:translateY(-50%);pointer-events:none">{$letter}</span>
+              style="background:{$color};position:absolute;left:11px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:10px">{$letter}</span>
         <span style="position:absolute;right:13px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(90deg)"><path d="M9 6l6 6-6 6"/></svg>
         </span>

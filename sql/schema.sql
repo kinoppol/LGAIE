@@ -227,6 +227,10 @@ ALTER TABLE course_enrollments
   ADD COLUMN IF NOT EXISTS join_type ENUM('direct','invite_link','invite_code','invite_email','self','template') DEFAULT 'direct' AFTER user_id,
   ADD COLUMN IF NOT EXISTS joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER join_type;
 
+-- Allow ai_id to be NULL (teacher may choose not to specify an AI)
+ALTER TABLE lesson_prompts     MODIFY COLUMN ai_id VARCHAR(20) NULL;
+ALTER TABLE assignment_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL;
+
 
 -- ============================================================
 -- SEED DATA

@@ -10,7 +10,7 @@ $title      = trim($_POST['title'] ?? '');
 $week       = trim($_POST['week_label'] ?? '');
 $desc       = trim($_POST['description'] ?? '');
 $prompt_txt = trim($_POST['prompt_text'] ?? '');
-$ai_id      = trim($_POST['ai_id'] ?? 'chatgpt');
+$ai_id      = trim($_POST['ai_id'] ?? '');
 $rating     = max(1, min(5, (int)($_POST['rating'] ?? 3)));
 $example    = trim($_POST['example_text'] ?? '');
 $note       = trim($_POST['note_text'] ?? '');
@@ -19,6 +19,11 @@ $course_id  = (int)($_POST['course_id'] ?? 0);
 if (!$title || !$week || !$prompt_txt || !$course_id) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
+
+// Allow ai_id to be NULL for existing installations
+try {
+    get_db()->exec("ALTER TABLE lesson_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL");
+} catch (PDOException) {}
 
 $db = get_db();
 $db->beginTransaction();
@@ -30,7 +35,7 @@ try {
     );
     db_run(
         'INSERT INTO lesson_prompts (lesson_id, prompt_text, ai_id, rating, example_text, note_text) VALUES (?,?,?,?,?,?)',
-        [$lesson_id, $prompt_txt, $ai_id, $rating, $example ?: null, $note ?: null]
+        [$lesson_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $note ?: null]
     );
     $db->commit();
     json_ok(['lesson_id' => $lesson_id, 'message' => 'เพิ่มบทเรียนเรียบร้อยแล้ว']);

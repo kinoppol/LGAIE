@@ -13,7 +13,7 @@ $due_time   = trim($_POST['due_time'] ?? '');
 $points     = max(1, (int)($_POST['points'] ?? 10));
 $instr      = trim($_POST['instructions'] ?? '');
 $prompt_txt = trim($_POST['prompt_text'] ?? '');
-$ai_id      = trim($_POST['ai_id'] ?? 'chatgpt');
+$ai_id      = trim($_POST['ai_id'] ?? '');
 $rating     = max(1, min(5, (int)($_POST['rating'] ?? 3)));
 $example    = trim($_POST['example_text'] ?? '');
 $note       = trim($_POST['note_text'] ?? '');
@@ -39,6 +39,11 @@ if ($ts) {
     $due_short   = mb_substr($due, 0, 10);
 }
 
+// Allow ai_id to be NULL for existing installations
+try {
+    get_db()->exec("ALTER TABLE assignment_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL");
+} catch (PDOException) {}
+
 $db = get_db();
 $db->beginTransaction();
 try {
@@ -48,7 +53,7 @@ try {
     );
     db_run(
         'INSERT INTO assignment_prompts (assignment_id, prompt_text, ai_id, rating, example_text, note_text) VALUES (?,?,?,?,?,?)',
-        [$assignment_id, $prompt_txt, $ai_id, $rating, $example ?: null, $note ?: null]
+        [$assignment_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $note ?: null]
     );
     $db->commit();
     json_ok(['assignment_id' => $assignment_id, 'message' => 'เพิ่มงานเรียบร้อยแล้ว']);
