@@ -91,6 +91,7 @@ function closeModalOnBg(event, id) {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     document.querySelectorAll('.modal-overlay[style*="flex"]').forEach(el => {
+      if (el.dataset.persist === '1') return;
       el.style.display = 'none';
     });
     document.body.style.overflow = '';

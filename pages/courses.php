@@ -138,7 +138,7 @@ function restoreCourse(courseId, btn) {
 <?php endif; ?>
 
 <?php if (is_teacher()):
-    modal_start('new-course', 'สร้างรายวิชาใหม่', 'grid', false);
+    modal_start('new-course', 'สร้างรายวิชาใหม่', 'grid', false, true);
 ?>
 <form method="post" action="api/create_course.php" data-ajax>
 

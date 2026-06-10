@@ -396,11 +396,13 @@ window.AI_TOOLS = <?= json_encode(array_values(get_ai_tools()), JSON_UNESCAPED_U
 }
 
 // ── Modal helper ─────────────────────────────────────────────────────────────
-function modal_start(string $id, string $title, string $icon_name = '', bool $wide = false): void
+function modal_start(string $id, string $title, string $icon_name = '', bool $wide = false, bool $persist = false): void
 {
     $w = $wide ? ' wide' : '';
+    $bg_click    = $persist ? '' : " onclick=\"closeModalOnBg(event,'" . h($id) . "')\"";
+    $data_persist = $persist ? ' data-persist="1"' : '';
     ?>
-    <div class="modal-overlay" id="<?= h($id) ?>-overlay" style="display:none" onclick="closeModalOnBg(event,'<?= h($id) ?>')">
+    <div class="modal-overlay" id="<?= h($id) ?>-overlay" style="display:none"<?= $bg_click ?><?= $data_persist ?>>
       <div class="modal<?= $w ?>">
         <div class="modal__head">
           <?php if ($icon_name): ?>
