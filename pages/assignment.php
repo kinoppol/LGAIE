@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="field">
         <label>ผลลัพธ์ตัวอย่าง <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
         <textarea class="textarea" name="example_text" style="min-height:70px"><?= h($ep['example_text'] ?? '') ?></textarea>
-        <?php example_file_input($ep['example_file'] ?? null) ?>
+        <?php example_file_input($ep['example_file'] ?? null, $ep['example_file_name'] ?? null) ?>
       </div>
       <div class="field">
         <label>หมายเหตุ/คำแนะนำ <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>

@@ -42,8 +42,9 @@ if ($ts) {
 // Auto-migrate columns
 try { get_db()->exec("ALTER TABLE assignment_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file VARCHAR(255) NULL"); } catch (PDOException) {}
+try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file_name VARCHAR(255) NULL"); } catch (PDOException) {}
 
-$example_file = upload_example_file();
+['path' => $example_file, 'name' => $example_file_name] = upload_example_file();
 
 $db = get_db();
 $db->beginTransaction();
@@ -53,8 +54,8 @@ try {
         [$course_id, $title, $type, $due_display, $due_short, $points, $instr, $allow]
     );
     db_run(
-        'INSERT INTO assignment_prompts (assignment_id, prompt_text, ai_id, rating, example_text, example_file, note_text) VALUES (?,?,?,?,?,?,?)',
-        [$assignment_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $note ?: null]
+        'INSERT INTO assignment_prompts (assignment_id, prompt_text, ai_id, rating, example_text, example_file, example_file_name, note_text) VALUES (?,?,?,?,?,?,?,?)',
+        [$assignment_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null]
     );
     $db->commit();
     json_ok(['assignment_id' => $assignment_id, 'message' => 'เพิ่มงานเรียบร้อยแล้ว']);
