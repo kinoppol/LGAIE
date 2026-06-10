@@ -286,17 +286,19 @@ document.addEventListener('DOMContentLoaded', function() {
       <label>คำอธิบาย / คำสั่งงาน</label>
       <textarea class="textarea" name="instructions"><?= h($a['instructions']) ?></textarea>
     </div>
-    <div class="subtle" style="font-size:12px;margin-bottom:4px">
-      <?= icon('clock', 13, 'var(--warn)') ?> วันเดิม: <?= h($a['due_date']) ?> &nbsp;·&nbsp; ปล่อยว่างเพื่อใช้วันเดิม
-    </div>
+    <?php
+      $_due_ts   = thai_due_ts($a['due_date']);
+      $_due_iso  = $_due_ts ? date('Y-m-d', $_due_ts) : '';
+      $_due_time = $_due_ts ? date('H:i',   $_due_ts) : '';
+    ?>
     <div class="row" style="gap:14px">
       <div class="field" style="flex:1;margin-bottom:0">
-        <label>วันกำหนดส่งใหม่</label>
-        <input class="input" type="date" name="due_date" min="<?= date('Y-m-d') ?>">
+        <label>วันกำหนดส่ง</label>
+        <input class="input" type="date" name="due_date" min="<?= date('Y-m-d') ?>" value="<?= $_due_iso ?>">
       </div>
       <div class="field" style="flex:0 0 130px;margin-bottom:0">
-        <label>เวลา <span class="subtle" style="font-weight:400;font-size:12px">(ค่าเริ่มต้น 23:59)</span></label>
-        <input class="input" type="time" name="due_time">
+        <label>เวลา</label>
+        <input class="input" type="time" name="due_time" value="<?= $_due_time ?>">
       </div>
     </div>
     <div class="field">
