@@ -124,31 +124,6 @@ if ($tab === 'stream'): ?>
     </div>
     <?php endforeach; ?>
 
-    <?php foreach ($lessons as $l): ?>
-    <div class="post">
-      <div class="post__head">
-        <span class="avatar" style="width:42px;height:42px;background:var(--primary-soft);color:var(--primary)"><?= icon('book', 20) ?></span>
-        <div>
-          <div class="ph-name"><?= h($teacher['name'] ?? '') ?></div>
-          <div class="ph-meta">เพิ่มเนื้อหาบทเรียน · <?= h($l['week_label']) ?></div>
-        </div>
-        <span class="post__type"><span class="badge green">บทเรียน</span></span>
-      </div>
-      <div class="post__body">
-        <div class="post__title"><?= h($l['title']) ?></div>
-        <p style="margin:0 0 12px;color:var(--body);font-size:14px;line-height:1.6">
-          <?= h(mb_substr($l['description'], 0, 120)) ?>…
-        </p>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="chip"><?= icon('sparkle', 14, 'var(--primary)') ?> มี Prompt AI แนบ</span>
-          <?= $l['ai_id'] ? ai_pill($l['ai_id'], 'sm') : '' ?>
-          <a href="<?= url('lesson', ['lesson_id' => $l['id']]) ?>" class="btn btn-sm btn-soft" style="margin-left:auto;text-decoration:none">
-            เปิดบทเรียน <?= icon('arrow-right', 15) ?>
-          </a>
-        </div>
-      </div>
-    </div>
-    <?php endforeach; ?>
 
     <?php foreach ($works as $w): ?>
     <div class="post">
