@@ -147,8 +147,8 @@ function setStars(svg) {
     const path = s.querySelector('path');
     if (path) path.setAttribute('fill', fill);
   });
-  // update display badge if any
-  const disp = document.getElementById('rating-display') || document.getElementById('asgn-rating-display');
+  // update display badge — next sibling element of the star-input wrapper
+  const disp = wrap.nextElementSibling;
   if (disp) disp.textContent = value + '/5';
 }
 
