@@ -93,21 +93,6 @@ if ($tab === 'stream'): ?>
     </div>
     <?php endif; ?>
 
-    <!-- Announcement -->
-    <div class="post">
-      <div class="post__head">
-        <?= avatar($teacher, 42) ?>
-        <div>
-          <div class="ph-name"><?= h($teacher['name'] ?? '') ?></div>
-          <div class="ph-meta">โพสต์ประกาศ · วันนี้ 08:30</div>
-        </div>
-      </div>
-      <div class="post__body">
-        <p style="margin:0;color:var(--body);line-height:1.65">
-          สวัสดีนักเรียนทุกคน 🌿 สัปดาห์นี้เราจะเรียนเรื่องใหม่ อย่าลืมว่าทุกบทเรียนจะมี Prompt AI ที่ครูทดลองแล้วแนบไว้ให้ ลองนำไปต่อยอดค้นคว้านะคะ และเวลาส่งงานให้ระบุ prompt กับ AI ที่ใช้ด้วย
-        </p>
-      </div>
-    </div>
 
     <?php foreach ($lessons as $l): ?>
     <div class="post">
