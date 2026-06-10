@@ -28,7 +28,7 @@ $c = get_course((int)$lesson['course_id']);
       <span class="badge green"><?= h($lesson['week_label']) ?></span>
       <span class="badge gray">เนื้อหาบทเรียน</span>
       <?php if (is_teacher()): ?>
-      <button class="btn btn-sm btn-ghost" style="margin-left:auto">
+      <button class="btn btn-sm btn-ghost" style="margin-left:auto" onclick="openModal('edit-lesson')">
         <?= icon('edit', 15) ?> แก้ไข
       </button>
       <?php endif; ?>
@@ -70,3 +70,59 @@ $c = get_course((int)$lesson['course_id']);
     </a>
   </div>
 </div>
+
+<?php if (is_teacher()):
+    modal_start('edit-lesson', 'แก้ไขบทเรียน', 'book', true, true);
+    $p = $lesson['prompt'];
+?>
+<form method="post" action="api/edit_lesson.php" data-ajax>
+  <input type="hidden" name="lesson_id" value="<?= $lesson_id ?>">
+  <div class="field">
+    <label>หัวข้อบทเรียน <span style="color:var(--danger)">*</span></label>
+    <input class="input" name="title" value="<?= h($lesson['title']) ?>" required>
+  </div>
+  <div class="field">
+    <label>สัปดาห์/หน่วย <span style="color:var(--danger)">*</span></label>
+    <input class="input" name="week_label" value="<?= h($lesson['week_label']) ?>" required>
+  </div>
+  <div class="field">
+    <label>คำอธิบายเนื้อหา</label>
+    <textarea class="textarea" name="description"><?= h($lesson['description']) ?></textarea>
+  </div>
+  <div class="ai-tint-box" style="padding:16px 16px 6px;margin-top:6px">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
+      <span style="width:32px;height:32px;border-radius:9px;background:var(--card);color:var(--primary);display:grid;place-items:center"><?= icon('sparkle', 18) ?></span>
+      <div>
+        <div style="font-weight:700;color:var(--heading);font-size:14.5px">Prompt AI ที่แนะนำ</div>
+        <div class="subtle" style="font-size:12px">ระบุ prompt และ AI ที่คุณทดลองแล้วได้ผลลัพธ์น่าพอใจ</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>ข้อความ Prompt <span style="color:var(--danger)">*</span></label>
+      <textarea class="textarea" name="prompt_text" style="font-family:ui-monospace,monospace;font-size:13px" required><?= h($p['prompt_text'] ?? '') ?></textarea>
+    </div>
+    <div class="row" style="gap:14px">
+      <div class="field" style="flex:1">
+        <label>AI ที่ทดลองใช้แล้ว</label>
+        <?= ai_select('ai_id', $p['ai_id'] ?? '') ?>
+      </div>
+      <div class="field" style="flex:1">
+        <label>ระดับความพอใจ</label>
+        <div style="display:flex;align-items:center;gap:10px;height:44px">
+          <?= star_input((int)($p['rating'] ?? 4), 'rating') ?>
+          <span class="badge gray"><?= (int)($p['rating'] ?? 4) ?>/5</span>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>ผลลัพธ์ตัวอย่าง <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
+      <textarea class="textarea" name="example_text" style="min-height:70px"><?= h($p['example_text'] ?? '') ?></textarea>
+    </div>
+    <div class="field">
+      <label>หมายเหตุ/คำแนะนำ <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
+      <textarea class="textarea" name="note_text" style="min-height:60px"><?= h($p['note_text'] ?? '') ?></textarea>
+    </div>
+  </div>
+</form>
+<?php modal_foot('edit-lesson', 'ยกเลิก', 'บันทึกการแก้ไข'); ?>
+<?php endif; ?>
