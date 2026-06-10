@@ -28,6 +28,9 @@ $owns = db_val('
 ', [$lesson_id, current_user_id()]);
 if (!$owns) json_err('ไม่มีสิทธิ์แก้ไขบทเรียนนี้', 403);
 
+// Allow ai_id to be NULL for existing installations
+try { get_db()->exec("ALTER TABLE lesson_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL"); } catch (PDOException) {}
+
 $db = get_db();
 $db->beginTransaction();
 try {

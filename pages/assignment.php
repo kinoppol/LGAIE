@@ -40,6 +40,9 @@ $total_enrolled = (int)db_val('SELECT COUNT(*) FROM course_enrollments WHERE cou
       <span class="badge blue"><?= icon('sparkle', 12) ?> ปรับ prompt ได้</span>
       <?php endif; ?>
       <span class="badge orange" style="margin-left:auto"><?= icon('clock', 13) ?> กำหนดส่ง <?= h($a['due_date']) ?></span>
+      <?php if (is_teacher()): ?>
+      <button class="btn btn-sm btn-ghost" onclick="openModal('edit-assignment')"><?= icon('edit', 15) ?> แก้ไข</button>
+      <?php endif; ?>
     </div>
     <h1 style="font-size:24px;margin-bottom:12px"><?= h($a['title']) ?></h1>
     <p style="color:var(--body);font-size:15px;line-height:1.7;margin:0"><?= h($a['instructions']) ?></p>
@@ -249,6 +252,87 @@ document.addEventListener('DOMContentLoaded', function() {
       </form>
     </div>
   </div>
+
+  <?php
+  // ── Edit assignment modal ──────────────────────────────────
+  $ep = $a['prompt'];
+  modal_start('edit-assignment', 'แก้ไขงาน', 'clipboard', true, true);
+  ?>
+  <form method="post" action="api/edit_assignment.php" data-ajax>
+    <input type="hidden" name="assignment_id" value="<?= $assignment_id ?>">
+    <div class="field">
+      <label>ชื่องาน <span style="color:var(--danger)">*</span></label>
+      <input class="input" name="title" value="<?= h($a['title']) ?>" required>
+    </div>
+    <div class="row" style="gap:14px">
+      <div class="field" style="flex:1">
+        <label>ประเภทงาน</label>
+        <select class="input" name="assignment_type">
+          <?php foreach (['งาน', 'แบบทดสอบ', 'โปรเจกต์'] as $t): ?>
+          <option value="<?= $t ?>" <?= $a['assignment_type'] === $t ? 'selected' : '' ?>><?= $t ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="field" style="flex:0 0 110px">
+        <label>คะแนนเต็ม</label>
+        <input class="input" type="number" name="points" min="1" value="<?= $a['points'] ?>">
+      </div>
+    </div>
+    <div class="field">
+      <label>คำอธิบาย / คำสั่งงาน</label>
+      <textarea class="textarea" name="instructions"><?= h($a['instructions']) ?></textarea>
+    </div>
+    <div class="row" style="gap:14px">
+      <div class="field" style="flex:1">
+        <label>วันกำหนดส่งใหม่ <span class="subtle" style="font-weight:400;font-size:12px">(ปล่อยว่างเพื่อใช้วันเดิม)</span></label>
+        <div class="subtle" style="font-size:12px;margin-bottom:6px">วันเดิม: <?= h($a['due_date']) ?></div>
+        <input class="input" type="date" name="due_date" min="<?= date('Y-m-d') ?>">
+      </div>
+      <div class="field" style="flex:0 0 130px">
+        <label>เวลา <span class="subtle" style="font-weight:400;font-size:12px">(ค่าเริ่มต้น 23:59)</span></label>
+        <input class="input" type="time" name="due_time">
+      </div>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" name="allow_improve" value="1" <?= $a['allow_improve'] ? 'checked' : '' ?>
+               style="width:16px;height:16px;accent-color:var(--primary)">
+        <span>อนุญาตให้นักเรียนส่ง prompt ที่ดีกว่า</span>
+      </label>
+    </div>
+    <div class="ai-tint-box" style="padding:16px 16px 6px;margin-top:6px">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
+        <span style="width:32px;height:32px;border-radius:9px;background:var(--card);color:var(--primary);display:grid;place-items:center"><?= icon('sparkle', 18) ?></span>
+        <div>
+          <div style="font-weight:700;color:var(--heading);font-size:14.5px">Prompt AI ที่แนะนำ</div>
+          <div class="subtle" style="font-size:12px">ระบุ prompt และ AI ที่คุณทดลองแล้วได้ผลลัพธ์น่าพอใจ</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>ข้อความ Prompt <span style="color:var(--danger)">*</span></label>
+        <textarea class="textarea" name="prompt_text" style="font-family:ui-monospace,monospace;font-size:13px" required><?= h($ep['prompt_text'] ?? '') ?></textarea>
+      </div>
+      <div class="row" style="gap:14px">
+        <div class="field" style="flex:1">
+          <label>AI ที่ทดลองใช้แล้ว</label>
+          <?= ai_select('ai_id', $ep['ai_id'] ?? '') ?>
+        </div>
+        <div class="field" style="flex:1">
+          <label>ระดับความพอใจ</label>
+          <?= star_input((int)($ep['rating'] ?? 4), 'rating') ?>
+        </div>
+      </div>
+      <div class="field">
+        <label>ผลลัพธ์ตัวอย่าง <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
+        <textarea class="textarea" name="example_text" style="min-height:70px"><?= h($ep['example_text'] ?? '') ?></textarea>
+      </div>
+      <div class="field">
+        <label>หมายเหตุ/คำแนะนำ <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
+        <textarea class="textarea" name="note_text" style="min-height:60px"><?= h($ep['note_text'] ?? '') ?></textarea>
+      </div>
+    </div>
+  </form>
+  <?php modal_foot('edit-assignment', 'ยกเลิก', 'บันทึกการแก้ไข'); ?>
 
   <?php else: ?>
   <!-- ── Student submit / submitted view ──────────────────── -->
