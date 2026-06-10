@@ -13,11 +13,17 @@ $archived = is_teacher() ? get_archived_courses() : [];
       <?= $role === 'teacher' ? 'รายวิชาที่คุณเป็นผู้สอน' : 'รายวิชาที่คุณลงทะเบียนเรียน' ?>
     </p>
   </div>
-  <?php if (is_teacher()): ?>
-  <button class="btn btn-primary" style="margin-left:auto;gap:8px" onclick="openModal('new-course')">
+  <div style="margin-left:auto;display:flex;gap:8px">
+  <?php if (!is_teacher()): ?>
+  <button class="btn btn-soft" style="gap:8px" onclick="openModal('join-course')">
+    <?= icon('plus', 18, 'var(--primary)') ?> ลงทะเบียนรายวิชา
+  </button>
+  <?php else: ?>
+  <button class="btn btn-primary" style="gap:8px" onclick="openModal('new-course')">
     <?= icon('plus', 18, '#fff') ?> สร้างรายวิชา
   </button>
   <?php endif; ?>
+  </div>
 </div>
 
 <?php if (empty($courses)): ?>
@@ -179,6 +185,24 @@ function restoreCourse(courseId, btn) {
 
 </form>
 <?php modal_foot('new-course', 'ยกเลิก', 'สร้างรายวิชา', 'btn-primary'); ?>
+<?php endif; ?>
+
+<?php if (!is_teacher()):
+    modal_start('join-course', 'ลงทะเบียนรายวิชา', 'plus', false, false);
+?>
+<form id="join-course-form" method="post" action="api/join_course.php" data-ajax>
+  <p style="color:var(--sub);font-size:13.5px;margin-bottom:18px">
+    กรอกรหัสเชิญที่ได้รับจากครูผู้สอน เพื่อลงทะเบียนเข้าเรียนในรายวิชา
+  </p>
+  <div class="field">
+    <label class="field-label">รหัสเชิญ <span style="color:#ef4444">*</span></label>
+    <input class="input" type="text" name="invite_code"
+           placeholder="เช่น ABCD1234"
+           style="text-transform:uppercase;font-size:1.3rem;letter-spacing:.18em;font-weight:700;text-align:center"
+           maxlength="10" required autocomplete="off" spellcheck="false">
+  </div>
+</form>
+<?php modal_foot('join-course', 'ยกเลิก', 'ลงทะเบียน', 'btn-primary'); ?>
 <?php endif; ?>
 
 <style>
