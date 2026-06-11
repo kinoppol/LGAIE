@@ -56,7 +56,7 @@ function layout_start(string $page_title = 'ClassroomAI'): void
   <?php if (!empty($_SESSION['error'])): ?>
   <meta name="flash-error" content="<?= h($_SESSION['error']) ?>">
   <?php unset($_SESSION['error']); endif; ?>
-  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="<?= asset('css/theme.css') ?>">
   <script>
     (function(){
       var m = localStorage.getItem('ca-theme') || '<?= h($theme) ?>';
@@ -336,7 +336,7 @@ function layout_end(): void
 <script>
 window.AI_TOOLS = <?= json_encode(array_values(get_ai_tools()), JSON_UNESCAPED_UNICODE) ?>;
 </script>
-<script src="js/app.js"></script>
+<script src="<?= asset('js/app.js') ?>"></script>
 </body>
 </html>
 <?php
@@ -353,7 +353,7 @@ function layout_start_guest(string $page_title = 'ClassroomAI'): void
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= h($page_title) ?> — ClassroomAI</title>
-  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="<?= asset('css/theme.css') ?>">
   <script>
     (function(){
       var m = localStorage.getItem('ca-theme') || '<?= h($theme) ?>';
@@ -409,7 +409,7 @@ function layout_end_guest(): void
 <script>
 window.AI_TOOLS = <?= json_encode(array_values(get_ai_tools()), JSON_UNESCAPED_UNICODE) ?>;
 </script>
-<script src="js/app.js"></script>
+<script src="<?= asset('js/app.js') ?>"></script>
 </body>
 </html>
 <?php

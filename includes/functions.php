@@ -97,6 +97,14 @@ function redirect(string $url): never
     exit;
 }
 
+// Append a cache-busting ?v=<mtime> so browsers reload CSS/JS after edits
+function asset(string $path): string
+{
+    $full = __DIR__ . '/../' . $path;
+    $ver  = @filemtime($full) ?: time();
+    return h($path) . '?v=' . $ver;
+}
+
 function json_ok(array $data = []): never
 {
     while (ob_get_level() > 0) ob_end_clean();
