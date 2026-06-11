@@ -267,7 +267,13 @@ function openGradeModal(sub) {
   document.getElementById('gf-sub-id').value     = sub.id;
   document.getElementById('gf-name').textContent = sub.name;
   document.getElementById('gf-at').textContent   = 'ส่งเมื่อ ' + sub.at;
+  const answerWrap = document.getElementById('gf-answer-wrap');
+  const answerEl   = document.getElementById('gf-answer');
+  if (answerEl) answerEl.textContent = sub.answer || '';
+  if (answerWrap) answerWrap.style.display = sub.answer ? '' : 'none';
+  const resultWrap = document.getElementById('gf-result-wrap');
   document.getElementById('gf-result').textContent = sub.result || '—';
+  if (resultWrap) resultWrap.style.display = sub.result ? '' : 'none';
   document.getElementById('gf-grade').value      = sub.grade || '';
   document.getElementById('gf-feedback').value   = sub.feedback || '';
   document.getElementById('gf-pts-lbl').textContent = 'คะแนน (เต็ม ' + sub.points + ')';

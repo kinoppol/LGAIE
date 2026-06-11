@@ -183,6 +183,7 @@ try {
                     'initials'   => $sub['initials'],
                     'av'         => $sub['avatar_class'],
                     'at'         => date('j M Y H:i', strtotime($sub['submitted_at'])),
+                    'answer'     => $sub['answer_text'],
                     'result'     => $sub['result_text'],
                     'ai'         => $sub['ai_used'],
                     'points'     => $a['points'],
@@ -241,9 +242,8 @@ document.addEventListener('DOMContentLoaded', function() {
         <h3 id="grade-modal-title">ตรวจงาน</h3>
         <button type="button" class="x-btn" onclick="closeModal('grade-modal')"><?= icon('x', 18) ?></button>
       </div>
-      <form method="post" action="api/grade_submission.php" id="grade-form">
+      <form method="post" action="api/grade_submission.php" id="grade-form" data-ajax>
         <input type="hidden" name="submission_id" id="gf-sub-id">
-        <input type="hidden" name="redirect" value="<?= h($_SERVER['REQUEST_URI']) ?>">
         <div class="modal__body">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
             <span id="gf-avatar"></span>
@@ -252,9 +252,13 @@ document.addEventListener('DOMContentLoaded', function() {
               <div class="subtle" style="font-size:12.5px" id="gf-at"></div>
             </div>
           </div>
-          <div class="field">
-            <label>ผลลัพธ์ที่นักเรียนได้จาก AI</label>
-            <div id="gf-result" style="font-size:13.5px;color:var(--body);line-height:1.6;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:11px 13px"></div>
+          <div class="field" id="gf-answer-wrap">
+            <label>คำตอบ / ผลงาน</label>
+            <div id="gf-answer" style="font-size:13.5px;color:var(--body);line-height:1.6;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:11px 13px;white-space:pre-wrap"></div>
+          </div>
+          <div class="field" id="gf-result-wrap">
+            <label>ผลลัพธ์ที่ได้จาก AI</label>
+            <div id="gf-result" style="font-size:13.5px;color:var(--body);line-height:1.6;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:11px 13px;white-space:pre-wrap"></div>
           </div>
           <div class="row" style="gap:14px">
             <div class="field" style="flex:0 0 160px">
