@@ -38,15 +38,29 @@ API endpoints (`api/*.php`) are plain PHP POST handlers — they read `$_POST`, 
 
 ### Database Schema (key tables)
 
-- `users` — role ENUM('teacher','student'), used for role-switch (teacher=id 1, student=id 2 by default)
-- `courses` → `lessons` + `lesson_prompts` + `lesson_materials`
+- `users` — role ENUM('teacher','student','admin'), used for role-switch (teacher=id 1, student=id 2 by default; admin=`admin@demo.com`)
+- `courses` → `lessons` + `lesson_prompts` + `lesson_materials` (file attachments: `file_path`, `file_size`)
 - `courses` → `assignments` + `assignment_prompts`
-- `assignments` → `submissions` (one per student) → `submission_votes`
+- `assignments` → `submissions` (one per student) → `submission_votes` + `submission_files`
 - `ai_tools` — registry of AI names/colors loaded into every page via `get_ai_tools()` (cached statically)
+- `app_settings` — key/value store for admin-set limits (`max_file_mb`, `course_materials_quota_mb`, `course_submissions_quota_mb`)
+
+### File Uploads & Storage Quotas
+
+- Lesson materials (`materials[]`) and submission files (`files[]`) are multi-file uploads stored under `uploads/materials/` and `uploads/submissions/`; the example-output file lives in `uploads/examples/`.
+- Limits are enforced in `includes/functions.php`: `max_file_bytes()` (per-file, default 10 MB), `course_quota_bytes($course_id, 'materials'|'submissions')` (per-course totals, default 1 GB each — **counted separately**). Per-course overrides live in `courses.materials_quota_mb` / `courses.submissions_quota_mb` (NULL = global default).
+- Upload flow helpers: `collect_uploaded_files()` → `upload_batch_error()` (validate before any DB write; returns error string or null) → `store_uploaded_file()` (throws `RuntimeException`). UI components: `multi_file_input()` (works with `data-multifile` JS in `app.js`), `attachment_item()` for display.
+- `ensure_storage_schema()` auto-migrates the storage columns/tables; call it in any endpoint touching uploads.
+
+### Admin Role
+
+- Admin account: `admin@demo.com` / `demo1234` (seeded; password set by `install.php`). Admin lands on `pages/admin.php` (`?page=admin`, dashboard redirects there).
+- Admin tabs: **users** (reset password, suspend/activate teacher & student accounts via `api/admin_users.php`) and **storage** (global limits + per-course quota overrides + usage bars via `api/admin_settings.php`).
+- Guards: `is_admin()` / `require_admin()`. Admin accounts cannot manage each other.
 
 ### Session Conventions
 
-- `$_SESSION['role']` — `'teacher'` or `'student'`
+- `$_SESSION['role']` — `'teacher'`, `'student'`, or `'admin'`
 - `$_SESSION['user_id']` — 1 (teacher) or 2 (student) for the demo
 - `$_SESSION['theme']` — `'light'`, `'dark'`, or `'system'`
 - `$_SESSION['success']` / `$_SESSION['error']` — flash messages consumed once by layout

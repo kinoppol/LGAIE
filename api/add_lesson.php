@@ -24,11 +24,17 @@ if (!$title || !$week || !$prompt_txt || !$course_id) {
 try { get_db()->exec("ALTER TABLE lesson_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE lesson_prompts ADD COLUMN example_file VARCHAR(255) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE lesson_prompts ADD COLUMN example_file_name VARCHAR(255) NULL"); } catch (PDOException) {}
+ensure_storage_schema();
+
+// ตรวจไฟล์แนบเนื้อหาทั้งชุด (ขนาดต่อไฟล์ + โควต้ารวมของวิชา) ก่อนเขียนข้อมูลใด ๆ
+$materials = collect_uploaded_files('materials');
+if ($err = upload_batch_error($materials, $course_id, 'materials')) json_err($err);
 
 ['path' => $example_file, 'name' => $example_file_name] = upload_example_file();
 
 $db = get_db();
 $db->beginTransaction();
+$saved_paths = [];
 try {
     $sort = (int)db_val('SELECT COALESCE(MAX(sort_order),0)+1 FROM lessons WHERE course_id = ?', [$course_id]);
     $lesson_id = db_run(
@@ -39,9 +45,21 @@ try {
         'INSERT INTO lesson_prompts (lesson_id, prompt_text, ai_id, rating, example_text, example_file, example_file_name, note_text) VALUES (?,?,?,?,?,?,?,?)',
         [$lesson_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null]
     );
+    foreach ($materials as $f) {
+        $st = store_uploaded_file($f, 'materials', 'mat_');
+        $saved_paths[] = $st['path'];
+        db_run(
+            'INSERT INTO lesson_materials (lesson_id, name, file_type, file_path, file_size) VALUES (?,?,?,?,?)',
+            [$lesson_id, $st['name'], $st['type'], $st['path'], $st['size']]
+        );
+    }
     $db->commit();
     json_ok(['lesson_id' => $lesson_id, 'message' => 'เพิ่มบทเรียนเรียบร้อยแล้ว']);
 } catch (Exception $e) {
     $db->rollBack();
+    foreach ($saved_paths as $p) {
+        $fp = __DIR__ . '/../' . $p;
+        if (file_exists($fp)) @unlink($fp);
+    }
     json_err('เกิดข้อผิดพลาด: ' . $e->getMessage(), 500);
 }

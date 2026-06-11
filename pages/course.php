@@ -598,6 +598,7 @@ if (!$guest_mode && is_teacher()):
     <label>คำอธิบายเนื้อหา</label>
     <textarea class="textarea" name="description" placeholder="อธิบายเนื้อหาที่นักเรียนจะได้เรียนรู้…"></textarea>
   </div>
+  <?php multi_file_input('materials', 'ไฟล์ประกอบเนื้อหา') ?>
   <div class="ai-tint-box" style="padding:16px 16px 6px;margin-top:6px">
     <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
       <span style="width:32px;height:32px;border-radius:9px;background:var(--card);color:var(--primary);display:grid;place-items:center"><?= icon('sparkle', 18) ?></span>

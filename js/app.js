@@ -170,6 +170,68 @@ function updateAiSelect(sel) {
   }
 }
 
+// ── Multi-file input (lesson materials / submission files) ───
+function mfFormatSize(b) {
+  if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';
+  if (b >= 1024)    return Math.round(b / 1024) + ' KB';
+  return b + ' B';
+}
+
+function renderMfList(input) {
+  const wrap = input.closest('.mf-wrap');
+  const list = wrap ? wrap.querySelector('.mf-list') : null;
+  if (!list) return;
+  const maxMb = parseFloat(input.dataset.maxMb || '10');
+  list.innerHTML = '';
+  Array.from(input.files).forEach((f, idx) => {
+    const tooBig = f.size > maxMb * 1048576;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 12px;' +
+      'border:1.5px solid ' + (tooBig ? '#fca5a5' : 'var(--line-2)') + ';border-radius:8px;' +
+      'background:' + (tooBig ? '#fff1f2' : 'var(--surface-2)') + ';font-size:12.5px';
+    row.innerHTML =
+      '<span style="color:var(--body);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>' +
+      '<span style="color:' + (tooBig ? '#b91c1c' : 'var(--sub)') + ';flex:0 0 auto">' +
+        mfFormatSize(f.size) + (tooBig ? ' — เกิน ' + maxMb + ' MB' : '') + '</span>' +
+      '<button type="button" class="mf-rm" data-idx="' + idx + '" title="เอาไฟล์นี้ออก" ' +
+        'style="width:24px;height:24px;border-radius:6px;border:none;cursor:pointer;flex:0 0 auto;' +
+        'background:#fee2e2;color:#ef4444;font-weight:700;line-height:1">✕</button>';
+    row.querySelector('span').textContent = f.name;
+    list.appendChild(row);
+  });
+}
+
+document.addEventListener('change', e => {
+  const input = e.target.closest('input[type=file][data-multifile]');
+  if (input) renderMfList(input);
+});
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.mf-rm');
+  if (!btn) return;
+  const wrap  = btn.closest('.mf-wrap');
+  const input = wrap ? wrap.querySelector('input[type=file][data-multifile]') : null;
+  if (!input) return;
+  const idx = parseInt(btn.dataset.idx, 10);
+  const dt  = new DataTransfer();
+  Array.from(input.files).forEach((f, i) => { if (i !== idx) dt.items.add(f); });
+  input.files = dt.files;
+  renderMfList(input);
+});
+
+// ── Existing-material remove toggle (edit lesson modal) ──────
+function toggleMatRemove(btn) {
+  const row  = btn.closest('.mat-row');
+  const inp  = row.querySelector('input[type=hidden]');
+  const name = row.querySelector('.mat-name');
+  const willRemove = inp.disabled;          // ตอนนี้ยังเก็บไว้ → กดแล้วจะลบ
+  inp.disabled = !willRemove;
+  row.style.opacity = willRemove ? '.45' : '';
+  if (name) name.style.textDecoration = willRemove ? 'line-through' : '';
+  btn.textContent = willRemove ? '↩' : '✕';
+  btn.title = willRemove ? 'ยกเลิกการลบ' : 'ลบไฟล์นี้เมื่อบันทึก';
+}
+
 // ── AJAX form submission ──────────────────────────────────────
 document.addEventListener('submit', e => {
   const form = e.target;

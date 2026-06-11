@@ -131,6 +131,11 @@ function is_teacher(): bool
     return current_role() === 'teacher';
 }
 
+function is_admin(): bool
+{
+    return current_role() === 'admin';
+}
+
 function is_logged_in(): bool
 {
     return isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] > 0;
@@ -150,6 +155,15 @@ function require_teacher(): void
     if (!is_teacher()) {
         http_response_code(403);
         exit('403 Forbidden — เฉพาะครูเท่านั้น');
+    }
+}
+
+function require_admin(): void
+{
+    require_auth();
+    if (!is_admin()) {
+        http_response_code(403);
+        exit('403 Forbidden — เฉพาะผู้ดูแลระบบเท่านั้น');
     }
 }
 
@@ -471,6 +485,277 @@ function example_file_input(?string $existing = null, ?string $existing_name = n
     <?php
 }
 
+// ── App settings / storage quotas ───────────────────────────────────────────
+
+function ensure_settings_table(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        get_db()->exec("CREATE TABLE IF NOT EXISTS app_settings (
+            setting_key   VARCHAR(50)  PRIMARY KEY,
+            setting_value VARCHAR(255) NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    } catch (PDOException) {}
+}
+
+function ensure_storage_schema(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    ensure_settings_table();
+    $db = get_db();
+    try { $db->exec("ALTER TABLE lesson_materials
+        ADD COLUMN IF NOT EXISTS file_path   VARCHAR(255) NULL,
+        ADD COLUMN IF NOT EXISTS file_size   INT UNSIGNED NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP"); } catch (PDOException) {}
+    try { $db->exec("CREATE TABLE IF NOT EXISTS submission_files (
+        id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        submission_id INT UNSIGNED NOT NULL,
+        name          VARCHAR(255) NOT NULL,
+        file_path     VARCHAR(255) NOT NULL,
+        file_type     VARCHAR(10)  NOT NULL,
+        file_size     INT UNSIGNED NOT NULL DEFAULT 0,
+        uploaded_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+    try { $db->exec("ALTER TABLE courses
+        ADD COLUMN IF NOT EXISTS materials_quota_mb   INT UNSIGNED NULL,
+        ADD COLUMN IF NOT EXISTS submissions_quota_mb INT UNSIGNED NULL"); } catch (PDOException) {}
+}
+
+function get_setting(string $key, string $default = ''): string
+{
+    static $cache = null;
+    if ($cache === null) {
+        ensure_settings_table();
+        try {
+            $cache = array_column(db_rows('SELECT setting_key, setting_value FROM app_settings'), 'setting_value', 'setting_key');
+        } catch (PDOException) {
+            $cache = [];
+        }
+    }
+    return (string)($cache[$key] ?? $default);
+}
+
+function set_setting(string $key, string $value): void
+{
+    ensure_settings_table();
+    db_run('REPLACE INTO app_settings (setting_key, setting_value) VALUES (?,?)', [$key, $value]);
+}
+
+/** ขนาดสูงสุดต่อไฟล์ (bytes) — admin กำหนดผ่าน app_settings */
+function max_file_bytes(): int
+{
+    return max(1, (int)get_setting('max_file_mb', '10')) * 1048576;
+}
+
+/** โควต้ารวมต่อวิชา (bytes) — $kind: 'materials' | 'submissions' (override รายวิชาได้, NULL = ใช้ค่ากลาง) */
+function course_quota_bytes(int $course_id, string $kind): int
+{
+    $col = $kind === 'materials' ? 'materials_quota_mb' : 'submissions_quota_mb';
+    $override = null;
+    try { $override = db_val("SELECT {$col} FROM courses WHERE id = ?", [$course_id]); } catch (PDOException) {}
+    $mb = ($override !== null && $override !== false && $override !== '')
+        ? (int)$override
+        : (int)get_setting($kind === 'materials' ? 'course_materials_quota_mb' : 'course_submissions_quota_mb', '1024');
+    return max(1, $mb) * 1048576;
+}
+
+/** พื้นที่ที่ใช้ไปแล้วของวิชา (bytes) — คิดแยกระหว่างไฟล์เนื้อหากับไฟล์งานส่ง */
+function course_storage_used(int $course_id, string $kind): int
+{
+    try {
+        if ($kind === 'materials') {
+            return (int) db_val('
+                SELECT COALESCE(SUM(m.file_size),0) FROM lesson_materials m
+                JOIN lessons l ON l.id = m.lesson_id
+                WHERE l.course_id = ?', [$course_id]);
+        }
+        return (int) db_val('
+            SELECT COALESCE(SUM(f.file_size),0) FROM submission_files f
+            JOIN submissions s ON s.id = f.submission_id
+            JOIN assignments a ON a.id = s.assignment_id
+            WHERE a.course_id = ?', [$course_id]);
+    } catch (PDOException) {
+        return 0;
+    }
+}
+
+function format_bytes(int|float $b): string
+{
+    if ($b >= 1073741824) return number_format($b / 1073741824, 2) . ' GB';
+    if ($b >= 1048576)    return number_format($b / 1048576, 1) . ' MB';
+    if ($b >= 1024)       return number_format($b / 1024) . ' KB';
+    return $b . ' B';
+}
+
+// ── Multi-file uploads (lesson materials / submission files) ───────────────
+
+function allowed_upload_exts(): array
+{
+    return ['jpg','jpeg','png','gif','webp','pdf','doc','docx','ppt','pptx',
+            'xls','xlsx','csv','txt','zip','rar','7z','mp4','mov','webm','mp3','wav','m4a'];
+}
+
+function file_type_from_ext(string $ext): string
+{
+    return match (strtolower($ext)) {
+        'jpg','jpeg','png','gif','webp' => 'img',
+        'pdf'                           => 'pdf',
+        'ppt','pptx'                    => 'ppt',
+        'doc','docx'                    => 'doc',
+        'xls','xlsx','csv'              => 'xls',
+        'txt'                           => 'txt',
+        'zip','rar','7z'                => 'zip',
+        'mp4','mov','webm'              => 'vid',
+        'mp3','wav','m4a'               => 'aud',
+        default                         => 'file',
+    };
+}
+
+/** สร้างโฟลเดอร์ uploads/<subdir>/ — โยน RuntimeException ถ้าเขียนไม่ได้ */
+function ensure_upload_dir(string $subdir): string
+{
+    $uploads_root = __DIR__ . '/../uploads/';
+    $dir          = $uploads_root . trim($subdir, '/') . '/';
+    $htaccess     = "Options -ExecCGI\nAddHandler cgi-script .php .pl .py .rb\nRemoveHandler .php .php3\nphp_flag engine off\n";
+    foreach ([$uploads_root, $dir] as $d) {
+        if (!is_dir($d)) {
+            @mkdir($d, 0775, true);
+            @chmod($d, 0775);
+            @file_put_contents($d . '.htaccess', $htaccess);
+        }
+    }
+    @chmod($dir, 0775);
+    if (!is_writable($dir)) {
+        $real = realpath($dir) ?: $dir;
+        $fix  = DIRECTORY_SEPARATOR === '\\'
+            ? "icacls \"{$real}\" /grant Everyone:(OI)(CI)F"
+            : "chmod 775 {$real}";
+        throw new RuntimeException("ไม่มีสิทธิ์เขียนโฟลเดอร์ uploads/{$subdir}/ — รันคำสั่งนี้บน server แล้วลองใหม่: {$fix}");
+    }
+    return $dir;
+}
+
+/** อ่าน $_FILES[$field] แบบ multiple → list ของ ['name','tmp_name','error','size'] */
+function collect_uploaded_files(string $field): array
+{
+    if (empty($_FILES[$field]) || !is_array($_FILES[$field]['name'])) return [];
+    $out = [];
+    foreach ($_FILES[$field]['name'] as $i => $name) {
+        if ($name === '' || $_FILES[$field]['error'][$i] === UPLOAD_ERR_NO_FILE) continue;
+        $out[] = [
+            'name'     => $name,
+            'tmp_name' => $_FILES[$field]['tmp_name'][$i],
+            'error'    => (int)$_FILES[$field]['error'][$i],
+            'size'     => (int)$_FILES[$field]['size'][$i],
+        ];
+    }
+    return $out;
+}
+
+/**
+ * ตรวจไฟล์ทั้งชุดก่อนบันทึก: error PHP, ขนาดต่อไฟล์, ชนิดไฟล์ และโควต้ารวมของวิชา
+ * คืน null ถ้าผ่าน หรือข้อความ error (ผู้เรียกตัดสินใจเองว่าจะ json_err หรือ flash)
+ * $freed_bytes = ขนาดไฟล์เดิมที่กำลังจะถูกลบในคำขอเดียวกัน
+ */
+function upload_batch_error(array $files, int $course_id, string $kind, int $freed_bytes = 0): ?string
+{
+    if (!$files) return null;
+    $max       = max_file_bytes();
+    $total_new = 0;
+    foreach ($files as $f) {
+        if ($f['error'] !== UPLOAD_ERR_OK) {
+            return $f['error'] === UPLOAD_ERR_INI_SIZE
+                ? "ไฟล์ \"{$f['name']}\" ใหญ่เกินที่เซิร์ฟเวอร์ (PHP) กำหนด"
+                : "อัปโหลดไฟล์ \"{$f['name']}\" ล้มเหลว (PHP error {$f['error']})";
+        }
+        if ($f['size'] > $max) {
+            return "ไฟล์ \"{$f['name']}\" (" . format_bytes($f['size']) . ') ใหญ่เกินกำหนด ' . format_bytes($max) . ' ต่อไฟล์';
+        }
+        $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, allowed_upload_exts(), true)) {
+            return "ประเภทไฟล์ไม่รองรับ: \"{$f['name']}\" (.{$ext})";
+        }
+        $total_new += $f['size'];
+    }
+    $used  = max(0, course_storage_used($course_id, $kind) - $freed_bytes);
+    $quota = course_quota_bytes($course_id, $kind);
+    if ($used + $total_new > $quota) {
+        $label = $kind === 'materials' ? 'ไฟล์แนบเนื้อหา' : 'ไฟล์งานที่ส่ง';
+        return "พื้นที่{$label}ของวิชานี้ไม่พอ — ใช้ไปแล้ว " . format_bytes($used)
+             . ' จากโควต้า ' . format_bytes($quota)
+             . ' (ไฟล์ใหม่รวม ' . format_bytes($total_new) . ')';
+    }
+    return null;
+}
+
+/** ย้ายไฟล์เข้า uploads/<subdir>/ — โยน RuntimeException ถ้าล้มเหลว */
+function store_uploaded_file(array $f, string $subdir, string $prefix = 'f_'): array
+{
+    $dir      = ensure_upload_dir($subdir);
+    $ext      = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+    $filename = str_replace('.', '', uniqid($prefix, true)) . '.' . $ext;
+    if (!move_uploaded_file($f['tmp_name'], $dir . $filename)) {
+        throw new RuntimeException("บันทึกไฟล์ \"{$f['name']}\" ล้มเหลว");
+    }
+    return [
+        'path' => 'uploads/' . trim($subdir, '/') . '/' . $filename,
+        'name' => $f['name'],
+        'size' => $f['size'],
+        'type' => file_type_from_ext($ext),
+    ];
+}
+
+/** ช่องเลือกไฟล์หลายไฟล์ (ใช้ทั้งไฟล์เนื้อหาและไฟล์ส่งงาน) — ทำงานคู่กับ JS data-multifile */
+function multi_file_input(string $field = 'materials', string $label = 'แนบไฟล์ประกอบเนื้อหา'): void
+{
+    $max_mb = max(1, (int)get_setting('max_file_mb', '10'));
+    $accept = '.' . implode(',.', allowed_upload_exts());
+    ?>
+    <div class="field mf-wrap">
+      <label><?= h($label) ?>
+        <span class="subtle" style="font-weight:400">(เลือกได้หลายไฟล์ · ไฟล์ละไม่เกิน <?= $max_mb ?> MB)</span>
+      </label>
+      <label style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+                    font-size:13px;color:var(--sub);padding:14px 12px;
+                    border:1.5px dashed var(--line-2);border-radius:9px;transition:border-color .15s,color .15s"
+             onmouseenter="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'"
+             onmouseleave="this.style.borderColor='var(--line-2)';this.style.color='var(--sub)'">
+        <?= icon('paperclip', 16) ?>
+        <span>คลิกเพื่อเลือกไฟล์ (ภาพ / PDF / เอกสาร / วิดีโอ / zip)</span>
+        <input type="file" name="<?= h($field) ?>[]" multiple data-multifile data-max-mb="<?= $max_mb ?>"
+               accept="<?= h($accept) ?>" style="display:none">
+      </label>
+      <div class="mf-list" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+    </div>
+    <?php
+}
+
+/** แถวไฟล์แนบ (ลิงก์ดาวน์โหลดถ้ามี file_path) — ใช้ทั้งหน้าบทเรียนและหน้างาน */
+function attachment_item(array $m): string
+{
+    $name  = $m['name'] ?? basename((string)($m['file_path'] ?? ''));
+    $type  = $m['file_type'] ?? 'file';
+    $size  = (int)($m['file_size'] ?? 0);
+    $href  = (string)($m['file_path'] ?? '');
+    $inner = file_badge($type)
+        . '<div style="min-width:0;flex:1">'
+        . '<div style="font-size:13.5px;font-weight:600;color:var(--heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' . h($name) . '</div>'
+        . ($size > 0 ? '<div style="font-size:11.5px;color:var(--sub)">' . format_bytes($size) . '</div>' : '')
+        . '</div>';
+    $style = 'display:flex;align-items:center;gap:11px;padding:11px 14px;border:1px solid var(--line-2);border-radius:10px;min-width:230px;max-width:100%';
+    if ($href !== '') {
+        return '<a href="' . h($href) . '" target="_blank" rel="noopener" style="' . $style . ';text-decoration:none;background:var(--card);transition:border-color .15s"'
+            . ' onmouseenter="this.style.borderColor=\'var(--primary)\'" onmouseleave="this.style.borderColor=\'var(--line-2)\'">'
+            . $inner . icon('download', 17, 'var(--muted)') . '</a>';
+    }
+    return '<div style="' . $style . '">' . $inner . '</div>';
+}
+
 function thai_due_ts(string $due): int
 {
     static $months = [
@@ -562,6 +847,10 @@ function icon(
         'refresh'    => '<path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>',
         'external-link' => '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
         'paperclip'  => '<path d="M21.4 11.6 12 21a6 6 0 0 1-8.5-8.5l9.4-9.4a4 4 0 0 1 5.7 5.7L9.2 18.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/>',
+        'shield'     => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+        'key'        => '<circle cx="8" cy="16" r="4"/><path d="M10.8 13.2 21 3M15 5l4 4"/>',
+        'database'   => '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+        'trash'      => '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13z"/><path d="M10 11v5M14 11v5"/>',
     ];
     $inner = $paths[$name] ?? '';
     $ca    = $cls ? " class=\"" . h($cls) . "\"" : '';
@@ -800,6 +1089,11 @@ function file_badge(string $type): string
         'ppt' => ['#ff9f43', 'PPT'],
         'img' => ['#a371f7', 'IMG'],
         'doc' => ['#3b7df5', 'DOC'],
+        'xls' => ['#28c76f', 'XLS'],
+        'txt' => ['#8a94a6', 'TXT'],
+        'zip' => ['#c778dd', 'ZIP'],
+        'vid' => ['#e05c97', 'VID'],
+        'aud' => ['#17a2b8', 'AUD'],
     ];
     [$c, $t] = $map[$type] ?? ['#8a94a6', 'FILE'];
     return "<span style=\"width:38px;height:38px;border-radius:9px;background:{$c}22;color:{$c};display:grid;place-items:center;font-size:10px;font-weight:800;flex:0 0 auto\">{$t}</span>";

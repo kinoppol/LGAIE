@@ -22,6 +22,17 @@ if (!$assignment_id || !$prompt_used) {
     exit;
 }
 
+ensure_storage_schema();
+$course_id = (int)db_val('SELECT course_id FROM assignments WHERE id = ?', [$assignment_id]);
+
+// ตรวจไฟล์แนบงานทั้งชุด (โควต้าไฟล์งานส่งของวิชา — แยกจากไฟล์เนื้อหา)
+$files = collect_uploaded_files('files');
+if ($err = upload_batch_error($files, $course_id, 'submissions')) {
+    $_SESSION['error'] = $err;
+    header("Location: $redirect");
+    exit;
+}
+
 try {
     db_run(
         'INSERT INTO submissions (assignment_id, student_id, answer_text, prompt_used, ai_used, better_than_teacher, compare_note, result_text)
@@ -31,6 +42,17 @@ try {
            better_than_teacher=VALUES(better_than_teacher), compare_note=VALUES(compare_note), result_text=VALUES(result_text)',
         [$assignment_id, $student_id, $answer ?: null, $prompt_used, $ai_used, $better, $compare_note ?: null, $result ?: null]
     );
+    $submission_id = (int)db_val(
+        'SELECT id FROM submissions WHERE assignment_id = ? AND student_id = ?',
+        [$assignment_id, $student_id]
+    );
+    foreach ($files as $f) {
+        $st = store_uploaded_file($f, 'submissions', 'sub_');
+        db_run(
+            'INSERT INTO submission_files (submission_id, name, file_path, file_type, file_size) VALUES (?,?,?,?,?)',
+            [$submission_id, $st['name'], $st['path'], $st['type'], $st['size']]
+        );
+    }
     $_SESSION['success'] = 'ส่งงานเรียบร้อยแล้ว!';
 } catch (Exception $e) {
     $_SESSION['error'] = 'เกิดข้อผิดพลาด: ' . $e->getMessage();

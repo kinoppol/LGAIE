@@ -21,6 +21,18 @@ if (!is_teacher()) {
 }
 
 $total_enrolled = (int)db_val('SELECT COUNT(*) FROM course_enrollments WHERE course_id = ?', [$a['course_id']]);
+
+// ไฟล์แนบของแต่ละ submission (จัดกลุ่มตาม submission_id)
+$files_by_sub = [];
+try {
+    $all_files = db_rows('
+        SELECT f.* FROM submission_files f
+        JOIN submissions s ON s.id = f.submission_id
+        WHERE s.assignment_id = ? ORDER BY f.id', [$assignment_id]);
+    foreach ($all_files as $f) $files_by_sub[(int)$f['submission_id']][] = $f;
+} catch (PDOException) {
+    // ตาราง submission_files ยังไม่ถูกสร้าง (จะถูกสร้างเมื่อมีการอัปโหลดครั้งแรก)
+}
 ?>
 
 <div style="max-width:<?= is_teacher() ? '1100px' : '900px' ?>">
@@ -143,6 +155,16 @@ $total_enrolled = (int)db_val('SELECT COUNT(*) FROM course_enrollments WHERE cou
         </span>
       </div>
       <div class="prompt-text" style="font-size:12.5px"><?= h($sub['prompt_used']) ?></div>
+      <?php if (!empty($files_by_sub[(int)$sub['id']])): ?>
+      <div style="margin-top:10px">
+        <div class="subtle" style="font-size:12.5px;font-weight:600;margin-bottom:6px">ไฟล์แนบ (<?= count($files_by_sub[(int)$sub['id']]) ?>)</div>
+        <div class="row wrap">
+          <?php foreach ($files_by_sub[(int)$sub['id']] as $f): ?>
+          <?= attachment_item($f) ?>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
       <?php if ($sub['compare_note']): ?>
       <div style="margin-top:10px;font-size:13px;color:var(--body);display:flex;gap:8px;align-items:flex-start">
         <?= icon('message', 15, 'var(--muted)') ?> <i>"<?= h($sub['compare_note']) ?>"</i>
@@ -360,6 +382,16 @@ document.addEventListener('DOMContentLoaded', function() {
         <label>คำตอบที่ส่ง</label>
         <div style="font-size:14px;color:var(--body);line-height:1.6"><?= h($my_sub['answer_text'] ?: '— แนบไฟล์ —') ?></div>
       </div>
+      <?php if (!empty($files_by_sub[(int)$my_sub['id']])): ?>
+      <div class="field" style="margin-bottom:14px">
+        <label>ไฟล์ที่แนบ</label>
+        <div class="row wrap">
+          <?php foreach ($files_by_sub[(int)$my_sub['id']] as $f): ?>
+          <?= attachment_item($f) ?>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         <span class="subtle" style="font-size:12.5px;font-weight:600">AI ที่ใช้</span>
         <?= ai_pill($my_sub['ai_used'], 'sm') ?>
@@ -387,7 +419,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <span class="badge orange" style="margin-left:auto"><?= icon('clock', 13) ?> กำหนดส่ง <?= h($a['due_short']) ?></span>
     </div>
     <div class="card-pad">
-      <form id="submit-form" method="post" action="api/submit_assignment.php">
+      <form id="submit-form" method="post" action="api/submit_assignment.php" enctype="multipart/form-data">
         <input type="hidden" name="assignment_id" value="<?= $assignment_id ?>">
         <input type="hidden" name="redirect" value="<?= h($_SERVER['REQUEST_URI']) ?>">
 
@@ -395,6 +427,8 @@ document.addEventListener('DOMContentLoaded', function() {
           <label>คำตอบ / ผลงานของคุณ <span style="color:var(--danger)">*</span></label>
           <textarea class="textarea" name="answer_text" placeholder="เขียนคำตอบหรือสรุปผลงานของคุณที่นี่…" required></textarea>
         </div>
+
+        <?php multi_file_input('files', 'แนบไฟล์ผลงาน') ?>
 
         <div class="ai-tint-box" style="padding:16px;margin-top:6px">
           <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">

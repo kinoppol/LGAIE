@@ -41,11 +41,7 @@ $c = get_course((int)$lesson['course_id']);
     <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:12px">เอกสารประกอบ</div>
     <div class="row wrap">
       <?php foreach ($lesson['materials'] as $m): ?>
-      <div style="display:flex;align-items:center;gap:11px;padding:11px 14px;border:1px solid var(--line-2);border-radius:10px;min-width:230px;cursor:pointer">
-        <?= file_badge($m['file_type']) ?>
-        <span style="font-size:13.5px;font-weight:600;color:var(--heading)"><?= h($m['name']) ?></span>
-        <?= icon('download', 17, 'var(--muted)') ?>
-      </div>
+      <?= attachment_item($m) ?>
       <?php endforeach; ?>
     </div>
     <?php endif; ?>
@@ -89,6 +85,29 @@ $c = get_course((int)$lesson['course_id']);
     <label>คำอธิบายเนื้อหา</label>
     <textarea class="textarea" name="description"><?= h($lesson['description']) ?></textarea>
   </div>
+  <?php if (!empty($lesson['materials'])): ?>
+  <div class="field">
+    <label>ไฟล์ประกอบเนื้อหาที่มีอยู่</label>
+    <?php foreach ($lesson['materials'] as $m): ?>
+    <div class="mat-row" style="display:flex;align-items:center;gap:8px;padding:7px 12px;margin-bottom:6px;
+                                border:1.5px solid var(--line-2);border-radius:8px;background:var(--surface-2)">
+      <!-- enabled = จะถูกลบเมื่อบันทึก (toggle ผ่าน toggleMatRemove) -->
+      <input type="hidden" name="remove_materials[]" value="<?= (int)$m['id'] ?>" disabled>
+      <?= icon('paperclip', 14, 'var(--sub)') ?>
+      <span class="mat-name" style="font-size:12.5px;color:var(--body);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        <?= h($m['name']) ?>
+      </span>
+      <?php if ((int)($m['file_size'] ?? 0) > 0): ?>
+      <span class="subtle" style="font-size:11.5px;flex:0 0 auto"><?= format_bytes((int)$m['file_size']) ?></span>
+      <?php endif; ?>
+      <button type="button" title="ลบไฟล์นี้เมื่อบันทึก" onclick="toggleMatRemove(this)"
+              style="width:24px;height:24px;border-radius:6px;border:none;cursor:pointer;flex:0 0 auto;
+                     background:#fee2e2;color:#ef4444;font-weight:700;line-height:1">✕</button>
+    </div>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+  <?php multi_file_input('materials', 'เพิ่มไฟล์ประกอบเนื้อหา') ?>
   <div class="ai-tint-box" style="padding:16px 16px 6px;margin-top:6px">
     <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
       <span style="width:32px;height:32px;border-radius:9px;background:var(--card);color:var(--primary);display:grid;place-items:center"><?= icon('sparkle', 18) ?></span>

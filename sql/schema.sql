@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS ai_tools (
 CREATE TABLE IF NOT EXISTS users (
   id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(100) NOT NULL,
-  role          ENUM('teacher','student') NOT NULL,
+  role          ENUM('teacher','student','admin') NOT NULL,
   avatar_class  VARCHAR(10)  DEFAULT 'av-1',
   initials      VARCHAR(5)   NOT NULL,
   email         VARCHAR(150) NULL UNIQUE,
@@ -104,10 +104,13 @@ CREATE TABLE IF NOT EXISTS lessons (
 
 -- -------- Lesson Materials --------
 CREATE TABLE IF NOT EXISTS lesson_materials (
-  id        INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  lesson_id INT UNSIGNED NOT NULL,
-  name      VARCHAR(200) NOT NULL,
-  file_type VARCHAR(10)  NOT NULL,
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  lesson_id   INT UNSIGNED NOT NULL,
+  name        VARCHAR(200) NOT NULL,
+  file_type   VARCHAR(10)  NOT NULL,
+  file_path   VARCHAR(255) NULL,
+  file_size   INT UNSIGNED NOT NULL DEFAULT 0,
+  uploaded_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -173,6 +176,24 @@ CREATE TABLE IF NOT EXISTS submissions (
   UNIQUE KEY uq_submission (assignment_id, student_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- -------- Submission Files (ไฟล์แนบงานที่นักเรียนส่ง) --------
+CREATE TABLE IF NOT EXISTS submission_files (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  submission_id INT UNSIGNED NOT NULL,
+  name          VARCHAR(255) NOT NULL,
+  file_path     VARCHAR(255) NOT NULL,
+  file_type     VARCHAR(10)  NOT NULL,
+  file_size     INT UNSIGNED NOT NULL DEFAULT 0,
+  uploaded_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- -------- App Settings (ค่ากลางที่ admin กำหนด) --------
+CREATE TABLE IF NOT EXISTS app_settings (
+  setting_key   VARCHAR(50)  PRIMARY KEY,
+  setting_value VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- -------- Submission Votes --------
 CREATE TABLE IF NOT EXISTS submission_votes (
   id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -205,6 +226,10 @@ CREATE TABLE IF NOT EXISTS course_posts (
 -- (Safe to run on both fresh and existing installations)
 -- ============================================================
 
+-- เพิ่ม role 'admin' (ปลอดภัยกับข้อมูลเดิม — ค่า enum เดิมยังอยู่ครบ)
+ALTER TABLE users
+  MODIFY COLUMN role ENUM('teacher','student','admin') NOT NULL;
+
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS email         VARCHAR(150) NULL     AFTER initials,
   ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NOT NULL DEFAULT '' AFTER email,
@@ -221,7 +246,15 @@ ALTER TABLE courses
   ADD COLUMN IF NOT EXISTS template_id     INT UNSIGNED NULL          AFTER is_template,
   ADD COLUMN IF NOT EXISTS template_secret CHAR(12)     NULL          AFTER template_id,
   ADD COLUMN IF NOT EXISTS is_archived     TINYINT(1)   DEFAULT 0    AFTER template_secret,
-  ADD COLUMN IF NOT EXISTS archived_at     DATETIME     NULL          AFTER is_archived;
+  ADD COLUMN IF NOT EXISTS archived_at     DATETIME     NULL          AFTER is_archived,
+  ADD COLUMN IF NOT EXISTS materials_quota_mb   INT UNSIGNED NULL COMMENT 'Override โควต้าไฟล์เนื้อหา (NULL = ใช้ค่ากลาง)',
+  ADD COLUMN IF NOT EXISTS submissions_quota_mb INT UNSIGNED NULL COMMENT 'Override โควต้าไฟล์งานส่ง (NULL = ใช้ค่ากลาง)';
+
+-- ไฟล์แนบเนื้อหาบทเรียน: เก็บ path/ขนาดไฟล์จริง
+ALTER TABLE lesson_materials
+  ADD COLUMN IF NOT EXISTS file_path   VARCHAR(255) NULL,
+  ADD COLUMN IF NOT EXISTS file_size   INT UNSIGNED NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP;
 
 ALTER TABLE course_enrollments
   ADD COLUMN IF NOT EXISTS join_type ENUM('direct','invite_link','invite_code','invite_email','self','template') DEFAULT 'direct' AFTER user_id,
@@ -249,6 +282,12 @@ INSERT IGNORE INTO ai_tools (id, name, letter, color, url) VALUES
 ('copilot',    'Copilot',    'Co', '#7a5cff', 'copilot.microsoft.com'),
 ('perplexity', 'Perplexity', 'P',  '#20808d', 'perplexity.ai');
 
+-- ค่ากลางพื้นที่จัดเก็บไฟล์ (admin แก้ไขได้ในหน้า "พื้นที่จัดเก็บไฟล์")
+INSERT IGNORE INTO app_settings (setting_key, setting_value) VALUES
+('max_file_mb',                 '10'),
+('course_materials_quota_mb',   '1024'),
+('course_submissions_quota_mb', '1024');
+
 -- password_hash will be set by install.php after SQL runs (password = demo1234)
 INSERT INTO users (id, name, role, avatar_class, initials, email, phone, school, province, status) VALUES
 (1, 'อ. สมหญิง วัฒนกุล',  'teacher', 'av-1', 'สญ', 'teacher@demo.com',  '0812345678', 'โรงเรียนสาธิต กรุงเทพ', 'กรุงเทพมหานคร', 'active'),
@@ -265,6 +304,10 @@ ON DUPLICATE KEY UPDATE
   school   = VALUES(school),
   province = VALUES(province),
   status   = VALUES(status);
+
+-- บัญชีผู้ดูแลระบบ (ไม่กำหนด id — อิง unique email เพื่อไม่ทับผู้ใช้เดิม / รหัสผ่านตั้งโดย install.php)
+INSERT IGNORE INTO users (name, role, avatar_class, initials, email, status) VALUES
+('ผู้ดูแลระบบ', 'admin', 'av-4', 'AD', 'admin@demo.com', 'active');
 
 INSERT IGNORE INTO courses (id, code, name, section, short_name, banner, ink_color, primary_color, teacher_id) VALUES
 (1,'ว31104','วิทยาการคำนวณ','ม.4/2 · ห้อง 314','วค',

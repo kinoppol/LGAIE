@@ -1,0 +1,4 @@
+Options -ExecCGI
+AddHandler cgi-script .php .pl .py .rb
+RemoveHandler .php .php3
+php_flag engine off

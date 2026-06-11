@@ -41,6 +41,11 @@ if (!isset($_SESSION['theme'])) {
     $_SESSION['theme'] = 'system';
 }
 
+// Admin ใช้หน้า admin เป็นหน้าหลัก
+if (is_admin() && $page === 'dashboard') {
+    redirect('index.php?page=admin');
+}
+
 // ── Title map ─────────────────────────────────────────────────
 $title_map = [
     'dashboard'  => 'หน้าหลัก',
@@ -54,6 +59,7 @@ $title_map = [
     'profile'         => 'โปรไฟล์',
     'course_settings' => 'ตั้งค่ารายวิชา',
     'explore'         => 'ค้นหารายวิชา',
+    'admin'           => 'ผู้ดูแลระบบ',
 ];
 $title = $title_map[$page] ?? 'ClassroomAI';
 

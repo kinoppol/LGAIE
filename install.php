@@ -161,6 +161,11 @@ if ($step === 'install') {
                 ->execute([$demo_hash, ...$demo_ids]);
             $results[] = ['ok' => true, 'msg' => 'SET demo passwords (id 1-8) → demo1234'];
 
+            // ── Admin demo password (เฉพาะตอนยังไม่เคยตั้ง — ไม่ทับรหัสที่เปลี่ยนแล้ว) ──
+            $pdo->prepare("UPDATE users SET password_hash = ? WHERE email = 'admin@demo.com' AND role = 'admin' AND password_hash = ''")
+                ->execute([$demo_hash]);
+            $results[] = ['ok' => true, 'msg' => 'SET admin password (admin@demo.com) → demo1234'];
+
             $success    = true;
             $messages[] = ['type' => 'ok', 'text' => 'ติดตั้งฐานข้อมูลและข้อมูลตัวอย่างเรียบร้อยแล้ว (รหัสผ่านทดสอบ: demo1234)'];
         } catch (PDOException $e) {
@@ -433,7 +438,7 @@ $cfg_writable = is_writable(CONFIG_FILE)
     <div class="action-row">
       <form method="post">
         <input type="hidden" name="step" value="install">
-        <button type="submit" class="btn <?= $db_ok ? ($count_tables > 0 ? 'btn-ghost' : 'btn-primary') : 'btn-ghost' ?>"
+        <button type="submit" class="btn <?= $db_ok ? (count($tables) > 0 ? 'btn-ghost' : 'btn-primary') : 'btn-ghost' ?>"
                 style="gap:8px" <?= !$db_ok ? 'disabled title="ต้องเชื่อมต่อฐานข้อมูลก่อน"' : '' ?>>
           <?php if (count($tables) > 0): ?>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>

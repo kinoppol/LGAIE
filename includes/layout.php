@@ -75,6 +75,22 @@ function layout_start(string $page_title = 'ClassroomAI'): void
     <span class="brand-name">Classroom<b>AI</b></span>
   </div>
   <nav class="nav-scroll">
+    <?php if (is_admin()): ?>
+    <div class="nav-label">ผู้ดูแลระบบ</div>
+    <?php
+    $cur_tab = $_GET['tab'] ?? 'users';
+    $nav_admin = [
+        ['users',   'users',    'จัดการผู้ใช้'],
+        ['storage', 'database', 'พื้นที่จัดเก็บไฟล์'],
+    ];
+    foreach ($nav_admin as [$tb, $ic, $lbl]):
+        $act = ($active === 'admin' && $cur_tab === $tb) ? ' active' : '';
+    ?>
+    <a href="<?= url('admin', ['tab' => $tb]) ?>" class="nav-item<?= $act ?>">
+        <?= icon($ic, 20) ?> <?= $lbl ?>
+    </a>
+    <?php endforeach; ?>
+    <?php else: ?>
     <div class="nav-label">เมนูหลัก</div>
 
     <?php
@@ -114,6 +130,7 @@ function layout_start(string $page_title = 'ClassroomAI'): void
         <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= h($c['name']) ?></span>
     </a>
     <?php endforeach; ?>
+    <?php endif; ?>
 
     <div class="nav-label">อื่น ๆ</div>
     <button class="nav-item"><?= icon('calendar', 20) ?> ปฏิทิน</button>
@@ -257,7 +274,7 @@ function layout_start(string $page_title = 'ClassroomAI'): void
       <?= avatar($user, 40) ?>
       <div>
         <div class="u-name"><?= h($user['name'] ?? '') ?></div>
-        <div class="u-role"><?= h(!empty($user['school']) ? $user['school'] : ($role === 'teacher' ? 'ครูผู้สอน' : 'นักเรียน')) ?></div>
+        <div class="u-role"><?= h($role === 'admin' ? 'ผู้ดูแลระบบ' : (!empty($user['school']) ? $user['school'] : ($role === 'teacher' ? 'ครูผู้สอน' : 'นักเรียน'))) ?></div>
       </div>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" style="color:var(--sub);flex:0 0 auto"><path d="M6 9l6 6 6-6"/></svg>
     </div>

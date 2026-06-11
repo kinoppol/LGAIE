@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -l *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Test-Path *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
+    ]
+  }
+}
