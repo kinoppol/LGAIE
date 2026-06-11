@@ -205,10 +205,10 @@ try {
         </button>
         <?php $voted = !empty($sub['voted_by_me']); ?>
         <button type="button" id="vote-btn-<?= (int)$sub['id'] ?>"
-                class="btn btn-sm <?= $voted ? 'btn-primary' : 'btn-ghost' ?>"
+                class="btn btn-sm <?= $voted ? 'btn-ghost' : 'btn-soft' ?>"
                 data-voted="<?= $voted ? '1' : '0' ?>"
                 onclick="votePrompt(this, <?= (int)$sub['id'] ?>)">
-          <?= icon('thumbs-up', 15, $voted ? '#fff' : 'currentColor') ?>
+          <?= icon('thumbs-up', 15) ?>
           <span class="vote-btn-label"><?= $voted ? 'ยกเลิกโหวต' : 'โหวตว่า prompt ดี' ?></span>
         </button>
       </div>

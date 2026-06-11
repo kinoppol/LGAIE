@@ -318,14 +318,13 @@ function votePrompt(btn, subId) {
       if (numEl) numEl.textContent = res.vote_count;
       if (card) card.dataset.votes = res.vote_count;
 
-      // Reflect voted / un-voted state on the button
+      // Reflect voted / un-voted state on the button.
+      // Not-voted = subtle-but-inviting (btn-soft); voted = quiet (btn-ghost).
       btn.dataset.voted = res.voted ? '1' : '0';
-      btn.classList.toggle('btn-primary', res.voted);
-      btn.classList.toggle('btn-ghost', !res.voted);
+      btn.classList.toggle('btn-ghost', res.voted);
+      btn.classList.toggle('btn-soft', !res.voted);
       const lbl = btn.querySelector('.vote-btn-label');
       if (lbl) lbl.textContent = res.voted ? 'ยกเลิกโหวต' : 'โหวตว่า prompt ดี';
-      const svg = btn.querySelector('svg');
-      if (svg) svg.setAttribute('stroke', res.voted ? '#fff' : 'currentColor');
 
       showToast(res.message || (res.voted ? 'โหวตแล้ว' : 'ยกเลิกโหวตแล้ว'));
       resortSubs();
