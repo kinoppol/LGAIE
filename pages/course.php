@@ -28,6 +28,32 @@ try {
     $posts = [];
 }
 
+// ── Storage data (for sidebar donut) ──────────────────────────
+ensure_storage_schema();
+$mat_used  = course_storage_used($course_id, 'materials');
+$mat_quota = course_quota_bytes($course_id, 'materials');
+$sub_used  = course_storage_used($course_id, 'submissions');
+$sub_quota = course_quota_bytes($course_id, 'submissions');
+$mat_pct   = $mat_quota > 0 ? min(100, $mat_used / $mat_quota * 100) : 0;
+$sub_pct   = $sub_quota > 0 ? min(100, $sub_used / $sub_quota * 100) : 0;
+$mat_color = $mat_pct >= 90 ? 'var(--danger)' : ($mat_pct >= 70 ? 'var(--warn)' : 'var(--primary)');
+$sub_color = $sub_pct >= 90 ? 'var(--danger)' : ($sub_pct >= 70 ? 'var(--warn)' : 'var(--primary)');
+
+function storage_donut(float $pct, string $color): string {
+    $r     = 30;
+    $circ  = round(2 * M_PI * $r, 3);
+    $dash  = round($pct / 100 * $circ, 3);
+    $label = $pct < 0.5 ? '0%' : ($pct < 1 ? '<1%' : round($pct) . '%');
+    return '<svg viewBox="0 0 80 80" width="80" height="80" style="display:block;margin:0 auto 6px">'
+         . '<circle cx="40" cy="40" r="' . $r . '" fill="none" stroke="var(--line-2)" stroke-width="9"/>'
+         . '<circle cx="40" cy="40" r="' . $r . '" fill="none" stroke="' . $color . '" stroke-width="9"'
+         . ' stroke-linecap="round"'
+         . ' stroke-dasharray="' . $dash . ' ' . $circ . '"'
+         . ' transform="rotate(-90 40 40)"/>'
+         . '<text x="40" y="44" text-anchor="middle" font-size="13" font-weight="700" fill="var(--heading)">' . htmlspecialchars($label) . '</text>'
+         . '</svg>';
+}
+
 // ── Course header ──────────────────────────────────────────────
 ?>
 <?php
@@ -177,13 +203,36 @@ if ($tab === 'stream'): ?>
       </div>
       <?php endforeach; ?>
     </div>
-    <div class="card card-pad" style="background:var(--primary-soft);border:1px solid var(--primary-soft-2)">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <?= icon('target', 19, 'var(--primary-700)') ?>
-        <h3 style="font-size:14.5px;color:var(--primary-700)">ความคืบหน้า</h3>
+    <div class="card card-pad">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:14px">
+        <?= icon('database', 17) ?>
+        <h3 style="font-size:14px">พื้นที่จัดเก็บ</h3>
       </div>
-      <div style="font-size:13px;color:var(--primary-700);margin-bottom:8px">เรียนไปแล้ว <?= count($lessons) ?> บทเรียน</div>
-      <div class="progress" style="background:#fff"><span style="width:60%"></span></div>
+      <div style="display:flex;gap:6px">
+
+        <!-- Materials donut -->
+        <div style="flex:1;text-align:center">
+          <?= storage_donut($mat_pct, $mat_color) ?>
+          <div style="font-size:11.5px;font-weight:700;color:var(--heading);margin-bottom:3px">ไฟล์เนื้อหา</div>
+          <div style="font-size:10.5px;color:var(--sub);line-height:1.5">
+            <?= format_bytes($mat_used) ?><br>
+            <span style="color:var(--muted)">จาก <?= format_bytes($mat_quota) ?></span>
+          </div>
+        </div>
+
+        <div style="width:1px;background:var(--line-2);margin:4px 0"></div>
+
+        <!-- Submissions donut -->
+        <div style="flex:1;text-align:center">
+          <?= storage_donut($sub_pct, $sub_color) ?>
+          <div style="font-size:11.5px;font-weight:700;color:var(--heading);margin-bottom:3px">ไฟล์งานส่ง</div>
+          <div style="font-size:10.5px;color:var(--sub);line-height:1.5">
+            <?= format_bytes($sub_used) ?><br>
+            <span style="color:var(--muted)">จาก <?= format_bytes($sub_quota) ?></span>
+          </div>
+        </div>
+
+      </div>
     </div>
   </div>
 </div>
