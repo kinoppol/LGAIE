@@ -326,7 +326,23 @@ function votePrompt(btn, subId) {
     });
 }
 
-// Re-order .sub-card by data-votes (desc) with a smooth FLIP animation
+// Current sort mode for the submissions list: 'votes' | 'time'
+let subSortMode = 'votes';
+
+// Toggle between sorting by votes and by submission time
+function toggleSort(btn) {
+  subSortMode = subSortMode === 'votes' ? 'time' : 'votes';
+  btn.dataset.sort = subSortMode;
+  const label = document.getElementById('sort-label');
+  const icV   = document.getElementById('sort-ic-votes');
+  const icT   = document.getElementById('sort-ic-time');
+  if (label) label.textContent = subSortMode === 'votes' ? 'เรียงตามโหวต' : 'เรียงตามเวลาส่ง';
+  if (icV) icV.style.display = subSortMode === 'votes' ? 'inline-flex' : 'none';
+  if (icT) icT.style.display = subSortMode === 'time'  ? 'inline-flex' : 'none';
+  resortSubs();
+}
+
+// Re-order .sub-card by the active sort mode with a smooth FLIP animation
 function resortSubs() {
   const list = document.getElementById('subs-list');
   if (!list) return;
@@ -337,9 +353,10 @@ function resortSubs() {
   const first = new Map();
   cards.forEach(c => first.set(c, c.getBoundingClientRect().top));
 
-  // 2. Reorder the DOM (stable sort by votes desc)
+  // 2. Reorder the DOM (stable sort, descending by the active key)
+  const key = subSortMode === 'time' ? 'submitted' : 'votes';
   const sorted = cards.slice().sort((a, b) => {
-    const diff = (+b.dataset.votes || 0) - (+a.dataset.votes || 0);
+    const diff = (+b.dataset[key] || 0) - (+a.dataset[key] || 0);
     return diff !== 0 ? diff : cards.indexOf(a) - cards.indexOf(b);
   });
   // Skip work if order is unchanged

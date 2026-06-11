@@ -104,7 +104,14 @@ try {
     <h2 style="font-size:18px">งานที่นักเรียนส่ง
       <span class="subtle" style="font-size:15px;font-weight:600">(<?= count($subs) ?>)</span>
     </h2>
-    <div style="margin-left:auto;display:flex;gap:8px">
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <?php if (count($subs) > 1): ?>
+      <button type="button" class="btn btn-sm btn-ghost" id="sort-toggle" data-sort="votes" onclick="toggleSort(this)">
+        <span id="sort-ic-votes" style="display:inline-flex"><?= icon('thumbs-up', 15) ?></span>
+        <span id="sort-ic-time" style="display:none"><?= icon('clock', 15) ?></span>
+        <span id="sort-label">เรียงตามโหวต</span>
+      </button>
+      <?php endif; ?>
       <span class="chip">
         <span style="width:8px;height:8px;border-radius:50%;background:var(--warn)"></span>
         รอตรวจ <?= count($subs) - $graded_cnt ?>
@@ -131,7 +138,7 @@ try {
   foreach ($subs as $sub):
     $vote_count = (int)$sub['vote_count'];
   ?>
-  <div class="card sub-card" id="sub-<?= (int)$sub['id'] ?>" data-votes="<?= $vote_count ?>" style="margin-bottom:14px;transition:box-shadow .3s,outline .3s">
+  <div class="card sub-card" id="sub-<?= (int)$sub['id'] ?>" data-votes="<?= $vote_count ?>" data-submitted="<?= (int)strtotime($sub['submitted_at']) ?>" style="margin-bottom:14px;transition:box-shadow .3s,outline .3s">
     <div style="padding:16px 20px;display:flex;align-items:center;gap:13px;border-bottom:1px solid var(--line)">
       <?= avatar(['avatar_class' => $sub['avatar_class'], 'initials' => $sub['initials']], 40) ?>
       <div>
