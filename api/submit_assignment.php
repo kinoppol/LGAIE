@@ -16,8 +16,17 @@ $compare_note  = trim($_POST['compare_note'] ?? '');
 $redirect      = $_POST['redirect'] ?? '?page=dashboard';
 $student_id    = current_user_id();
 
+$files = collect_uploaded_files('files');
+
 if (!$assignment_id || !$prompt_used) {
-    $_SESSION['error'] = 'กรุณากรอกข้อมูลให้ครบถ้วน';
+    $_SESSION['error'] = 'กรุณากรอก Prompt ที่ใช้';
+    header("Location: $redirect");
+    exit;
+}
+
+// ต้องมีคำตอบเป็นข้อความ หรือแนบไฟล์อย่างน้อย 1 ไฟล์
+if (!$answer && empty($files)) {
+    $_SESSION['error'] = 'กรุณาพิมพ์คำตอบหรือแนบไฟล์ผลงานอย่างน้อย 1 ไฟล์';
     header("Location: $redirect");
     exit;
 }
@@ -26,7 +35,6 @@ ensure_storage_schema();
 $course_id = (int)db_val('SELECT course_id FROM assignments WHERE id = ?', [$assignment_id]);
 
 // ตรวจไฟล์แนบงานทั้งชุด (โควต้าไฟล์งานส่งของวิชา — แยกจากไฟล์เนื้อหา)
-$files = collect_uploaded_files('files');
 if ($err = upload_batch_error($files, $course_id, 'submissions')) {
     $_SESSION['error'] = $err;
     header("Location: $redirect");

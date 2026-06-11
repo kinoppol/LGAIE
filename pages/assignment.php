@@ -424,8 +424,11 @@ document.addEventListener('DOMContentLoaded', function() {
         <input type="hidden" name="redirect" value="<?= h($_SERVER['REQUEST_URI']) ?>">
 
         <div class="field">
-          <label>คำตอบ / ผลงานของคุณ <span style="color:var(--danger)">*</span></label>
-          <textarea class="textarea" name="answer_text" placeholder="เขียนคำตอบหรือสรุปผลงานของคุณที่นี่…" required></textarea>
+          <label>คำตอบ / ผลงานของคุณ
+            <span class="subtle" style="font-weight:400;font-size:12px">(จำเป็นถ้าไม่มีไฟล์แนบ)</span>
+          </label>
+          <textarea class="textarea" name="answer_text" id="answer-text-input"
+                    placeholder="เขียนคำตอบหรือสรุปผลงานของคุณที่นี่…"></textarea>
         </div>
 
         <?php multi_file_input('files', 'แนบไฟล์ผลงาน') ?>
@@ -476,12 +479,31 @@ document.addEventListener('DOMContentLoaded', function() {
         <?php endif; ?>
 
         <div style="display:flex;gap:10px;margin-top:18px">
-          <button type="submit" class="btn btn-accent">
+          <button type="submit" class="btn btn-accent" id="submit-btn" onclick="return validateSubmit()">
             <?= icon('send', 17, '#fff') ?> ส่งงาน
           </button>
           <button type="button" class="btn btn-ghost">บันทึกร่าง</button>
         </div>
       </form>
+      <script>
+      function validateSubmit() {
+        var answer = document.getElementById('answer-text-input');
+        var hasText = answer && answer.value.trim().length > 0;
+        // ตรวจว่ามีไฟล์ใน data-multifile wrapper หรือ input[type=file]
+        var hasFiles = false;
+        document.querySelectorAll('#submit-form input[type="file"]').forEach(function(inp) {
+          if (inp.files && inp.files.length > 0) hasFiles = true;
+        });
+        // ตรวจ hidden inputs ที่ data-multifile JS อาจสร้าง
+        document.querySelectorAll('#submit-form .multifile-item').forEach(function() { hasFiles = true; });
+        if (!hasText && !hasFiles) {
+          showToast('กรุณาพิมพ์คำตอบหรือแนบไฟล์ผลงานอย่างน้อย 1 ไฟล์', true);
+          if (answer) answer.focus();
+          return false;
+        }
+        return true;
+      }
+      </script>
     </div>
   </div>
   <?php endif; // my_sub ?>

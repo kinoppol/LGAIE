@@ -192,6 +192,14 @@ function get_ai(string $id): array|false
 
 function get_courses_with_stats(bool $include_archived = false): array
 {
+    // Ensure enrollment status column exists (one-time migration per request)
+    static $status_migrated = false;
+    if (!$status_migrated) {
+        try { get_db()->exec("ALTER TABLE course_enrollments
+            ADD COLUMN IF NOT EXISTS status ENUM('pending','active') NOT NULL DEFAULT 'active'"); } catch (PDOException) {}
+        $status_migrated = true;
+    }
+
     $uid = current_user_id();
 
     if (is_teacher()) {
