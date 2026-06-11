@@ -54,7 +54,7 @@ $archived    = is_teacher() ? get_archived_courses() : [];
       </div>
       <div class="course-card__foot" style="justify-content:flex-end;gap:8px;padding:10px 14px">
         <button class="btn btn-sm btn-ghost" style="font-size:12.5px"
-                onclick="respondInvite(<?= $c['id'] ?>, 'decline', this)">
+                onclick="confirmDecline(<?= $c['id'] ?>, '<?= h(addslashes($c['name'])) ?>')">
           ปฏิเสธ
         </button>
         <button class="btn btn-sm btn-primary" style="font-size:12.5px;gap:5px"
@@ -111,6 +111,39 @@ $archived    = is_teacher() ? get_archived_courses() : [];
 
 <?php if (!is_teacher() && !empty($pending)): ?>
 <script>
+var _declineCourseId = null;
+var _declineCourseName = '';
+
+function confirmDecline(courseId, courseName) {
+  _declineCourseId  = courseId;
+  _declineCourseName = courseName;
+  document.getElementById('decline-course-name').textContent = courseName;
+  openModal('decline-confirm');
+}
+
+function doDecline() {
+  closeModal('decline-confirm');
+  var card = document.getElementById('pending-card-' + _declineCourseId);
+  var fd = new FormData();
+  fd.append('course_id', _declineCourseId);
+  fd.append('action', 'decline');
+  fetch('api/accept_invite.php', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) {
+        showToast(res.message || 'ปฏิเสธคำเชิญแล้ว');
+        if (card) {
+          card.style.transition = 'opacity .4s, transform .4s';
+          card.style.opacity = '0'; card.style.transform = 'scale(.95)';
+          setTimeout(() => card.remove(), 420);
+        }
+      } else {
+        showToast(res.error || 'เกิดข้อผิดพลาด', true);
+      }
+    })
+    .catch(() => showToast('เกิดข้อผิดพลาด', true));
+}
+
 function respondInvite(courseId, action, btn) {
   btn.disabled = true; btn.style.opacity = '.5';
   var fd = new FormData();
@@ -138,6 +171,32 @@ function respondInvite(courseId, action, btn) {
     .catch(() => { showToast('เกิดข้อผิดพลาด', true); btn.disabled = false; btn.style.opacity = '1'; });
 }
 </script>
+
+<!-- Decline confirmation modal -->
+<div id="decline-confirm-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('decline-confirm')" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal__head">
+      <span class="modal__ic" style="background:var(--danger-soft,#fee2e2);color:var(--danger,#ef4444)"><?php echo icon('x', 20, 'var(--danger,#ef4444)') ?></span>
+      <h2 class="modal__title">ยืนยันการปฏิเสธ</h2>
+      <button class="modal__close" onclick="closeModal('decline-confirm')"><?php echo icon('x', 18) ?></button>
+    </div>
+    <div class="modal__body">
+      <p style="color:var(--body);line-height:1.7;margin:0">
+        คุณต้องการปฏิเสธคำเชิญเข้าเรียน<br>
+        รายวิชา <strong id="decline-course-name" style="color:var(--heading)"></strong> ใช่หรือไม่?
+      </p>
+      <p style="font-size:13px;color:var(--sub);margin:10px 0 0">
+        หากปฏิเสธแล้วจะต้องขอให้ครูส่งคำเชิญใหม่อีกครั้ง
+      </p>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('decline-confirm')">ยกเลิก</button>
+      <button type="button" class="btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="doDecline()">
+        <?php echo icon('x', 15, '#fff') ?> ยืนยันปฏิเสธ
+      </button>
+    </div>
+  </div>
+</div>
 <?php endif; ?>
 
 <?php if (!empty($archived)): ?>
