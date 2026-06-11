@@ -189,7 +189,7 @@ try {
                     'points'     => $a['points'],
                     'grade'      => $sub['grade'],
                     'feedback'   => $sub['feedback'],
-                ], JSON_UNESCAPED_UNICODE) ?>)">
+                ], JSON_UNESCAPED_UNICODE | JSON_HEX_QUOT | JSON_HEX_TAG) ?>)">
           <?= icon($sub['status'] === 'graded' ? 'edit' : 'check', 15, $sub['status'] !== 'graded' ? '#fff' : 'currentColor') ?>
           <?= $sub['status'] === 'graded' ? 'แก้ไขคะแนน' : 'ตรวจและให้คะแนน' ?>
         </button>
