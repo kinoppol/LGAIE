@@ -433,3 +433,13 @@ button { font-family: inherit; cursor: pointer; }
   .topbar { padding: 12px 18px; }
   .searchbox { display: none; }
 }
+
+/* Vote glow — short pulse under a card's bottom edge after a successful vote */
+.vote-glow { animation: vote-glow-pulse 2s ease-out forwards; }
+\@keyframes vote-glow-pulse {
+  0%   { box-shadow: 0 6px 14px -2px rgba(var(--accent-rgb,107,142,251), 0); }
+  20%  { box-shadow: 0 9px 22px 0 rgba(var(--accent-rgb,107,142,251), .75); }
+  45%  { box-shadow: 0 6px 14px -2px rgba(var(--accent-rgb,107,142,251), .35); }
+  70%  { box-shadow: 0 9px 22px 0 rgba(var(--accent-rgb,107,142,251), .6); }
+  100% { box-shadow: 0 6px 14px -2px rgba(var(--accent-rgb,107,142,251), 0); }
+}

@@ -314,10 +314,18 @@ function votePrompt(btn, subId) {
       }
       const card = document.getElementById('sub-' + subId);
       const numEl = document.getElementById('votes-' + subId);
+      const increased = card && res.vote_count > (+card.dataset.votes || 0);
       if (numEl) numEl.textContent = res.vote_count;
       if (card) card.dataset.votes = res.vote_count;
       showToast(res.message || 'โหวตแล้ว');
       resortSubs();
+      // Glow pulse under the card's edge when the score actually went up
+      if (increased) {
+        card.classList.remove('vote-glow');
+        void card.offsetWidth;            // restart the animation
+        card.classList.add('vote-glow');
+        setTimeout(() => card.classList.remove('vote-glow'), 2000);
+      }
       btn.disabled = false;
     })
     .catch(() => {
