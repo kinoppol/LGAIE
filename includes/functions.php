@@ -524,6 +524,7 @@ function ensure_storage_schema(): void
     try { $db->exec("ALTER TABLE courses
         ADD COLUMN IF NOT EXISTS materials_quota_mb   INT UNSIGNED NULL,
         ADD COLUMN IF NOT EXISTS submissions_quota_mb INT UNSIGNED NULL"); } catch (PDOException) {}
+    ensure_all_upload_dirs();
 }
 
 function get_setting(string $key, string $default = ''): string
@@ -622,22 +623,48 @@ function ensure_upload_dir(string $subdir): string
     $uploads_root = __DIR__ . '/../uploads/';
     $dir          = $uploads_root . trim($subdir, '/') . '/';
     $htaccess     = "Options -ExecCGI\nAddHandler cgi-script .php .pl .py .rb\nRemoveHandler .php .php3\nphp_flag engine off\n";
+
     foreach ([$uploads_root, $dir] as $d) {
         if (!is_dir($d)) {
             @mkdir($d, 0775, true);
             @chmod($d, 0775);
+        }
+        if (!file_exists($d . '.htaccess')) {
             @file_put_contents($d . '.htaccess', $htaccess);
         }
     }
     @chmod($dir, 0775);
-    if (!is_writable($dir)) {
-        $real = realpath($dir) ?: $dir;
-        $fix  = DIRECTORY_SEPARATOR === '\\'
-            ? "icacls \"{$real}\" /grant Everyone:(OI)(CI)F"
-            : "chmod 775 {$real}";
-        throw new RuntimeException("ไม่มีสิทธิ์เขียนโฟลเดอร์ uploads/{$subdir}/ — รันคำสั่งนี้บน server แล้วลองใหม่: {$fix}");
+
+    // is_writable() ไม่น่าเชื่อถือบน Windows — ทดสอบด้วยการเขียนไฟล์จริง
+    $test = $dir . '.wtest_' . getmypid();
+    $ok   = (@file_put_contents($test, 'ok') !== false);
+    if ($ok) {
+        @unlink($test);
+    } else {
+        // Windows: ลอง icacls แก้สิทธิ์อัตโนมัติ
+        if (DIRECTORY_SEPARATOR === '\\') {
+            $real_win = str_replace('/', '\\', realpath($dir) ?: $dir);
+            @exec("icacls \"{$real_win}\" /grant Everyone:(OI)(CI)F /T 2>nul");
+            $ok = (@file_put_contents($test, 'ok') !== false);
+            if ($ok) @unlink($test);
+        }
+        if (!$ok) {
+            $real = realpath($dir) ?: $dir;
+            $fix  = DIRECTORY_SEPARATOR === '\\'
+                ? "icacls \"{$real}\" /grant Everyone:(OI)(CI)F /T"
+                : "chmod 775 {$real}";
+            throw new RuntimeException("ไม่มีสิทธิ์เขียนโฟลเดอร์ uploads/{$subdir}/ — รันคำสั่งนี้บน server แล้วลองใหม่: {$fix}");
+        }
     }
     return $dir;
+}
+
+/** สร้างโฟลเดอร์ upload ทั้งหมดล่วงหน้า (เรียกจาก ensure_storage_schema) */
+function ensure_all_upload_dirs(): void
+{
+    foreach (['materials', 'submissions', 'examples'] as $sub) {
+        try { ensure_upload_dir($sub); } catch (RuntimeException) {}
+    }
 }
 
 /** อ่าน $_FILES[$field] แบบ multiple → list ของ ['name','tmp_name','error','size'] */
