@@ -295,6 +295,70 @@ function openGradeModal(sub) {
   document.body.style.overflow = 'hidden';
 }
 
+// ── Vote prompt + smooth re-sort (FLIP) ──────────────────────
+function votePrompt(btn, subId) {
+  if (btn.disabled) return;
+  btn.disabled = true;
+
+  const data = new FormData();
+  data.append('submission_id', subId);
+  data.append('ajax', '1');
+
+  fetch('api/vote_prompt.php', { method: 'POST', body: data })
+    .then(r => r.json())
+    .then(res => {
+      if (!res.ok) {
+        showToast(res.error || 'เกิดข้อผิดพลาด', true);
+        btn.disabled = false;
+        return;
+      }
+      const card = document.getElementById('sub-' + subId);
+      const numEl = document.getElementById('votes-' + subId);
+      if (numEl) numEl.textContent = res.vote_count;
+      if (card) card.dataset.votes = res.vote_count;
+      showToast(res.message || 'โหวตแล้ว');
+      resortSubs();
+      btn.disabled = false;
+    })
+    .catch(() => {
+      showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', true);
+      btn.disabled = false;
+    });
+}
+
+// Re-order .sub-card by data-votes (desc) with a smooth FLIP animation
+function resortSubs() {
+  const list = document.getElementById('subs-list');
+  if (!list) return;
+  const cards = Array.from(list.querySelectorAll('.sub-card'));
+  if (cards.length < 2) return;
+
+  // 1. First — record current positions
+  const first = new Map();
+  cards.forEach(c => first.set(c, c.getBoundingClientRect().top));
+
+  // 2. Reorder the DOM (stable sort by votes desc)
+  const sorted = cards.slice().sort((a, b) => {
+    const diff = (+b.dataset.votes || 0) - (+a.dataset.votes || 0);
+    return diff !== 0 ? diff : cards.indexOf(a) - cards.indexOf(b);
+  });
+  // Skip work if order is unchanged
+  if (sorted.every((c, i) => c === cards[i])) return;
+  sorted.forEach(c => list.appendChild(c));
+
+  // 3. Last + Invert + Play
+  sorted.forEach(c => {
+    const delta = first.get(c) - c.getBoundingClientRect().top;
+    if (!delta) return;
+    c.style.transition = 'none';
+    c.style.transform  = 'translateY(' + delta + 'px)';
+    requestAnimationFrame(() => {
+      c.style.transition = 'transform .45s cubic-bezier(.4,0,.2,1)';
+      c.style.transform  = '';
+    });
+  });
+}
+
 // ── "Better than teacher" prompt toggle ──────────────────────
 function toggleBetterBox(cb) {
   const wrap = document.getElementById('better-wrap');

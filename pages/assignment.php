@@ -125,10 +125,13 @@ try {
 
   <?php
   $highlight_id = (int)($_GET['highlight'] ?? 0);
+  ?>
+  <div id="subs-list">
+  <?php
   foreach ($subs as $sub):
     $vote_count = (int)$sub['vote_count'];
   ?>
-  <div class="card" id="sub-<?= (int)$sub['id'] ?>" style="margin-bottom:14px;transition:box-shadow .3s,outline .3s">
+  <div class="card sub-card" id="sub-<?= (int)$sub['id'] ?>" data-votes="<?= $vote_count ?>" style="margin-bottom:14px;transition:box-shadow .3s,outline .3s">
     <div style="padding:16px 20px;display:flex;align-items:center;gap:13px;border-bottom:1px solid var(--line)">
       <?= avatar(['avatar_class' => $sub['avatar_class'], 'initials' => $sub['initials']], 40) ?>
       <div>
@@ -151,7 +154,7 @@ try {
         <span class="subtle" style="font-size:12.5px;font-weight:600">Prompt ที่นักเรียนใช้ · ตอบดีที่สุดด้วย</span>
         <?= ai_pill($sub['ai_used'], 'sm') ?>
         <span class="chip" style="font-size:11.5px">
-          <?= icon('thumbs-up', 13, 'var(--accent)') ?> <?= $vote_count ?> โหวต
+          <?= icon('thumbs-up', 13, 'var(--accent)') ?> <span class="vote-num" id="votes-<?= (int)$sub['id'] ?>"><?= $vote_count ?></span> โหวต
         </span>
       </div>
       <div class="prompt-text" style="font-size:12.5px"><?= h($sub['prompt_used']) ?></div>
@@ -193,15 +196,12 @@ try {
           <?= icon($sub['status'] === 'graded' ? 'edit' : 'check', 15, $sub['status'] !== 'graded' ? '#fff' : 'currentColor') ?>
           <?= $sub['status'] === 'graded' ? 'แก้ไขคะแนน' : 'ตรวจและให้คะแนน' ?>
         </button>
-        <form method="post" action="api/vote_prompt.php" style="display:inline">
-          <input type="hidden" name="submission_id" value="<?= $sub['id'] ?>">
-          <input type="hidden" name="redirect" value="<?= h($_SERVER['REQUEST_URI']) ?>">
-          <button class="btn btn-sm btn-ghost"><?= icon('thumbs-up', 15) ?> โหวตว่า prompt ดี</button>
-        </form>
+        <button type="button" class="btn btn-sm btn-ghost" onclick="votePrompt(this, <?= (int)$sub['id'] ?>)"><?= icon('thumbs-up', 15) ?> โหวตว่า prompt ดี</button>
       </div>
     </div>
   </div>
   <?php endforeach; ?>
+  </div><!-- #subs-list -->
 
 <?php if ($highlight_id > 0): ?>
 <style>
