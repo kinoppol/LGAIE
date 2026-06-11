@@ -106,10 +106,11 @@ try {
     </h2>
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
       <?php if (count($subs) > 1): ?>
-      <button type="button" class="btn btn-sm btn-ghost" id="sort-toggle" data-sort="votes" onclick="toggleSort(this)">
+      <button type="button" class="btn btn-sm btn-ghost" id="sort-toggle" data-sort="votes" title="คลิกเพื่อสลับการเรียง" onclick="toggleSort(this)">
         <span id="sort-ic-votes" style="display:inline-flex"><?= icon('thumbs-up', 15) ?></span>
         <span id="sort-ic-time" style="display:none"><?= icon('clock', 15) ?></span>
-        <span id="sort-label">เรียงตามโหวต</span>
+        <span class="subtle" style="font-weight:500;font-size:12px">กำลังเรียงตาม</span>
+        <span id="sort-label" style="font-weight:700">โหวต</span>
       </button>
       <?php endif; ?>
       <span class="chip">

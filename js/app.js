@@ -353,7 +353,7 @@ function toggleSort(btn) {
   const label = document.getElementById('sort-label');
   const icV   = document.getElementById('sort-ic-votes');
   const icT   = document.getElementById('sort-ic-time');
-  if (label) label.textContent = subSortMode === 'votes' ? 'เรียงตามโหวต' : 'เรียงตามเวลาส่ง';
+  if (label) label.textContent = subSortMode === 'votes' ? 'โหวต' : 'เวลาส่ง';
   if (icV) icV.style.display = subSortMode === 'votes' ? 'inline-flex' : 'none';
   if (icT) icT.style.display = subSortMode === 'time'  ? 'inline-flex' : 'none';
   resortSubs();
