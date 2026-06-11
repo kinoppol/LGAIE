@@ -16,7 +16,7 @@ $rating     = max(1, min(5, (int)($_POST['rating']       ?? 3)));
 $example    = trim($_POST['example_text'] ?? '');
 $note       = trim($_POST['note_text']    ?? '');
 
-if (!$lesson_id || !$title || !$week || !$prompt_txt) {
+if (!$lesson_id || !$title || !$week) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
 
@@ -52,10 +52,12 @@ if ($err = upload_batch_error($materials, $course_id, 'materials', $freed_bytes)
 $existing_file      = db_val('SELECT example_file      FROM lesson_prompts WHERE lesson_id = ?', [$lesson_id]) ?: null;
 $existing_file_name = db_val('SELECT example_file_name FROM lesson_prompts WHERE lesson_id = ?', [$lesson_id]) ?: null;
 
-// ถ้ากดลบไฟล์เดิม
-if (($_POST['remove_example_file'] ?? '0') === '1') {
+$example_file = $example_file_name = null;
+if ($prompt_txt === '') {
+    // ครูลบ Prompt ออก — ไฟล์ตัวอย่างเดิม (ถ้ามี) จะถูกลบหลัง commit
+} elseif (($_POST['remove_example_file'] ?? '0') === '1') {
+    // ถ้ากดลบไฟล์เดิม
     if ($existing_file) { $old = __DIR__ . '/../' . $existing_file; if (file_exists($old)) @unlink($old); }
-    $example_file = null; $example_file_name = null;
 } else {
     ['path' => $example_file, 'name' => $example_file_name] = upload_example_file('example_file', $existing_file, $existing_file_name);
 }
@@ -83,20 +85,31 @@ try {
         );
     }
 
-    $has_prompt = db_val('SELECT 1 FROM lesson_prompts WHERE lesson_id = ?', [$lesson_id]);
-    if ($has_prompt) {
-        db_run(
-            'UPDATE lesson_prompts SET prompt_text = ?, ai_id = ?, rating = ?, example_text = ?, example_file = ?, example_file_name = ?, note_text = ? WHERE lesson_id = ?',
-            [$prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null, $lesson_id]
-        );
+    if ($prompt_txt === '') {
+        // Prompt เป็นส่วนเสริม — ลบแถวเดิมถ้าครูเอาออก
+        db_run('DELETE FROM lesson_prompts WHERE lesson_id = ?', [$lesson_id]);
     } else {
-        db_run(
-            'INSERT INTO lesson_prompts (lesson_id, prompt_text, ai_id, rating, example_text, example_file, example_file_name, note_text) VALUES (?,?,?,?,?,?,?,?)',
-            [$lesson_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null]
-        );
+        $has_prompt = db_val('SELECT 1 FROM lesson_prompts WHERE lesson_id = ?', [$lesson_id]);
+        if ($has_prompt) {
+            db_run(
+                'UPDATE lesson_prompts SET prompt_text = ?, ai_id = ?, rating = ?, example_text = ?, example_file = ?, example_file_name = ?, note_text = ? WHERE lesson_id = ?',
+                [$prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null, $lesson_id]
+            );
+        } else {
+            db_run(
+                'INSERT INTO lesson_prompts (lesson_id, prompt_text, ai_id, rating, example_text, example_file, example_file_name, note_text) VALUES (?,?,?,?,?,?,?,?)',
+                [$lesson_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null]
+            );
+        }
     }
 
     $db->commit();
+
+    // ลบไฟล์ตัวอย่างเดิมหลัง commit เมื่อ prompt ถูกเอาออก
+    if ($prompt_txt === '' && $existing_file) {
+        $old = __DIR__ . '/../' . $existing_file;
+        if (file_exists($old)) @unlink($old);
+    }
 
     // ลบไฟล์จริงหลัง commit สำเร็จเท่านั้น
     foreach ($removed_rows as $r) {

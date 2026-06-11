@@ -16,7 +16,7 @@ $example    = trim($_POST['example_text'] ?? '');
 $note       = trim($_POST['note_text'] ?? '');
 $course_id  = (int)($_POST['course_id'] ?? 0);
 
-if (!$title || !$week || !$prompt_txt || !$course_id) {
+if (!$title || !$week || !$course_id) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
 
@@ -30,7 +30,11 @@ ensure_storage_schema();
 $materials = collect_uploaded_files('materials');
 if ($err = upload_batch_error($materials, $course_id, 'materials')) json_err($err);
 
-['path' => $example_file, 'name' => $example_file_name] = upload_example_file();
+// Prompt AI เป็นส่วนเสริม — อัปโหลดไฟล์ตัวอย่างเฉพาะเมื่อมี prompt
+$example_file = $example_file_name = null;
+if ($prompt_txt !== '') {
+    ['path' => $example_file, 'name' => $example_file_name] = upload_example_file();
+}
 
 $db = get_db();
 $db->beginTransaction();
@@ -41,10 +45,12 @@ try {
         'INSERT INTO lessons (course_id, title, week_label, description, sort_order) VALUES (?,?,?,?,?)',
         [$course_id, $title, $week, $desc, $sort]
     );
-    db_run(
-        'INSERT INTO lesson_prompts (lesson_id, prompt_text, ai_id, rating, example_text, example_file, example_file_name, note_text) VALUES (?,?,?,?,?,?,?,?)',
-        [$lesson_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null]
-    );
+    if ($prompt_txt !== '') {
+        db_run(
+            'INSERT INTO lesson_prompts (lesson_id, prompt_text, ai_id, rating, example_text, example_file, example_file_name, note_text) VALUES (?,?,?,?,?,?,?,?)',
+            [$lesson_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null]
+        );
+    }
     foreach ($materials as $f) {
         $st = store_uploaded_file($f, 'materials', 'mat_');
         $saved_paths[] = $st['path'];

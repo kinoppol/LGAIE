@@ -19,7 +19,7 @@ if ($guest_mode && empty($c['is_public'])) {
 
 $role    = $guest_mode ? 'guest' : current_role();
 $tab     = $_GET['tab'] ?? ($guest_mode ? 'lessons' : 'stream');
-$lessons = db_rows('SELECT l.*, lp.ai_id, lp.rating, (SELECT COUNT(*) FROM lesson_materials WHERE lesson_id = l.id) AS mat_count FROM lessons l LEFT JOIN lesson_prompts lp ON lp.lesson_id = l.id WHERE l.course_id = ? ORDER BY l.sort_order, l.id', [$course_id]);
+$lessons = db_rows('SELECT l.*, lp.ai_id, lp.rating, (lp.id IS NOT NULL) AS has_prompt, (SELECT COUNT(*) FROM lesson_materials WHERE lesson_id = l.id) AS mat_count FROM lessons l LEFT JOIN lesson_prompts lp ON lp.lesson_id = l.id WHERE l.course_id = ? ORDER BY l.sort_order, l.id', [$course_id]);
 $works   = db_rows('SELECT a.*, ap.ai_id, ap.prompt_text AS prompt_text FROM assignments a LEFT JOIN assignment_prompts ap ON ap.assignment_id = a.id WHERE a.course_id = ? ORDER BY a.id', [$course_id]);
 $teacher = db_row('SELECT * FROM users WHERE id = ?', [$c['teacher_id']]);
 try {
@@ -229,7 +229,9 @@ elseif ($tab === 'lessons'): ?>
   <div style="min-width:0;flex:1">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
       <span class="badge gray" style="font-size:11px"><?= h($l['week_label']) ?></span>
+      <?php if (!empty($l['has_prompt'])): ?>
       <span class="chip" style="font-size:11.5px;padding:3px 9px"><?= icon('sparkle', 13, 'var(--primary)') ?> Prompt AI</span>
+      <?php endif; ?>
       <?php if ($guest_mode): ?>
       <span class="badge" style="font-size:11px;background:var(--line-2);color:var(--sub)"><?= icon('lock', 11, 'var(--sub)') ?> ต้องเข้าสู่ระบบ</span>
       <?php endif; ?>
@@ -238,9 +240,12 @@ elseif ($tab === 'lessons'): ?>
     <div class="lr-sub" style="margin-top:4px;white-space:normal;max-width:640px"><?= h(mb_substr($l['description'], 0, 110)) ?>…</div>
     <?php if (!$guest_mode): ?>
     <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+      <?php if (!empty($l['has_prompt'])): ?>
       <?= $l['ai_id'] ? ai_pill($l['ai_id'], 'sm') : '' ?>
       <?= star_rating((int)($l['rating'] ?? 0), 13) ?>
-      <span class="subtle" style="font-size:12px">· <?= $l['mat_count'] ?> ไฟล์แนบ</span>
+      <span class="subtle" style="font-size:12px">·</span>
+      <?php endif; ?>
+      <span class="subtle" style="font-size:12px"><?= $l['mat_count'] ?> ไฟล์แนบ</span>
     </div>
     <?php endif; ?>
   </div>
@@ -599,39 +604,58 @@ if (!$guest_mode && is_teacher()):
     <textarea class="textarea" name="description" placeholder="อธิบายเนื้อหาที่นักเรียนจะได้เรียนรู้…"></textarea>
   </div>
   <?php multi_file_input('materials', 'ไฟล์ประกอบเนื้อหา') ?>
-  <div class="ai-tint-box" style="padding:16px 16px 6px;margin-top:6px">
-    <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
-      <span style="width:32px;height:32px;border-radius:9px;background:var(--card);color:var(--primary);display:grid;place-items:center"><?= icon('sparkle', 18) ?></span>
-      <div>
-        <div style="font-weight:700;color:var(--heading);font-size:14.5px">Prompt AI ที่แนะนำ</div>
-        <div class="subtle" style="font-size:12px">ระบุ prompt และ AI ที่คุณทดลองแล้วได้ผลลัพธ์น่าพอใจ</div>
+
+  <!-- Prompt AI (ไม่บังคับ — กดปุ่มเพื่อขยายฟอร์ม) -->
+  <div id="lesson-prompt-section" style="display:none">
+    <div class="ai-tint-box" style="padding:16px 16px 6px;margin-top:6px">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
+        <span style="width:32px;height:32px;border-radius:9px;background:var(--card);color:var(--primary);display:grid;place-items:center"><?= icon('sparkle', 18) ?></span>
+        <div>
+          <div style="font-weight:700;color:var(--heading);font-size:14.5px">Prompt AI ที่แนะนำ <span style="font-weight:400;color:var(--sub);font-size:12px">(ไม่บังคับ)</span></div>
+          <div class="subtle" style="font-size:12px">ระบุ prompt และ AI ที่คุณทดลองแล้วได้ผลลัพธ์น่าพอใจ</div>
+        </div>
+        <button type="button"
+                onclick="document.getElementById('lesson-prompt-section').style.display='none';document.getElementById('lesson-prompt-text').value='';document.getElementById('lesson-add-prompt-btn').style.display='flex'"
+                style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--sub);display:flex;align-items:center;gap:4px;font-size:12px">
+          <?= icon('x', 14) ?> ลบออก
+        </button>
       </div>
-    </div>
-    <div class="field">
-      <label>ข้อความ Prompt <span style="color:var(--danger)">*</span></label>
-      <textarea class="textarea" name="prompt_text" style="font-family:ui-monospace,monospace;font-size:13px"
-                placeholder="วาง prompt ที่คุณใช้กับ AI ที่นี่…" required></textarea>
-    </div>
-    <div class="row" style="gap:14px">
-      <div class="field" style="flex:1">
-        <label>AI ที่ทดลองใช้แล้ว</label>
-        <?= ai_select('ai_id', 'chatgpt') ?>
+      <div class="field">
+        <label>ข้อความ Prompt</label>
+        <textarea id="lesson-prompt-text" class="textarea" name="prompt_text" style="font-family:ui-monospace,monospace;font-size:13px"
+                  placeholder="วาง prompt ที่คุณใช้กับ AI ที่นี่…"></textarea>
       </div>
-      <div class="field" style="flex:1">
-        <label>ระดับความพอใจ</label>
-        <?= star_input(4, 'rating') ?>
+      <div class="row" style="gap:14px">
+        <div class="field" style="flex:1">
+          <label>AI ที่ทดลองใช้แล้ว</label>
+          <?= ai_select('ai_id', 'chatgpt') ?>
+        </div>
+        <div class="field" style="flex:1">
+          <label>ระดับความพอใจ</label>
+          <?= star_input(4, 'rating') ?>
+        </div>
       </div>
-    </div>
-    <div class="field">
-      <label>ผลลัพธ์ตัวอย่าง <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
-      <textarea class="textarea" name="example_text" style="min-height:70px" placeholder="สรุปสั้น ๆ ว่า AI ตอบกลับมาอย่างไร…"></textarea>
-      <?php example_file_input() ?>
-    </div>
-    <div class="field">
-      <label>หมายเหตุ/คำแนะนำ <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
-      <textarea class="textarea" name="note_text" style="min-height:60px" placeholder="เช่น ให้นักเรียนลองปรับ prompt ให้ตรงกับหัวข้อตัวเอง…"></textarea>
+      <div class="field">
+        <label>ผลลัพธ์ตัวอย่าง <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
+        <textarea class="textarea" name="example_text" style="min-height:70px" placeholder="สรุปสั้น ๆ ว่า AI ตอบกลับมาอย่างไร…"></textarea>
+        <?php example_file_input() ?>
+      </div>
+      <div class="field">
+        <label>หมายเหตุ/คำแนะนำ <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
+        <textarea class="textarea" name="note_text" style="min-height:60px" placeholder="เช่น ให้นักเรียนลองปรับ prompt ให้ตรงกับหัวข้อตัวเอง…"></textarea>
+      </div>
     </div>
   </div>
+  <button type="button" id="lesson-add-prompt-btn"
+          onclick="document.getElementById('lesson-prompt-section').style.display='block';this.style.display='none'"
+          style="display:flex;align-items:center;gap:7px;margin-top:10px;background:none;
+                 border:1.5px dashed var(--line-2);border-radius:9px;padding:8px 14px;
+                 cursor:pointer;color:var(--sub);font-size:13px;width:100%;justify-content:center;
+                 transition:border-color .15s,color .15s"
+          onmouseenter="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'"
+          onmouseleave="this.style.borderColor='var(--line-2)';this.style.color='var(--sub)'">
+    <?= icon('sparkle', 15) ?> + เพิ่ม Prompt AI ที่แนะนำ
+  </button>
 </form>
 <?php modal_foot('add-lesson', 'ยกเลิก', 'โพสต์เนื้อหา'); ?>
 
