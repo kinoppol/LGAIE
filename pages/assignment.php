@@ -203,7 +203,14 @@ try {
           <?= icon($sub['status'] === 'graded' ? 'edit' : 'check', 15, $sub['status'] !== 'graded' ? '#fff' : 'currentColor') ?>
           <?= $sub['status'] === 'graded' ? 'แก้ไขคะแนน' : 'ตรวจและให้คะแนน' ?>
         </button>
-        <button type="button" class="btn btn-sm btn-ghost" onclick="votePrompt(this, <?= (int)$sub['id'] ?>)"><?= icon('thumbs-up', 15) ?> โหวตว่า prompt ดี</button>
+        <?php $voted = !empty($sub['voted_by_me']); ?>
+        <button type="button" id="vote-btn-<?= (int)$sub['id'] ?>"
+                class="btn btn-sm <?= $voted ? 'btn-primary' : 'btn-ghost' ?>"
+                data-voted="<?= $voted ? '1' : '0' ?>"
+                onclick="votePrompt(this, <?= (int)$sub['id'] ?>)">
+          <?= icon('thumbs-up', 15, $voted ? '#fff' : 'currentColor') ?>
+          <span class="vote-btn-label"><?= $voted ? 'ยกเลิกโหวต' : 'โหวตว่า prompt ดี' ?></span>
+        </button>
       </div>
     </div>
   </div>

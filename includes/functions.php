@@ -338,12 +338,13 @@ function get_submissions_for_assignment(int $assignment_id): array
 {
     $subs = db_rows('
         SELECT s.*, u.name AS student_name, u.avatar_class, u.initials,
-            (SELECT COUNT(*) FROM submission_votes v WHERE v.submission_id = s.id) AS vote_count
+            (SELECT COUNT(*) FROM submission_votes v WHERE v.submission_id = s.id) AS vote_count,
+            (SELECT COUNT(*) FROM submission_votes v WHERE v.submission_id = s.id AND v.voter_id = ?) AS voted_by_me
         FROM submissions s
         JOIN users u ON u.id = s.student_id
         WHERE s.assignment_id = ?
         ORDER BY s.submitted_at DESC
-    ', [$assignment_id]);
+    ', [current_user_id(), $assignment_id]);
     return $subs;
 }
 

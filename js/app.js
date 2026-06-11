@@ -317,7 +317,17 @@ function votePrompt(btn, subId) {
       const increased = card && res.vote_count > (+card.dataset.votes || 0);
       if (numEl) numEl.textContent = res.vote_count;
       if (card) card.dataset.votes = res.vote_count;
-      showToast(res.message || 'โหวตแล้ว');
+
+      // Reflect voted / un-voted state on the button
+      btn.dataset.voted = res.voted ? '1' : '0';
+      btn.classList.toggle('btn-primary', res.voted);
+      btn.classList.toggle('btn-ghost', !res.voted);
+      const lbl = btn.querySelector('.vote-btn-label');
+      if (lbl) lbl.textContent = res.voted ? 'ยกเลิกโหวต' : 'โหวตว่า prompt ดี';
+      const svg = btn.querySelector('svg');
+      if (svg) svg.setAttribute('stroke', res.voted ? '#fff' : 'currentColor');
+
+      showToast(res.message || (res.voted ? 'โหวตแล้ว' : 'ยกเลิกโหวตแล้ว'));
       resortSubs();
       // Glow pulse under the card's edge when the score actually went up
       if (increased) {
