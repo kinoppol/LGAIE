@@ -777,7 +777,12 @@ function attachment_item(array $m): string
     $type  = $m['file_type'] ?? 'file';
     $size  = (int)($m['file_size'] ?? 0);
     $href  = (string)($m['file_path'] ?? '');
-    $inner = file_badge($type)
+    $thumb = ($type === 'img' && $href !== '')
+        ? '<span style="width:38px;height:38px;border-radius:9px;overflow:hidden;flex:0 0 auto;background:var(--surface-2);display:block">'
+            . '<img src="' . h($href) . '" alt="' . h($name) . '" loading="lazy" '
+            . 'style="width:100%;height:100%;object-fit:cover;display:block"></span>'
+        : file_badge($type);
+    $inner = $thumb
         . '<div style="min-width:0;flex:1">'
         . '<div style="font-size:13.5px;font-weight:600;color:var(--heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' . h($name) . '</div>'
         . ($size > 0 ? '<div style="font-size:11.5px;color:var(--sub)">' . format_bytes($size) . '</div>' : '')
@@ -1079,6 +1084,7 @@ function render_prompt_block(array $p, string $title = 'Prompt ที่คร�
                         'zip' => ['#c778dd','ZIP'],
                     ];
                     [$fc, $fl] = $fmap[$ext] ?? ['#8a94a6','FILE'];
+                    $is_img = in_array($ext, ['jpg','jpeg','png','gif','webp'], true);
                 ?>
                 <a href="<?= h($ef) ?>" target="_blank" rel="noopener"
                    style="display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px 14px;
@@ -1086,11 +1092,19 @@ function render_prompt_block(array $p, string $title = 'Prompt ที่คร�
                           background:var(--card);transition:border-color .15s,background .15s"
                    onmouseenter="this.style.borderColor='var(--primary)';this.style.background='var(--primary-soft)'"
                    onmouseleave="this.style.borderColor='var(--line-2)';this.style.background='var(--card)'">
+                  <?php if ($is_img): ?>
+                  <span style="width:40px;height:40px;border-radius:9px;overflow:hidden;flex:0 0 auto;
+                               background:var(--surface-2);display:block">
+                    <img src="<?= h($ef) ?>" alt="<?= h($fname) ?>" loading="lazy"
+                         style="width:100%;height:100%;object-fit:cover;display:block">
+                  </span>
+                  <?php else: ?>
                   <span style="width:40px;height:40px;border-radius:9px;background:<?= $fc ?>22;color:<?= $fc ?>;
                                display:grid;place-items:center;font-size:10px;font-weight:800;
                                flex:0 0 auto;font-family:ui-monospace,monospace">
                     <?= $fl ?>
                   </span>
+                  <?php endif; ?>
                   <div style="flex:1;min-width:0">
                     <div style="font-size:13px;font-weight:600;color:var(--heading);
                                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
