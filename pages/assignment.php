@@ -177,7 +177,7 @@ try {
       <?php endif; ?>
       <div style="display:flex;gap:10px;margin-top:14px">
         <button class="btn btn-sm <?= $sub['status'] === 'graded' ? 'btn-ghost' : 'btn-primary' ?>"
-                onclick="openGradeModal(<?= json_encode([
+                onclick="openGradeModal(<?= h(json_encode([
                     'id'         => $sub['id'],
                     'name'       => $sub['student_name'],
                     'initials'   => $sub['initials'],
@@ -189,7 +189,7 @@ try {
                     'points'     => $a['points'],
                     'grade'      => $sub['grade'],
                     'feedback'   => $sub['feedback'],
-                ], JSON_UNESCAPED_UNICODE | JSON_HEX_QUOT | JSON_HEX_TAG) ?>)">
+                ], JSON_UNESCAPED_UNICODE)) ?>)">
           <?= icon($sub['status'] === 'graded' ? 'edit' : 'check', 15, $sub['status'] !== 'graded' ? '#fff' : 'currentColor') ?>
           <?= $sub['status'] === 'graded' ? 'แก้ไขคะแนน' : 'ตรวจและให้คะแนน' ?>
         </button>
