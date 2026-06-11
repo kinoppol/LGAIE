@@ -189,7 +189,7 @@ function get_courses_with_stats(bool $include_archived = false): array
                 u.name         AS teacher_name,
                 (SELECT COUNT(*) FROM lessons             WHERE course_id = c.id) AS lesson_count,
                 (SELECT COUNT(*) FROM assignments          WHERE course_id = c.id) AS assignment_count,
-                (SELECT COUNT(*) FROM course_enrollments  WHERE course_id = c.id) AS student_count
+                (SELECT COUNT(*) FROM course_enrollments  WHERE course_id = c.id AND COALESCE(status,'active') = 'active') AS student_count
             FROM courses c
             JOIN users u ON u.id = c.teacher_id
             WHERE c.teacher_id = ? {$archived_clause}
@@ -203,14 +203,15 @@ function get_courses_with_stats(bool $include_archived = false): array
                 u.avatar_class AS teacher_av,
                 u.initials     AS teacher_initials,
                 u.name         AS teacher_name,
+                COALESCE(e.status, 'active') AS enrollment_status,
                 (SELECT COUNT(*) FROM lessons             WHERE course_id = c.id) AS lesson_count,
                 (SELECT COUNT(*) FROM assignments          WHERE course_id = c.id) AS assignment_count,
-                (SELECT COUNT(*) FROM course_enrollments  WHERE course_id = c.id) AS student_count
+                (SELECT COUNT(*) FROM course_enrollments  WHERE course_id = c.id AND status = 'active') AS student_count
             FROM courses c
             JOIN users u ON u.id = c.teacher_id
             JOIN course_enrollments e ON e.course_id = c.id AND e.user_id = ?
             WHERE 1=1 {$archived_clause}
-            ORDER BY c.id
+            ORDER BY e.status DESC, c.id
         ";
         $params = [$uid];
     }
@@ -218,11 +219,18 @@ function get_courses_with_stats(bool $include_archived = false): array
     try {
         return db_rows($sql, $params);
     } catch (PDOException $e) {
+        $msg = $e->getMessage();
         // Column is_archived not yet in DB — auto-add it then retry
-        if (str_contains($e->getMessage(), 'is_archived')) {
+        if (str_contains($msg, 'is_archived')) {
             get_db()->exec("ALTER TABLE courses
                 ADD COLUMN IF NOT EXISTS is_archived TINYINT(1) DEFAULT 0,
                 ADD COLUMN IF NOT EXISTS archived_at DATETIME NULL");
+            return db_rows($sql, $params);
+        }
+        // status column not yet added — auto-migrate then retry
+        if (str_contains($msg, 'status') || str_contains($msg, 'enrollment_status')) {
+            try { get_db()->exec("ALTER TABLE course_enrollments
+                ADD COLUMN IF NOT EXISTS status ENUM('pending','active') NOT NULL DEFAULT 'active'"); } catch (PDOException) {}
             return db_rows($sql, $params);
         }
         throw $e;

@@ -293,7 +293,9 @@ elseif ($tab === 'work'): ?>
 
 // ── PEOPLE tab ─────────────────────────────────────────────────
 elseif ($tab === 'people'):
-    $students = db_rows('SELECT u.* FROM users u JOIN course_enrollments e ON e.user_id = u.id WHERE e.course_id = ? AND u.role = "student" ORDER BY u.id', [$course_id]);
+    // Auto-migrate status column
+    try { get_db()->exec("ALTER TABLE course_enrollments ADD COLUMN IF NOT EXISTS status ENUM('pending','active') NOT NULL DEFAULT 'active'"); } catch (PDOException) {}
+    $students = db_rows('SELECT u.*, e.status AS enrollment_status FROM users u JOIN course_enrollments e ON e.user_id = u.id WHERE e.course_id = ? AND u.role = "student" ORDER BY e.status DESC, u.id', [$course_id]);
     // Auto-migrate: ensure invite table exists
     try { get_db()->exec('CREATE TABLE IF NOT EXISTS course_invites (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, course_id INT UNSIGNED NOT NULL, invite_type ENUM("link","code","email") NOT NULL DEFAULT "code", invite_token VARCHAR(40) NULL, invite_code VARCHAR(10) NULL, invited_email VARCHAR(150) NULL, created_by INT UNSIGNED NOT NULL, expires_at DATETIME NULL, max_uses INT UNSIGNED NULL, use_count INT UNSIGNED DEFAULT 0, is_active TINYINT(1) DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE, FOREIGN KEY (created_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'); } catch (PDOException) {}
     $invite_code_row = db_row('SELECT * FROM course_invites WHERE course_id = ? AND invite_type = "code" ORDER BY id DESC LIMIT 1', [$course_id]);
@@ -362,12 +364,18 @@ elseif ($tab === 'people'):
     <div class="card">
       <div class="card-head"><?= icon('edit', 18, 'var(--accent)') ?><h3>เชิญโดยระบุอีเมล</h3></div>
       <div class="card-pad" style="padding-top:10px">
+        <p class="subtle" style="font-size:12px;margin-bottom:10px">
+          วางอีเมลพร้อมกันได้หลายบรรทัด หรือคั่นด้วยเครื่องหมาย comma
+        </p>
         <form id="invite-email-form" onsubmit="inviteByEmail(event)">
-          <div style="display:flex;gap:8px">
-            <input class="input" type="email" id="invite-email-input"
-                   placeholder="อีเมลของนักเรียน" style="flex:1" required>
-            <button class="btn btn-primary" type="submit">เชิญ</button>
-          </div>
+          <textarea class="textarea" id="invite-email-input"
+                    placeholder="student1@school.ac.th&#10;student2@school.ac.th&#10;หรือ email1, email2, email3"
+                    style="min-height:90px;font-size:13px;font-family:ui-monospace,monospace" required></textarea>
+          <div id="invite-results" style="display:none;margin-top:10px;max-height:180px;overflow-y:auto;
+               border:1px solid var(--line-2);border-radius:8px;font-size:12.5px"></div>
+          <button class="btn btn-primary" type="submit" style="margin-top:10px;width:100%;gap:6px">
+            <?= icon('send', 15, '#fff') ?> ส่งคำเชิญ
+          </button>
         </form>
       </div>
     </div>
@@ -376,22 +384,37 @@ elseif ($tab === 'people'):
 
   <div style="flex:1 1 420px">
     <div class="card">
+      <?php
+        $active_students  = array_filter($students, fn($s) => ($s['enrollment_status'] ?? 'active') === 'active');
+        $pending_students = array_filter($students, fn($s) => ($s['enrollment_status'] ?? 'active') === 'pending');
+      ?>
       <div class="card-head">
         <?= icon('users', 18, 'var(--accent)') ?><h3>นักเรียน</h3>
-        <span class="badge gray" style="margin-left:auto"><?= count($students) ?> คน</span>
+        <span class="badge gray" style="margin-left:auto"><?= count($active_students) ?> คน</span>
+        <?php if ($pending_students): ?>
+        <span class="badge" style="background:var(--warn-soft);color:#c76a13"><?= count($pending_students) ?> รอตอบรับ</span>
+        <?php endif; ?>
       </div>
       <div style="padding:10px">
-        <?php foreach ($students as $i => $s): ?>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px" id="student-row-<?= $s['id'] ?>">
+        <?php foreach ($students as $i => $s):
+            $is_pending = ($s['enrollment_status'] ?? 'active') === 'pending';
+        ?>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px<?= $is_pending ? ';opacity:.6' : '' ?>"
+             id="student-row-<?= $s['id'] ?>">
           <?= avatar($s, 38) ?>
-          <span style="font-weight:600;color:var(--heading);font-size:14px"><?= h($s['name']) ?></span>
+          <div style="min-width:0;flex:1">
+            <div style="font-weight:600;color:var(--heading);font-size:14px"><?= h($s['name']) ?></div>
+            <?php if ($is_pending): ?>
+            <div style="font-size:11.5px;color:var(--sub)"><?= icon('clock', 12, 'var(--sub)') ?> รอตอบรับคำเชิญ</div>
+            <?php endif; ?>
+          </div>
           <?php if ($is_owner): ?>
-          <button class="btn btn-sm btn-ghost" style="margin-left:auto;color:var(--danger)"
+          <button class="btn btn-sm btn-ghost" style="color:var(--danger)"
                   onclick="removeStudent(<?= (int)$s['id'] ?>, <?= $course_id ?>, '<?= h(addslashes($s['name'])) ?>')">
             <?= icon('x', 14) ?>
           </button>
           <?php else: ?>
-          <span class="subtle" style="margin-left:auto;font-size:12.5px">เลขที่ <?= $i + 1 ?></span>
+          <span class="subtle" style="font-size:12.5px">เลขที่ <?= $i + 1 ?></span>
           <?php endif; ?>
         </div>
         <?php endforeach; ?>
@@ -432,21 +455,36 @@ function manageInvite(action) {
 
 function inviteByEmail(e) {
     e.preventDefault();
-    var email = document.getElementById('invite-email-input').value.trim();
-    if (!email) return;
+    var raw = document.getElementById('invite-email-input').value.trim();
+    if (!raw) return;
     var btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true; btn.style.opacity = '.6';
     var fd = new FormData();
     fd.append('course_id', _cid);
     fd.append('action', 'invite_email');
-    fd.append('email', email);
+    fd.append('emails', raw);
     fetch('api/manage_invite.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(res => {
             if (res.ok) {
-                showToast(res.message || 'เชิญแล้ว');
-                document.getElementById('invite-email-input').value = '';
-                setTimeout(() => location.reload(), 900);
+                showToast(res.message || 'ส่งคำเชิญแล้ว');
+                // แสดงผลลัพธ์แต่ละอีเมล
+                var box = document.getElementById('invite-results');
+                if (res.results && res.results.length > 1) {
+                    box.style.display = 'block';
+                    box.innerHTML = res.results.map(function(r) {
+                        var ic = r.ok
+                            ? '<span style="color:var(--success)">✓</span>'
+                            : '<span style="color:var(--danger)">✗</span>';
+                        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line-1)">'
+                            + ic + '<span style="color:var(--sub);min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis">'
+                            + r.email + '</span><span style="color:var(--body)">' + r.msg + '</span></div>';
+                    }).join('');
+                } else {
+                    box.style.display = 'none';
+                    document.getElementById('invite-email-input').value = '';
+                }
+                setTimeout(() => location.reload(), 1800);
             } else {
                 showToast(res.error || 'เกิดข้อผิดพลาด', true);
             }

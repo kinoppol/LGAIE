@@ -2,8 +2,10 @@
 declare(strict_types=1);
 
 $role     = current_role();
-$courses  = get_courses_with_stats();             // active only
-$archived = is_teacher() ? get_archived_courses() : [];
+$all_courses = get_courses_with_stats();
+$courses     = array_filter($all_courses, fn($c) => ($c['enrollment_status'] ?? 'active') === 'active');
+$pending     = array_filter($all_courses, fn($c) => ($c['enrollment_status'] ?? 'active') === 'pending');
+$archived    = is_teacher() ? get_archived_courses() : [];
 ?>
 
 <div class="page-head" style="display:flex;align-items:flex-end;margin-bottom:22px">
@@ -26,6 +28,46 @@ $archived = is_teacher() ? get_archived_courses() : [];
   </div>
 </div>
 
+<?php if (!empty($pending) && !is_teacher()): ?>
+<!-- ── Pending Invitations ── -->
+<div style="margin-bottom:2rem">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+    <?= icon('edit', 17, 'var(--accent)') ?>
+    <h2 style="font-size:16px;font-weight:700;color:var(--heading)">คำเชิญที่รอตอบรับ</h2>
+    <span class="badge" style="background:var(--warn-soft);color:#c76a13"><?= count($pending) ?> รายวิชา</span>
+  </div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(290px,1fr))">
+    <?php foreach ($pending as $c): ?>
+    <div class="course-card" style="opacity:.6;filter:saturate(.4);position:relative" id="pending-card-<?= $c['id'] ?>">
+      <div class="course-card__banner" style="background:<?= h($c['banner']) ?>;color:<?= h($c['ink_color']) ?>">
+        <span class="badge" style="background:rgba(255,255,255,.65);color:<?= h($c['ink_color']) ?>;font-size:11px;margin-bottom:8px">
+          <?= h($c['code']) ?>
+        </span>
+        <h3><?= h($c['name']) ?></h3>
+        <div class="cc-sec"><?= h($c['section']) ?></div>
+        <?= course_avatar($c) ?>
+      </div>
+      <div class="course-card__body" style="padding:12px 16px 4px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--sub)">
+          <?= icon('edit', 14) ?> ครูเชิญคุณเข้าเรียน
+        </div>
+      </div>
+      <div class="course-card__foot" style="justify-content:flex-end;gap:8px;padding:10px 14px">
+        <button class="btn btn-sm btn-ghost" style="font-size:12.5px"
+                onclick="respondInvite(<?= $c['id'] ?>, 'decline', this)">
+          ปฏิเสธ
+        </button>
+        <button class="btn btn-sm btn-primary" style="font-size:12.5px;gap:5px"
+                onclick="respondInvite(<?= $c['id'] ?>, 'accept', this)">
+          <?= icon('check', 13, '#fff') ?> ตอบรับ
+        </button>
+      </div>
+    </div>
+    <?php endforeach; ?>
+  </div>
+</div>
+<?php endif; ?>
+
 <?php if (empty($courses)): ?>
 <div class="empty">
   <div class="e-ic"><?= icon('grid', 30) ?></div>
@@ -33,6 +75,11 @@ $archived = is_teacher() ? get_archived_courses() : [];
   <p><?= is_teacher() ? 'กดปุ่ม "สร้างรายวิชา" เพื่อเริ่มต้น' : 'คุณยังไม่ได้ลงทะเบียนเรียนในรายวิชาใด' ?></p>
 </div>
 <?php else: ?>
+<?php if (!is_teacher() && !empty($pending)): ?>
+<h2 style="font-size:16px;font-weight:700;color:var(--heading);margin-bottom:14px;display:flex;align-items:center;gap:8px">
+  <?= icon('book', 17, 'var(--primary)') ?> รายวิชาที่กำลังเรียน
+</h2>
+<?php endif; ?>
 <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(290px,1fr))">
   <?php foreach ($courses as $c): ?>
   <a href="<?= url('course', ['course_id' => $c['id'], 'tab' => 'stream']) ?>" class="course-card" style="text-decoration:none;display:block">
@@ -60,6 +107,37 @@ $archived = is_teacher() ? get_archived_courses() : [];
   </a>
   <?php endforeach; ?>
 </div>
+<?php endif; ?>
+
+<?php if (!is_teacher() && !empty($pending)): ?>
+<script>
+function respondInvite(courseId, action, btn) {
+  btn.disabled = true; btn.style.opacity = '.5';
+  var fd = new FormData();
+  fd.append('course_id', courseId);
+  fd.append('action', action);
+  fetch('api/accept_invite.php', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) {
+        showToast(res.message || 'สำเร็จ');
+        var card = document.getElementById('pending-card-' + courseId);
+        if (card) {
+          card.style.transition = 'opacity .4s, transform .4s';
+          card.style.opacity = '0'; card.style.transform = 'scale(.95)';
+          setTimeout(() => {
+            card.remove();
+            if (action === 'accept') location.reload();
+          }, 420);
+        }
+      } else {
+        showToast(res.error || 'เกิดข้อผิดพลาด', true);
+        btn.disabled = false; btn.style.opacity = '1';
+      }
+    })
+    .catch(() => { showToast('เกิดข้อผิดพลาด', true); btn.disabled = false; btn.style.opacity = '1'; });
+}
+</script>
 <?php endif; ?>
 
 <?php if (!empty($archived)): ?>

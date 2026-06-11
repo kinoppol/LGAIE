@@ -64,33 +64,58 @@ if ($action === 'toggle_code') {
     json_ok(['message' => $msg, 'is_active' => $new]);
 }
 
-// ── เชิญโดยระบุอีเมล ─────────────────────────────────────────────────
+// ── เชิญโดยระบุอีเมล (รองรับหลายอีเมลคั่นด้วย comma หรือขึ้นบรรทัดใหม่) ──
 if ($action === 'invite_email') {
-    $email = strtolower(trim($_POST['email'] ?? ''));
-    if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        json_err('อีเมลไม่ถูกต้อง');
+    // Auto-migrate status column
+    try {
+        get_db()->exec("ALTER TABLE course_enrollments
+            ADD COLUMN IF NOT EXISTS status ENUM('pending','active') NOT NULL DEFAULT 'active'");
+    } catch (PDOException) {}
+
+    $raw   = trim($_POST['emails'] ?? $_POST['email'] ?? '');
+    if (!$raw) json_err('กรุณากรอกอีเมล');
+
+    // แยกอีเมลด้วย comma, semicolon หรือ newline
+    $parts  = preg_split('/[\s,;]+/', $raw);
+    $emails = array_values(array_filter(array_map('trim', $parts)));
+    if (empty($emails)) json_err('ไม่พบอีเมลที่ถูกต้อง');
+
+    $results = [];
+    foreach ($emails as $email) {
+        $email = strtolower($email);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $results[] = ['email' => $email, 'ok' => false, 'msg' => 'อีเมลไม่ถูกต้อง'];
+            continue;
+        }
+        $student = db_row('SELECT id, name, role FROM users WHERE email = ?', [$email]);
+        if (!$student) {
+            $results[] = ['email' => $email, 'ok' => false, 'msg' => 'ไม่พบในระบบ'];
+            continue;
+        }
+        if ($student['role'] !== 'student') {
+            $results[] = ['email' => $email, 'ok' => false, 'msg' => $student['name'] . ' ไม่ใช่นักเรียน'];
+            continue;
+        }
+        $sid = (int)$student['id'];
+        $existing = db_row('SELECT status FROM course_enrollments WHERE course_id = ? AND user_id = ?',
+            [$course_id, $sid]);
+        if ($existing) {
+            $state = $existing['status'] === 'pending' ? 'รอตอบรับอยู่แล้ว' : 'ลงทะเบียนไว้แล้ว';
+            $results[] = ['email' => $email, 'ok' => false, 'msg' => $student['name'] . ' ' . $state];
+            continue;
+        }
+        db_run(
+            "INSERT INTO course_enrollments (course_id, user_id, join_type, status) VALUES (?, ?, 'invite_email', 'pending')",
+            [$course_id, $sid]
+        );
+        $results[] = ['email' => $email, 'ok' => true, 'msg' => 'ส่งคำเชิญให้ ' . $student['name'] . ' แล้ว'];
     }
 
-    // ค้นหา user จาก email
-    $student = db_row('SELECT id, name, role FROM users WHERE email = ?', [$email]);
-    if (!$student) {
-        json_err('ไม่พบผู้ใช้ที่มีอีเมล ' . $email . ' ในระบบ');
-    }
-    if ($student['role'] !== 'student') {
-        json_err('ผู้ใช้นี้ไม่ใช่นักเรียน');
-    }
-
-    $sid = (int)$student['id'];
-    $already = db_val('SELECT 1 FROM course_enrollments WHERE course_id = ? AND user_id = ?', [$course_id, $sid]);
-    if ($already) {
-        json_err($student['name'] . ' ลงทะเบียนรายวิชานี้ไว้แล้ว');
-    }
-
-    db_run(
-        'INSERT INTO course_enrollments (course_id, user_id, join_type) VALUES (?, ?, "invite_email")',
-        [$course_id, $sid]
-    );
-    json_ok(['message' => 'เพิ่ม ' . $student['name'] . ' เข้ารายวิชาเรียบร้อยแล้ว']);
+    $ok_count   = count(array_filter($results, fn($r) => $r['ok']));
+    $fail_count = count($results) - $ok_count;
+    $summary    = "ส่งคำเชิญสำเร็จ {$ok_count} คน";
+    if ($fail_count) $summary .= " · ไม่สำเร็จ {$fail_count} คน";
+    json_ok(['message' => $summary, 'results' => $results]);
 }
 
 // ── ลบนักเรียนออกจากรายวิชา ───────────────────────────────────────────
