@@ -7,10 +7,15 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Uploaded files (tracked by uploads/examples/.gitignore)
+# Uploaded files — track only .htaccess guards, never actual user files
 uploads/examples/*
 !uploads/examples/.gitignore
 !uploads/examples/.htaccess
+uploads/materials/*
+!uploads/materials/.htaccess
+uploads/submissions/*
+!uploads/submissions/.htaccess
+uploads/avatars/*
 
 # Logs
 *.log
