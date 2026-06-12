@@ -566,6 +566,24 @@ function set_setting(string $key, string $value): void
     db_run('REPLACE INTO app_settings (setting_key, setting_value) VALUES (?,?)', [$key, $value]);
 }
 
+/** ขนาดรวมของไฟล์ทั้งหมดในโฟลเดอร์ (bytes, นับซ้ำลงไปทุกระดับ) */
+function dir_size(string $path): int
+{
+    if (!is_dir($path)) return 0;
+    $total = 0;
+    try {
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($it as $f) {
+            if ($f->isFile()) $total += $f->getSize();
+        }
+    } catch (Throwable) {
+        return $total;
+    }
+    return $total;
+}
+
 /** ขนาดสูงสุดต่อไฟล์ (bytes) — admin กำหนดผ่าน app_settings */
 function max_file_bytes(): int
 {

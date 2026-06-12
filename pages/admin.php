@@ -205,7 +205,88 @@ elseif ($tab === 'storage'):
                u.name AS teacher_name
         FROM courses c JOIN users u ON u.id = c.teacher_id
         ORDER BY c.id');
+
+    // ── Disk overview for the uploads volume ──────────────────────────────
+    $uploads_dir = realpath(__DIR__ . '/../uploads') ?: (__DIR__ . '/../uploads');
+    $attach_bytes = dir_size($uploads_dir);
+    $disk_total   = (float)(@disk_total_space($uploads_dir) ?: 0);
+    $disk_free    = (float)(@disk_free_space($uploads_dir)  ?: 0);
+    $disk_used    = max(0.0, $disk_total - $disk_free);
+    $other_used   = max(0.0, $disk_used - $attach_bytes);
+
+    // Donut segments (fraction of total disk)
+    $segs = [];
+    if ($disk_total > 0) {
+        $segs = [
+            ['ไฟล์แนบในระบบ', $attach_bytes, 'var(--accent)'],
+            ['ใช้โดยส่วนอื่น',  $other_used,   'var(--line-2)'],
+            ['พื้นที่ว่าง',      $disk_free,    'var(--primary)'],
+        ];
+    }
+    $C   = 2 * M_PI * 70;   // donut circumference (r = 70)
+    $acc = 0.0;
 ?>
+
+<!-- Disk overview donut -->
+<div class="card" style="margin-bottom:20px">
+  <div class="card-head">
+    <?= icon('database', 18, 'var(--primary)') ?><h3>ภาพรวมพื้นที่จัดเก็บ</h3>
+    <span class="subtle" style="margin-left:auto;font-size:12px">ไดรฟ์ที่เก็บโฟลเดอร์ uploads</span>
+  </div>
+  <div class="card-pad" style="padding-top:14px">
+    <?php if ($disk_total <= 0): ?>
+    <p class="subtle" style="font-size:13.5px">ไม่สามารถอ่านข้อมูลพื้นที่ดิสก์ได้บนเซิร์ฟเวอร์นี้</p>
+    <?php else: ?>
+    <div style="display:flex;gap:30px;align-items:center;flex-wrap:wrap">
+      <!-- Donut -->
+      <svg viewBox="0 0 180 180" style="width:180px;height:180px;flex:0 0 auto" role="img" aria-label="แผนผังพื้นที่จัดเก็บ">
+        <g transform="rotate(-90 90 90)">
+          <circle cx="90" cy="90" r="70" fill="none" stroke="var(--line-1)" stroke-width="22"></circle>
+          <?php foreach ($segs as [$lbl, $val, $color]):
+              if ($val <= 0) continue;
+              $len = $val / $disk_total * $C;
+          ?>
+          <circle cx="90" cy="90" r="70" fill="none" stroke="<?= $color ?>" stroke-width="22"
+                  stroke-dasharray="<?= round($len, 2) ?> <?= round($C - $len, 2) ?>"
+                  stroke-dashoffset="<?= round(-$acc, 2) ?>"></circle>
+          <?php $acc += $len; endforeach; ?>
+        </g>
+        <text x="90" y="84" text-anchor="middle" style="font-size:15px;font-weight:800;fill:var(--heading)">
+          <?= format_bytes((int)$disk_free) ?>
+        </text>
+        <text x="90" y="102" text-anchor="middle" style="font-size:10.5px;fill:var(--sub)">ว่าง</text>
+        <text x="90" y="118" text-anchor="middle" style="font-size:10px;fill:var(--sub)">
+          จาก <?= format_bytes((int)$disk_total) ?>
+        </text>
+      </svg>
+
+      <!-- Legend -->
+      <div style="flex:1 1 280px;min-width:240px">
+        <?php
+        $rows = [
+            ['ไฟล์แนบในระบบ (uploads)', $attach_bytes, 'var(--accent)'],
+            ['ใช้โดยส่วนอื่นของดิสก์',   $other_used,   'var(--line-2)'],
+            ['พื้นที่ว่างคงเหลือ',        $disk_free,    'var(--primary)'],
+        ];
+        foreach ($rows as [$lbl, $val, $color]):
+            $pct = $disk_total > 0 ? $val / $disk_total * 100 : 0;
+        ?>
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-1)">
+          <span style="width:13px;height:13px;border-radius:4px;background:<?= $color ?>;flex:0 0 auto"></span>
+          <span style="flex:1;font-size:13.5px;color:var(--body)"><?= $lbl ?></span>
+          <span style="font-size:13px;font-weight:700;color:var(--heading)"><?= format_bytes((int)$val) ?></span>
+          <span class="subtle" style="font-size:12px;width:48px;text-align:right"><?= number_format($pct, 1) ?>%</span>
+        </div>
+        <?php endforeach; ?>
+        <div style="margin-top:12px;padding:11px 13px;background:var(--accent-soft);border-radius:9px;font-size:13px;color:var(--accent-700)">
+          <?= icon('sparkle', 14) ?> ไฟล์แนบทั้งหมดใช้ไป <b><?= format_bytes((int)$attach_bytes) ?></b>
+          — ยังเพิ่มได้อีกประมาณ <b><?= format_bytes((int)$disk_free) ?></b> ก่อนดิสก์เต็ม
+        </div>
+      </div>
+    </div>
+    <?php endif; ?>
+  </div>
+</div>
 
 <!-- Global settings -->
 <div class="card" style="margin-bottom:20px">
