@@ -18,7 +18,7 @@ $sub_quota_mb = (int)get_setting('course_submissions_quota_mb', '1024');
   </span>
   <div>
     <h1 style="font-size:22px">ผู้ดูแลระบบ</h1>
-    <p class="subtle" style="font-size:13px;margin:0">จัดการบัญชีครู/นักเรียน และตั้งค่าพื้นที่จัดเก็บไฟล์</p>
+    <p class="subtle" style="font-size:13px;margin:0">จัดการบัญชีครู/นักเรียน พื้นที่จัดเก็บไฟล์ และรายชื่อ AI</p>
   </div>
 </div>
 
@@ -27,6 +27,7 @@ $sub_quota_mb = (int)get_setting('course_submissions_quota_mb', '1024');
   $tabs = [
       ['users',   'users',    'จัดการผู้ใช้'],
       ['storage', 'database', 'พื้นที่จัดเก็บไฟล์'],
+      ['ai',      'sparkle',  'รายชื่อ AI'],
   ];
   foreach ($tabs as [$tid, $tic, $tlbl]):
   ?>
@@ -301,5 +302,157 @@ elseif ($tab === 'storage'):
     <?php endif; ?>
   </div>
 </div>
+
+<?php
+// ════════════════════════════════════════════════════════════════
+// AI tab — manage the AI registry without reinstalling
+// ════════════════════════════════════════════════════════════════
+elseif ($tab === 'ai'):
+    $ai_tools = array_values(get_ai_tools());
+    // Usage count per AI (to gate deletion)
+    $usage = [];
+    foreach ($ai_tools as $t) {
+        $id = $t['id'];
+        $usage[$id] = (int)db_val('SELECT COUNT(*) FROM lesson_prompts     WHERE ai_id = ?',  [$id])
+                    + (int)db_val('SELECT COUNT(*) FROM assignment_prompts WHERE ai_id = ?',  [$id])
+                    + (int)db_val('SELECT COUNT(*) FROM submissions        WHERE ai_used = ?', [$id]);
+    }
+?>
+
+<!-- Add new AI -->
+<div class="card" style="margin-bottom:20px">
+  <div class="card-head"><?= icon('sparkle', 18, 'var(--primary)') ?><h3>เพิ่ม AI ใหม่</h3></div>
+  <div class="card-pad" style="padding-top:12px">
+    <form id="ai-add-form" onsubmit="saveAi(event, 'add')">
+      <input type="hidden" name="mode" value="add">
+      <div class="row wrap" style="gap:14px;align-items:flex-end">
+        <div style="display:flex;align-items:center;gap:12px;flex:0 0 auto">
+          <span class="ai-logo" id="ai-add-preview" style="background:#4d6bfe;width:46px;height:46px;font-size:15px">AI</span>
+        </div>
+        <div class="field" style="flex:1 1 130px;margin:0">
+          <label>รหัส (slug) <span style="color:var(--danger)">*</span></label>
+          <input class="input" name="id" required pattern="[A-Za-z0-9_-]{2,20}"
+                 placeholder="เช่น kimi" style="font-family:ui-monospace,monospace"
+                 oninput="this.value=this.value.toLowerCase()">
+        </div>
+        <div class="field" style="flex:1 1 160px;margin:0">
+          <label>ชื่อ <span style="color:var(--danger)">*</span></label>
+          <input class="input" name="name" required maxlength="50" placeholder="เช่น Kimi"
+                 oninput="aiPreview('ai-add')">
+        </div>
+        <div class="field" style="flex:0 1 90px;margin:0">
+          <label>โลโก้ย่อ <span style="color:var(--danger)">*</span></label>
+          <input class="input" name="letter" id="ai-add-letter" required maxlength="5" placeholder="K"
+                 oninput="aiPreview('ai-add')">
+        </div>
+        <div class="field" style="flex:0 1 80px;margin:0">
+          <label>สี</label>
+          <input class="input" type="color" name="color" id="ai-add-color" value="#4d6bfe"
+                 style="padding:4px;height:40px" oninput="aiPreview('ai-add')">
+        </div>
+        <div class="field" style="flex:1 1 180px;margin:0">
+          <label>URL <span style="color:var(--danger)">*</span></label>
+          <input class="input" name="url" required maxlength="100" placeholder="kimi.com">
+        </div>
+        <button type="submit" class="btn btn-primary" style="flex:0 0 auto">
+          <?= icon('check', 16, '#fff') ?> เพิ่ม
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Existing AIs -->
+<div class="card">
+  <div class="card-head">
+    <?= icon('sparkle', 18, 'var(--accent)') ?><h3>AI ที่มีอยู่</h3>
+    <span class="subtle" style="margin-left:auto;font-size:12px"><?= count($ai_tools) ?> รายการ</span>
+  </div>
+  <div style="padding:8px 14px">
+    <?php foreach ($ai_tools as $t):
+        $id  = $t['id'];
+        $cnt = $usage[$id] ?? 0;
+    ?>
+    <form class="ai-row" onsubmit="saveAi(event, '<?= h($id) ?>')"
+          style="display:flex;align-items:flex-end;gap:10px;padding:12px 4px;border-bottom:1px solid var(--line-1);flex-wrap:wrap">
+      <input type="hidden" name="mode" value="edit">
+      <input type="hidden" name="id" value="<?= h($id) ?>">
+      <span class="ai-logo" id="ai-<?= h($id) ?>-preview"
+            style="background:<?= h($t['color']) ?>;width:42px;height:42px;font-size:14px;flex:0 0 auto"><?= h($t['letter']) ?></span>
+      <div class="field" style="flex:0 0 96px;margin:0">
+        <label style="font-size:11px">รหัส</label>
+        <input class="input" value="<?= h($id) ?>" disabled
+               style="font-family:ui-monospace,monospace;padding:8px 10px;font-size:13px">
+      </div>
+      <div class="field" style="flex:1 1 140px;margin:0">
+        <label style="font-size:11px">ชื่อ</label>
+        <input class="input" name="name" value="<?= h($t['name']) ?>" required maxlength="50"
+               style="padding:8px 10px;font-size:13px" oninput="aiPreview('ai-<?= h($id) ?>')">
+      </div>
+      <div class="field" style="flex:0 0 70px;margin:0">
+        <label style="font-size:11px">โลโก้</label>
+        <input class="input" name="letter" id="ai-<?= h($id) ?>-letter" value="<?= h($t['letter']) ?>"
+               required maxlength="5" style="padding:8px 10px;font-size:13px" oninput="aiPreview('ai-<?= h($id) ?>')">
+      </div>
+      <div class="field" style="flex:0 0 56px;margin:0">
+        <label style="font-size:11px">สี</label>
+        <input class="input" type="color" name="color" id="ai-<?= h($id) ?>-color" value="<?= h($t['color']) ?>"
+               style="padding:3px;height:37px" oninput="aiPreview('ai-<?= h($id) ?>')">
+      </div>
+      <div class="field" style="flex:1 1 150px;margin:0">
+        <label style="font-size:11px">URL</label>
+        <input class="input" name="url" value="<?= h($t['url']) ?>" required maxlength="100"
+               style="padding:8px 10px;font-size:13px">
+      </div>
+      <button type="submit" class="btn btn-sm btn-soft" style="flex:0 0 auto">บันทึก</button>
+      <button type="button" class="btn btn-sm btn-ghost" style="flex:0 0 auto;color:var(--danger)"
+              title="<?= $cnt > 0 ? 'มีการใช้งานอยู่ ' . $cnt . ' รายการ' : 'ลบ' ?>"
+              <?= $cnt > 0 ? 'disabled' : '' ?>
+              onclick="deleteAi('<?= h($id) ?>', '<?= h(addslashes($t['name'])) ?>')">
+        <?= icon('trash', 14) ?><?= $cnt > 0 ? ' ใช้อยู่ ' . $cnt : '' ?>
+      </button>
+    </form>
+    <?php endforeach; ?>
+  </div>
+</div>
+
+<script>
+// Live logo preview from a form's name/letter/color fields
+function aiPreview(prefix) {
+  var letter = document.getElementById(prefix + '-letter');
+  var color  = document.getElementById(prefix + '-color');
+  var prev   = document.getElementById(prefix + '-preview');
+  if (!prev) return;
+  if (letter && letter.value) prev.textContent = letter.value;
+  if (color)  prev.style.background = color.value;
+}
+
+function saveAi(e, key) {
+  e.preventDefault();
+  var fd = new FormData(e.target);
+  fd.append('action', 'save');
+  fetch('api/admin_ai.php', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) { showToast(res.message); setTimeout(() => location.reload(), 700); }
+      else showToast(res.error || 'เกิดข้อผิดพลาด', true);
+    })
+    .catch(() => showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', true));
+}
+
+function deleteAi(id, name) {
+  if (!confirm('ลบ AI "' + name + '" ออกจากระบบ?')) return;
+  var fd = new FormData();
+  fd.append('action', 'delete');
+  fd.append('id', id);
+  fetch('api/admin_ai.php', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) { showToast(res.message); setTimeout(() => location.reload(), 700); }
+      else showToast(res.error || 'เกิดข้อผิดพลาด', true);
+    })
+    .catch(() => showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', true));
+}
+</script>
 
 <?php endif; ?>
