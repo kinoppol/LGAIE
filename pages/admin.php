@@ -214,9 +214,9 @@ elseif ($tab === 'storage'):
     $disk_used    = max(0.0, $disk_total - $disk_free);
     $other_used   = max(0.0, $disk_used - $attach_bytes);
 
-    // Segment colours: used = blue tones, free = soft cream
-    $col_attach = '#2f6bed';   // ไฟล์แนบ — น้ำเงินเข้ม
-    $col_other  = '#9db8f5';   // ใช้โดยส่วนอื่น — น้ำเงินอ่อน
+    // Segment colours: used = clear blue tones, free = soft cream
+    $col_attach = '#1d4ed8';   // ไฟล์แนบ — น้ำเงินเข้ม
+    $col_other  = '#4f8bf5';   // ใช้โดยส่วนอื่น — น้ำเงินสด
     $col_free   = '#eaf0f4';   // ว่าง — ขาวนวล
 
     // Donut segments (fraction of total disk)
@@ -278,14 +278,14 @@ elseif ($tab === 'storage'):
         ?>
         <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-1)">
           <span style="width:13px;height:13px;border-radius:4px;background:<?= $color ?>;border:1px solid rgba(128,128,128,.35);flex:0 0 auto"></span>
-          <span style="flex:1;font-size:13.5px;color:var(--body)"><?= $lbl ?></span>
+          <span style="flex:1;font-size:13.5px;color:var(--heading)"><?= $lbl ?></span>
           <span style="font-size:13px;font-weight:700;color:var(--heading)"><?= format_bytes((int)$val) ?></span>
           <span class="subtle" style="font-size:12px;width:48px;text-align:right"><?= number_format($pct, 1) ?>%</span>
         </div>
         <?php endforeach; ?>
-        <div style="margin-top:12px;padding:11px 13px;background:var(--accent-soft);border-radius:9px;font-size:13px;color:var(--accent-700)">
-          <?= icon('sparkle', 14) ?> ไฟล์แนบทั้งหมดใช้ไป <b><?= format_bytes((int)$attach_bytes) ?></b>
-          — ยังเพิ่มได้อีกประมาณ <b><?= format_bytes((int)$disk_free) ?></b> ก่อนดิสก์เต็ม
+        <div style="margin-top:12px;padding:11px 13px;background:rgba(47,107,237,.14);border:1px solid rgba(47,107,237,.3);border-radius:9px;font-size:13px;color:var(--heading);line-height:1.6">
+          <?= icon('sparkle', 14, '#4f8bf5') ?> ไฟล์แนบทั้งหมดใช้ไป <b><?= format_bytes((int)$attach_bytes) ?></b>
+          — ยังเพิ่มได้อีกประมาณ <b style="color:var(--primary)"><?= format_bytes((int)$disk_free) ?></b> ก่อนดิสก์เต็ม
         </div>
       </div>
     </div>
