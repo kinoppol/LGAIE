@@ -259,8 +259,8 @@ elseif ($tab === 'storage'):
         <text x="90" y="84" text-anchor="middle" style="font-size:16px;font-weight:800;fill:var(--primary)">
           <?= format_bytes((int)$disk_free) ?>
         </text>
-        <text x="90" y="102" text-anchor="middle" style="font-size:10.5px;fill:var(--sub)">ว่าง</text>
-        <text x="90" y="118" text-anchor="middle" style="font-size:10px;fill:var(--sub)">
+        <text x="90" y="102" text-anchor="middle" style="font-size:11px;fill:var(--body)">ว่าง</text>
+        <text x="90" y="118" text-anchor="middle" style="font-size:10px;fill:var(--body)">
           จาก <?= format_bytes((int)$disk_total) ?>
         </text>
       </svg>
