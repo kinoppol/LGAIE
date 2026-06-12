@@ -427,6 +427,76 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
   </div>
 
+  <?php
+  // ── Peer submissions: visible only after the student's own work is graded ──
+  if ($my_sub['status'] === 'graded'):
+    $peers = array_values(array_filter($subs, fn($s) => (int)$s['student_id'] !== $uid));
+  ?>
+  <div style="margin:26px 0 16px;display:flex;align-items:center;gap:10px">
+    <h2 style="font-size:18px;margin:0"><?= icon('users', 19, 'var(--primary)') ?> งานของเพื่อนร่วมชั้น</h2>
+    <span class="subtle" style="font-size:14px;font-weight:600">(<?= count($peers) ?>)</span>
+    <span class="chip" style="margin-left:auto;font-size:11.5px"><?= icon('thumbs-up', 13, 'var(--accent)') ?> โหวต prompt ที่คุณคิดว่าดี</span>
+  </div>
+
+  <?php if (empty($peers)): ?>
+  <div class="empty"><div class="e-ic"><?= icon('users', 28) ?></div><h3>ยังไม่มีงานของเพื่อนคนอื่น</h3></div>
+  <?php else: ?>
+  <div id="subs-list">
+  <?php foreach ($peers as $sub):
+    $vote_count = (int)$sub['vote_count'];
+    $voted      = !empty($sub['voted_by_me']);
+  ?>
+  <div class="card sub-card" id="sub-<?= (int)$sub['id'] ?>" data-votes="<?= $vote_count ?>" data-submitted="<?= (int)strtotime($sub['submitted_at']) ?>" style="margin-bottom:14px">
+    <div style="padding:16px 20px;display:flex;align-items:center;gap:13px;border-bottom:1px solid var(--line)">
+      <?= avatar(['avatar_class' => $sub['avatar_class'], 'avatar_path' => $sub['avatar_path'] ?? null, 'initials' => $sub['initials']], 40) ?>
+      <div>
+        <div style="font-weight:700;color:var(--heading)"><?= h($sub['student_name']) ?></div>
+        <div class="subtle" style="font-size:12.5px">ส่งเมื่อ <?= h(date('j M Y H:i', strtotime($sub['submitted_at']))) ?></div>
+      </div>
+      <?php if ($sub['better_than_teacher']): ?>
+      <span class="badge orange" style="margin-left:auto"><?= icon('trophy', 13) ?> เคลม prompt ดีกว่า</span>
+      <?php endif; ?>
+    </div>
+    <div style="padding:14px 20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+        <span class="subtle" style="font-size:12.5px;font-weight:600">Prompt ที่เพื่อนใช้ · ตอบดีที่สุดด้วย</span>
+        <?= ai_pill($sub['ai_used'], 'sm') ?>
+        <span class="chip" style="font-size:11.5px">
+          <?= icon('thumbs-up', 13, 'var(--accent)') ?> <span class="vote-num" id="votes-<?= (int)$sub['id'] ?>"><?= $vote_count ?></span> โหวต
+        </span>
+      </div>
+      <div class="prompt-text" style="font-size:12.5px"><?= h($sub['prompt_used']) ?></div>
+      <?php if (!empty($files_by_sub[(int)$sub['id']])): ?>
+      <div style="margin-top:10px">
+        <div class="subtle" style="font-size:12.5px;font-weight:600;margin-bottom:6px">ไฟล์แนบ (<?= count($files_by_sub[(int)$sub['id']]) ?>)</div>
+        <div class="row wrap">
+          <?php foreach ($files_by_sub[(int)$sub['id']] as $f): ?>
+          <?= attachment_item($f) ?>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+      <?php if ($sub['compare_note']): ?>
+      <div style="margin-top:10px;font-size:13px;color:var(--body);display:flex;gap:8px;align-items:flex-start">
+        <?= icon('message', 15, 'var(--muted)') ?> <i>"<?= h($sub['compare_note']) ?>"</i>
+      </div>
+      <?php endif; ?>
+      <div style="margin-top:14px">
+        <button type="button" id="vote-btn-<?= (int)$sub['id'] ?>"
+                class="btn btn-sm <?= $voted ? 'btn-ghost' : 'btn-soft' ?>"
+                data-voted="<?= $voted ? '1' : '0' ?>"
+                onclick="votePrompt(this, <?= (int)$sub['id'] ?>)">
+          <?= icon('thumbs-up', 15) ?>
+          <span class="vote-btn-label"><?= $voted ? 'ยกเลิกโหวต' : 'โหวตว่า prompt ดี' ?></span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <?php endforeach; ?>
+  </div><!-- #subs-list -->
+  <?php endif; // empty peers ?>
+  <?php endif; // my_sub graded ?>
+
   <?php else: ?>
   <!-- Submit form -->
   <div class="card" style="border:2px solid var(--accent-soft)">

@@ -14,6 +14,33 @@ if (!$submission_id) {
     exit;
 }
 
+// Who owns this submission, and which assignment is it for?
+$target = db_row('SELECT student_id, assignment_id FROM submissions WHERE id = ?', [$submission_id]);
+if (!$target) {
+    if ($is_ajax) json_err('ไม่พบงานที่ต้องการโหวต');
+    header('Location: ?page=dashboard');
+    exit;
+}
+
+// Students may vote on peers' work only after their own submission is graded,
+// and may never vote their own. Teachers/admins are unrestricted.
+if (!is_teacher()) {
+    if ((int)$target['student_id'] === $voter_id) {
+        if ($is_ajax) json_err('ไม่สามารถโหวตงานของตัวเองได้', 403);
+        header('Location: ?page=dashboard');
+        exit;
+    }
+    $mine = db_row(
+        'SELECT status FROM submissions WHERE assignment_id = ? AND student_id = ?',
+        [$target['assignment_id'], $voter_id]
+    );
+    if (!$mine || $mine['status'] !== 'graded') {
+        if ($is_ajax) json_err('ต้องส่งงานและได้รับการตรวจก่อนจึงจะโหวตได้', 403);
+        header('Location: ?page=dashboard');
+        exit;
+    }
+}
+
 // Toggle the vote: remove it if it already exists, otherwise add it
 $already = (int)db_val(
     'SELECT COUNT(*) FROM submission_votes WHERE submission_id = ? AND voter_id = ?',
