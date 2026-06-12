@@ -380,51 +380,55 @@ elseif ($tab === 'ai'):
     <?= icon('sparkle', 18, 'var(--accent)') ?><h3>AI ที่มีอยู่</h3>
     <span class="subtle" style="margin-left:auto;font-size:12px"><?= count($ai_tools) ?> รายการ</span>
   </div>
-  <div style="padding:8px 14px">
-    <?php foreach ($ai_tools as $t):
-        $id  = $t['id'];
-        $cnt = $usage[$id] ?? 0;
-    ?>
-    <form class="ai-row" onsubmit="saveAi(event, '<?= h($id) ?>')"
-          style="display:flex;align-items:flex-end;gap:10px;padding:12px 4px;border-bottom:1px solid var(--line-1);flex-wrap:wrap">
-      <input type="hidden" name="mode" value="edit">
-      <input type="hidden" name="id" value="<?= h($id) ?>">
-      <span class="ai-logo" id="ai-<?= h($id) ?>-preview"
-            style="background:<?= h($t['color']) ?>;width:42px;height:42px;font-size:14px;flex:0 0 auto"><?= h($t['letter']) ?></span>
-      <div class="field" style="flex:0 0 96px;margin:0">
-        <label style="font-size:11px">รหัส</label>
+  <style>
+    .ai-grid { --cols: 44px 96px minmax(130px,1fr) 64px 50px minmax(150px,1.4fr) auto;
+               min-width: 760px; }
+    .ai-grid-head, .ai-grid .ai-row {
+        display: grid; grid-template-columns: var(--cols);
+        gap: 10px; align-items: center; }
+    .ai-grid-head { padding: 4px 4px 8px; font-size: 11px; font-weight: 700;
+                    color: var(--sub); border-bottom: 1px solid var(--line-2); }
+    .ai-grid .ai-row { padding: 11px 4px; border-bottom: 1px solid var(--line-1); }
+    .ai-grid .ai-row:last-child { border-bottom: 0; }
+    .ai-grid .input { padding: 8px 10px; font-size: 13px; }
+    .ai-grid .ai-acts { display: flex; gap: 6px; }
+  </style>
+  <div style="padding:8px 14px;overflow-x:auto">
+    <div class="ai-grid">
+      <div class="ai-grid-head">
+        <span></span><span>รหัส</span><span>ชื่อ</span><span>โลโก้</span>
+        <span>สี</span><span>URL</span><span></span>
+      </div>
+      <?php foreach ($ai_tools as $t):
+          $id  = $t['id'];
+          $cnt = $usage[$id] ?? 0;
+      ?>
+      <form class="ai-row" onsubmit="saveAi(event, '<?= h($id) ?>')">
+        <input type="hidden" name="mode" value="edit">
+        <input type="hidden" name="id" value="<?= h($id) ?>">
+        <span class="ai-logo" id="ai-<?= h($id) ?>-preview"
+              style="background:<?= h($t['color']) ?>;width:42px;height:42px;font-size:14px"><?= h($t['letter']) ?></span>
         <input class="input" value="<?= h($id) ?>" disabled
                style="font-family:ui-monospace,monospace;padding:8px 10px;font-size:13px">
-      </div>
-      <div class="field" style="flex:1 1 140px;margin:0">
-        <label style="font-size:11px">ชื่อ</label>
         <input class="input" name="name" value="<?= h($t['name']) ?>" required maxlength="50"
-               style="padding:8px 10px;font-size:13px" oninput="aiPreview('ai-<?= h($id) ?>')">
-      </div>
-      <div class="field" style="flex:0 0 70px;margin:0">
-        <label style="font-size:11px">โลโก้</label>
+               oninput="aiPreview('ai-<?= h($id) ?>')">
         <input class="input" name="letter" id="ai-<?= h($id) ?>-letter" value="<?= h($t['letter']) ?>"
-               required maxlength="5" style="padding:8px 10px;font-size:13px" oninput="aiPreview('ai-<?= h($id) ?>')">
-      </div>
-      <div class="field" style="flex:0 0 56px;margin:0">
-        <label style="font-size:11px">สี</label>
+               required maxlength="5" oninput="aiPreview('ai-<?= h($id) ?>')">
         <input class="input" type="color" name="color" id="ai-<?= h($id) ?>-color" value="<?= h($t['color']) ?>"
                style="padding:3px;height:37px" oninput="aiPreview('ai-<?= h($id) ?>')">
-      </div>
-      <div class="field" style="flex:1 1 150px;margin:0">
-        <label style="font-size:11px">URL</label>
-        <input class="input" name="url" value="<?= h($t['url']) ?>" required maxlength="100"
-               style="padding:8px 10px;font-size:13px">
-      </div>
-      <button type="submit" class="btn btn-sm btn-soft" style="flex:0 0 auto">บันทึก</button>
-      <button type="button" class="btn btn-sm btn-ghost" style="flex:0 0 auto;color:var(--danger)"
-              title="<?= $cnt > 0 ? 'มีการใช้งานอยู่ ' . $cnt . ' รายการ' : 'ลบ' ?>"
-              <?= $cnt > 0 ? 'disabled' : '' ?>
-              onclick="deleteAi('<?= h($id) ?>', '<?= h(addslashes($t['name'])) ?>')">
-        <?= icon('trash', 14) ?><?= $cnt > 0 ? ' ใช้อยู่ ' . $cnt : '' ?>
-      </button>
-    </form>
-    <?php endforeach; ?>
+        <input class="input" name="url" value="<?= h($t['url']) ?>" required maxlength="100">
+        <div class="ai-acts">
+          <button type="submit" class="btn btn-sm btn-soft">บันทึก</button>
+          <button type="button" class="btn btn-sm btn-ghost" style="color:var(--danger)"
+                  title="<?= $cnt > 0 ? 'มีการใช้งานอยู่ ' . $cnt . ' รายการ' : 'ลบ' ?>"
+                  <?= $cnt > 0 ? 'disabled' : '' ?>
+                  onclick="deleteAi('<?= h($id) ?>', '<?= h(addslashes($t['name'])) ?>')">
+            <?= icon('trash', 14) ?><?= $cnt > 0 ? ' ' . $cnt : '' ?>
+          </button>
+        </div>
+      </form>
+      <?php endforeach; ?>
+    </div>
   </div>
 </div>
 
