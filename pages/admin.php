@@ -381,13 +381,14 @@ elseif ($tab === 'ai'):
     <span class="subtle" style="margin-left:auto;font-size:12px"><?= count($ai_tools) ?> รายการ</span>
   </div>
   <style>
-    .ai-grid { --cols: 44px 96px minmax(130px,1fr) 64px 50px minmax(150px,1.4fr) auto;
-               min-width: 760px; }
+    .ai-grid { --cols: 44px 96px minmax(130px,1fr) 64px 50px minmax(150px,1.4fr) 168px;
+               min-width: 780px; }
     .ai-grid-head, .ai-grid .ai-row {
         display: grid; grid-template-columns: var(--cols);
         gap: 10px; align-items: center; }
     .ai-grid-head { padding: 4px 4px 8px; font-size: 11px; font-weight: 700;
                     color: var(--sub); border-bottom: 1px solid var(--line-2); }
+    .ai-grid-head span { padding-left: 11px; }
     .ai-grid .ai-row { padding: 11px 4px; border-bottom: 1px solid var(--line-1); }
     .ai-grid .ai-row:last-child { border-bottom: 0; }
     .ai-grid .input { padding: 8px 10px; font-size: 13px; }
