@@ -337,7 +337,7 @@ function get_assignment_with_prompt(int $id): array|false
 function get_submissions_for_assignment(int $assignment_id): array
 {
     $subs = db_rows('
-        SELECT s.*, u.name AS student_name, u.avatar_class, u.initials,
+        SELECT s.*, u.name AS student_name, u.avatar_class, u.avatar_path, u.initials,
             (SELECT COUNT(*) FROM submission_votes v WHERE v.submission_id = s.id) AS vote_count,
             (SELECT COUNT(*) FROM submission_votes v WHERE v.submission_id = s.id AND v.voter_id = ?) AS voted_by_me
         FROM submissions s
@@ -541,6 +541,8 @@ function ensure_storage_schema(): void
     try { $db->exec("ALTER TABLE courses
         ADD COLUMN IF NOT EXISTS materials_quota_mb   INT UNSIGNED NULL,
         ADD COLUMN IF NOT EXISTS submissions_quota_mb INT UNSIGNED NULL"); } catch (PDOException) {}
+    try { $db->exec("ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS avatar_path VARCHAR(255) NULL"); } catch (PDOException) {}
     ensure_all_upload_dirs();
 }
 
@@ -679,7 +681,7 @@ function ensure_upload_dir(string $subdir): string
 /** สร้างโฟลเดอร์ upload ทั้งหมดล่วงหน้า (เรียกจาก ensure_storage_schema) */
 function ensure_all_upload_dirs(): void
 {
-    foreach (['materials', 'submissions', 'examples'] as $sub) {
+    foreach (['materials', 'submissions', 'examples', 'avatars'] as $sub) {
         try { ensure_upload_dir($sub); } catch (RuntimeException) {}
     }
 }
@@ -900,6 +902,7 @@ function icon(
         'key'        => '<circle cx="8" cy="16" r="4"/><path d="M10.8 13.2 21 3M15 5l4 4"/>',
         'database'   => '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
         'trash'      => '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13z"/><path d="M10 11v5M14 11v5"/>',
+        'camera'     => '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
     ];
     $inner = $paths[$name] ?? '';
     $ca    = $cls ? " class=\"" . h($cls) . "\"" : '';
@@ -921,6 +924,12 @@ function course_avatar(array $course, string $extra_style = ''): string
 
 function avatar(array $user, int $size = 38): string
 {
+    $path = trim((string)($user['avatar_path'] ?? ''));
+    if ($path !== '') {
+        return "<span class=\"avatar\" style=\"width:{$size}px;height:{$size}px;overflow:hidden;background:var(--surface-2)\">"
+            . "<img src=\"" . h($path) . "\" alt=\"\" loading=\"lazy\" "
+            . "style=\"width:100%;height:100%;object-fit:cover;display:block\"></span>";
+    }
     $av = h($user['avatar_class'] ?? 'av-1');
     $in = h($user['initials'] ?? '?');
     $fs = (int)round($size * 0.38);

@@ -141,7 +141,7 @@ try {
   ?>
   <div class="card sub-card" id="sub-<?= (int)$sub['id'] ?>" data-votes="<?= $vote_count ?>" data-submitted="<?= (int)strtotime($sub['submitted_at']) ?>" style="margin-bottom:14px;transition:box-shadow .3s,outline .3s">
     <div style="padding:16px 20px;display:flex;align-items:center;gap:13px;border-bottom:1px solid var(--line)">
-      <?= avatar(['avatar_class' => $sub['avatar_class'], 'initials' => $sub['initials']], 40) ?>
+      <?= avatar(['avatar_class' => $sub['avatar_class'], 'avatar_path' => $sub['avatar_path'] ?? null, 'initials' => $sub['initials']], 40) ?>
       <div>
         <div style="font-weight:700;color:var(--heading)"><?= h($sub['student_name']) ?></div>
         <div class="subtle" style="font-size:12.5px">ส่งเมื่อ <?= h(date('j M Y H:i', strtotime($sub['submitted_at']))) ?></div>

@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+ensure_storage_schema();
 $user      = current_user();
 $provinces = get_provinces();
 ?>
@@ -15,6 +16,16 @@ $provinces = get_provinces();
 .prof-avatar-row { display: flex; align-items: center; gap: 16px;
                    padding-bottom: 1.5rem; margin-bottom: 1.5rem;
                    border-bottom: 1px solid var(--line-2); }
+
+/* Editable avatar */
+.avatar-edit { position: relative; cursor: pointer; flex: 0 0 auto;
+               border-radius: 50%; display: inline-block; line-height: 0; }
+.avatar-edit .avatar-cam { position: absolute; right: -2px; bottom: -2px;
+               width: 26px; height: 26px; border-radius: 50%;
+               background: var(--primary); border: 2px solid var(--card);
+               display: grid; place-items: center; line-height: 0;
+               transition: background .15s; }
+.avatar-edit:hover .avatar-cam { background: var(--primary-600); }
 
 /* Section label */
 .prof-sec { font-size: .72rem; font-weight: 700; text-transform: uppercase;
@@ -74,9 +85,16 @@ $provinces = get_provinces();
   <!-- ── Card 1: Personal info ── -->
   <div class="prof-card">
 
+    <form method="post" action="api/update_profile.php" enctype="multipart/form-data">
+
     <!-- Avatar + name -->
     <div class="prof-avatar-row">
-      <?= avatar($user, 60) ?>
+      <label class="avatar-edit" title="คลิกเพื่อเปลี่ยนรูปประจำตัว">
+        <span id="avatar-preview"><?= avatar($user, 72) ?></span>
+        <span class="avatar-cam"><?= icon('camera', 16, '#fff') ?></span>
+        <input type="file" name="avatar_image" id="avatar-input" accept="image/png,image/jpeg,image/gif,image/webp"
+               hidden onchange="previewAvatar(this)">
+      </label>
       <div>
         <div style="font-size:1.05rem;font-weight:700;color:var(--heading);margin-bottom:2px">
           <?= h($user['name'] ?? '') ?>
@@ -84,15 +102,24 @@ $provinces = get_provinces();
         <div style="font-size:.83rem;color:var(--sub);margin-bottom:6px">
           <?= h($user['email'] ?? '') ?>
         </div>
-        <span class="badge <?= is_teacher() ? 'green' : 'blue' ?>" style="font-size:.73rem">
-          <?= is_teacher() ? 'ครูผู้สอน' : 'นักเรียน' ?>
-        </span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="badge <?= is_teacher() ? 'green' : 'blue' ?>" style="font-size:.73rem">
+            <?= is_teacher() ? 'ครูผู้สอน' : 'นักเรียน' ?>
+          </span>
+          <button type="button" class="btn btn-sm btn-soft" onclick="document.getElementById('avatar-input').click()">
+            <?= icon('camera', 14) ?> เปลี่ยนรูป
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost" id="avatar-remove-btn"
+                  style="<?= empty($user['avatar_path']) ? 'display:none' : '' ?>" onclick="removeAvatar()">
+            <?= icon('trash', 14) ?> ลบรูป
+          </button>
+        </div>
+        <div class="subtle" style="font-size:.72rem;margin-top:6px">รองรับ JPG, PNG, GIF, WEBP · ไม่เกิน 5 MB</div>
       </div>
     </div>
+    <input type="hidden" name="remove_avatar" id="remove-avatar" value="0">
 
     <div class="prof-sec">ข้อมูลส่วนตัว</div>
-
-    <form method="post" action="api/update_profile.php">
 
       <div class="pf-row">
         <div class="pf">
@@ -204,6 +231,35 @@ $provinces = get_provinces();
 </div><!-- /.prof-wrap -->
 
 <script>
+// Initials-only avatar to restore when the image is removed
+var avatarFallback = <?= json_encode(avatar(['avatar_class' => $user['avatar_class'] ?? 'av-1', 'initials' => $user['initials'] ?? '?'], 72), JSON_UNESCAPED_UNICODE) ?>;
+
+function previewAvatar(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('ไฟล์รูปต้องไม่เกิน 5 MB', true);
+    input.value = '';
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('avatar-preview').innerHTML =
+      '<span class="avatar" style="width:72px;height:72px;overflow:hidden;background:var(--surface-2)">' +
+      '<img src="' + e.target.result + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></span>';
+    document.getElementById('remove-avatar').value = '0';
+    document.getElementById('avatar-remove-btn').style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeAvatar() {
+  document.getElementById('avatar-input').value = '';
+  document.getElementById('remove-avatar').value = '1';
+  document.getElementById('avatar-preview').innerHTML = avatarFallback;
+  document.getElementById('avatar-remove-btn').style.display = 'none';
+}
+
 function togglePw(id, btn) {
   var inp = document.getElementById(id);
   inp.type = inp.type === 'password' ? 'text' : 'password';
