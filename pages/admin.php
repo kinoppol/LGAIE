@@ -214,13 +214,18 @@ elseif ($tab === 'storage'):
     $disk_used    = max(0.0, $disk_total - $disk_free);
     $other_used   = max(0.0, $disk_used - $attach_bytes);
 
+    // Segment colours: used = blue tones, free = soft cream
+    $col_attach = '#2f6bed';   // ไฟล์แนบ — น้ำเงินเข้ม
+    $col_other  = '#9db8f5';   // ใช้โดยส่วนอื่น — น้ำเงินอ่อน
+    $col_free   = '#eaf0f4';   // ว่าง — ขาวนวล
+
     // Donut segments (fraction of total disk)
     $segs = [];
     if ($disk_total > 0) {
         $segs = [
-            ['ไฟล์แนบในระบบ', $attach_bytes, 'var(--accent)'],
-            ['ใช้โดยส่วนอื่น',  $other_used,   'var(--line-2)'],
-            ['พื้นที่ว่าง',      $disk_free,    'var(--primary)'],
+            ['ไฟล์แนบในระบบ', $attach_bytes, $col_attach],
+            ['ใช้โดยส่วนอื่น',  $other_used,   $col_other],
+            ['พื้นที่ว่าง',      $disk_free,    $col_free],
         ];
     }
     $C   = 2 * M_PI * 70;   // donut circumference (r = 70)
@@ -251,7 +256,7 @@ elseif ($tab === 'storage'):
                   stroke-dashoffset="<?= round(-$acc, 2) ?>"></circle>
           <?php $acc += $len; endforeach; ?>
         </g>
-        <text x="90" y="84" text-anchor="middle" style="font-size:15px;font-weight:800;fill:var(--heading)">
+        <text x="90" y="84" text-anchor="middle" style="font-size:16px;font-weight:800;fill:var(--primary)">
           <?= format_bytes((int)$disk_free) ?>
         </text>
         <text x="90" y="102" text-anchor="middle" style="font-size:10.5px;fill:var(--sub)">ว่าง</text>
@@ -264,15 +269,15 @@ elseif ($tab === 'storage'):
       <div style="flex:1 1 280px;min-width:240px">
         <?php
         $rows = [
-            ['ไฟล์แนบในระบบ (uploads)', $attach_bytes, 'var(--accent)'],
-            ['ใช้โดยส่วนอื่นของดิสก์',   $other_used,   'var(--line-2)'],
-            ['พื้นที่ว่างคงเหลือ',        $disk_free,    'var(--primary)'],
+            ['ไฟล์แนบในระบบ (uploads)', $attach_bytes, $col_attach],
+            ['ใช้โดยส่วนอื่นของดิสก์',   $other_used,   $col_other],
+            ['พื้นที่ว่างคงเหลือ',        $disk_free,    $col_free],
         ];
         foreach ($rows as [$lbl, $val, $color]):
             $pct = $disk_total > 0 ? $val / $disk_total * 100 : 0;
         ?>
         <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-1)">
-          <span style="width:13px;height:13px;border-radius:4px;background:<?= $color ?>;flex:0 0 auto"></span>
+          <span style="width:13px;height:13px;border-radius:4px;background:<?= $color ?>;border:1px solid rgba(128,128,128,.35);flex:0 0 auto"></span>
           <span style="flex:1;font-size:13.5px;color:var(--body)"><?= $lbl ?></span>
           <span style="font-size:13px;font-weight:700;color:var(--heading)"><?= format_bytes((int)$val) ?></span>
           <span class="subtle" style="font-size:12px;width:48px;text-align:right"><?= number_format($pct, 1) ?>%</span>
