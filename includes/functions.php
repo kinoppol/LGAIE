@@ -878,6 +878,7 @@ function icon(
         'chevron-right'=> '<path d="M9 6l6 6-6 6"/>',
         'file'       => '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
         'download'   => '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>',
+        'upload'     => '<path d="M12 21V9M7 14l5-5 5 5"/><path d="M5 3h14"/>',
         'edit'       => '<path d="M15.5 4.5l4 4L8 20H4v-4z"/><path d="M13.5 6.5l4 4"/>',
         'send'       => '<path d="M21 4 3 11l6 2.5L11 20l3.5-6L21 4z"/><path d="M9 13.5 21 4"/>',
         'x'          => '<path d="M6 6l12 12M18 6 6 18"/>',

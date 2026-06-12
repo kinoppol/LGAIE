@@ -319,6 +319,18 @@ elseif ($tab === 'ai'):
     }
 ?>
 
+<!-- Export / Import -->
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+  <a href="api/admin_ai.php?action=export" class="btn btn-sm btn-ghost" style="text-decoration:none">
+    <?= icon('download', 15) ?> ส่งออก (JSON)
+  </a>
+  <button type="button" class="btn btn-sm btn-ghost" onclick="document.getElementById('ai-import-file').click()">
+    <?= icon('upload', 15) ?> นำเข้า (JSON)
+  </button>
+  <input type="file" id="ai-import-file" accept="application/json,.json" hidden onchange="importAi(this)">
+  <span class="subtle" style="font-size:12px;align-self:center">สำรอง/ย้ายรายชื่อ AI ระหว่างเซิร์ฟเวอร์ได้</span>
+</div>
+
 <!-- Add new AI -->
 <div class="card" style="margin-bottom:20px">
   <div class="card-head"><?= icon('sparkle', 18, 'var(--primary)') ?><h3>เพิ่ม AI ใหม่</h3></div>
@@ -438,6 +450,22 @@ function saveAi(e, key) {
       else showToast(res.error || 'เกิดข้อผิดพลาด', true);
     })
     .catch(() => showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', true));
+}
+
+function importAi(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var fd = new FormData();
+  fd.append('action', 'import');
+  fd.append('file', file);
+  fetch('api/admin_ai.php', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) { showToast(res.message); setTimeout(() => location.reload(), 1200); }
+      else showToast(res.error || 'นำเข้าไม่สำเร็จ', true);
+    })
+    .catch(() => showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', true))
+    .finally(() => { input.value = ''; });
 }
 
 function deleteAi(id, name) {
