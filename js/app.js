@@ -262,6 +262,17 @@ document.addEventListener('submit', e => {
     });
 });
 
+// Keep the grade within 0..max (the assignment's full marks)
+function clampGrade(input) {
+  if (input.value === '') return;
+  let v = parseInt(input.value, 10);
+  const max = parseInt(input.max, 10);
+  if (isNaN(v)) { input.value = ''; return; }
+  if (v < 0) v = 0;
+  if (!isNaN(max) && v > max) v = max;
+  input.value = v;
+}
+
 // ── Grade modal ───────────────────────────────────────────────
 function openGradeModal(sub) {
   document.getElementById('gf-sub-id').value     = sub.id;
@@ -274,7 +285,9 @@ function openGradeModal(sub) {
   const resultWrap = document.getElementById('gf-result-wrap');
   document.getElementById('gf-result').textContent = sub.result || '—';
   if (resultWrap) resultWrap.style.display = sub.result ? '' : 'none';
-  document.getElementById('gf-grade').value      = sub.grade || '';
+  const gradeInput = document.getElementById('gf-grade');
+  gradeInput.max   = sub.points;
+  gradeInput.value = sub.grade || '';
   document.getElementById('gf-feedback').value   = sub.feedback || '';
   document.getElementById('gf-pts-lbl').textContent = 'คะแนน (เต็ม ' + sub.points + ')';
   document.getElementById('grade-modal-title').textContent = 'ตรวจงาน: ' + sub.name;

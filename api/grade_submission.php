@@ -15,13 +15,20 @@ if (!$submission_id) json_err('ไม่พบข้อมูลงาน');
 
 // Verify the teacher owns the assignment for this submission
 $check = db_row('
-    SELECT s.id FROM submissions s
+    SELECT s.id, a.points FROM submissions s
     JOIN assignments a ON a.id = s.assignment_id
     JOIN courses c ON c.id = a.course_id
     WHERE s.id = ? AND c.teacher_id = ?
 ', [$submission_id, current_user_id()]);
 
 if (!$check) json_err('ไม่มีสิทธิ์ให้คะแนนงานนี้', 403);
+
+// Clamp the grade to 0..full marks
+if ($grade !== null) {
+    $max = (int)$check['points'];
+    if ($grade < 0)    json_err('คะแนนต้องไม่น้อยกว่า 0');
+    if ($grade > $max) json_err("คะแนนต้องไม่เกินคะแนนเต็ม ({$max})");
+}
 
 try {
     db_run(

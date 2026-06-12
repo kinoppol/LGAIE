@@ -278,7 +278,8 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="row" style="gap:14px">
             <div class="field" style="flex:0 0 160px">
               <label id="gf-pts-lbl">คะแนน</label>
-              <input class="input" type="number" name="grade" id="gf-grade" placeholder="0" style="font-size:18px;font-weight:700">
+              <input class="input" type="number" name="grade" id="gf-grade" placeholder="0" min="0" step="1"
+                     oninput="clampGrade(this)" style="font-size:18px;font-weight:700">
             </div>
             <div class="field" style="flex:1">
               <label>AI ที่นักเรียนใช้</label>
