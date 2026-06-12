@@ -276,11 +276,18 @@ ALTER TABLE assignment_prompts ADD COLUMN IF NOT EXISTS example_file_name VARCHA
 -- ============================================================
 
 INSERT IGNORE INTO ai_tools (id, name, letter, color, url) VALUES
-('chatgpt',    'ChatGPT',    'G',  '#10a37f', 'chat.openai.com'),
-('claude',     'Claude',     'C',  '#d97757', 'claude.ai'),
-('gemini',     'Gemini',     '✦', '#4285f4', 'gemini.google.com'),
-('copilot',    'Copilot',    'Co', '#7a5cff', 'copilot.microsoft.com'),
-('perplexity', 'Perplexity', 'P',  '#20808d', 'perplexity.ai');
+('chatgpt',    'ChatGPT',    'G',   '#10a37f', 'chat.openai.com'),
+('claude',     'Claude',     'C',   '#d97757', 'claude.ai'),
+('gemini',     'Gemini',     '✦',  '#4285f4', 'gemini.google.com'),
+('copilot',    'Copilot',    'Co',  '#7a5cff', 'copilot.microsoft.com'),
+('perplexity', 'Perplexity', 'P',   '#20808d', 'perplexity.ai'),
+('deepseek',   'DeepSeek',   'DS',  '#4d6bfe', 'chat.deepseek.com'),
+('notebooklm', 'NotebookLM', 'NL',  '#e8710a', 'notebooklm.google.com'),
+('grok',       'Grok',       'xAI', '#111827', 'grok.com'),
+('mistral',    'Mistral',    'M',   '#fa520f', 'chat.mistral.ai'),
+('meta',       'Meta AI',    'Me',  '#0866ff', 'meta.ai'),
+('qwen',       'Qwen',       'Q',   '#6c4ce6', 'chat.qwen.ai'),
+('dola',       'Dola',       'Do',  '#0ea5a4', 'heydola.com');
 
 -- ค่ากลางพื้นที่จัดเก็บไฟล์ (admin แก้ไขได้ในหน้า "พื้นที่จัดเก็บไฟล์")
 INSERT IGNORE INTO app_settings (setting_key, setting_value) VALUES

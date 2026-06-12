@@ -1008,6 +1008,8 @@ function ai_prompt_url(string $ai_id, string $prompt = ''): string
         'gemini'     => "https://gemini.google.com/app?q={$q}",
         'copilot'    => "https://copilot.microsoft.com/?q={$q}",
         'perplexity' => "https://www.perplexity.ai/search?q={$q}",
+        'grok'       => "https://grok.com/?q={$q}",
+        'mistral'    => "https://chat.mistral.ai/chat?q={$q}",
     ];
     $base = [
         'chatgpt'    => 'https://chat.openai.com/',
