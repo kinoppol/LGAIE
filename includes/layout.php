@@ -56,6 +56,7 @@ function layout_start(string $page_title = 'ClassroomAI'): void
   <?php if (!empty($_SESSION['error'])): ?>
   <meta name="flash-error" content="<?= h($_SESSION['error']) ?>">
   <?php unset($_SESSION['error']); endif; ?>
+  <link rel="icon" href="assets/vec-logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="<?= asset('css/theme.css') ?>">
   <script>
     (function(){
@@ -71,8 +72,7 @@ function layout_start(string $page_title = 'ClassroomAI'): void
 <!-- ── SIDEBAR ──────────────────────────────────────────────── -->
 <aside class="sidebar">
   <div class="sidebar__brand">
-    <span class="brand-mark"><?= icon('sparkle', 22, '#fff') ?></span>
-    <span class="brand-name">Classroom<b>AI</b></span>
+    <img src="assets/vec-logo.svg" alt="ClassroomAI" style="height:38px;width:auto;max-width:180px">
   </div>
   <nav class="nav-scroll">
     <?php if (is_admin()): ?>
@@ -353,6 +353,7 @@ function layout_start_guest(string $page_title = 'ClassroomAI'): void
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= h($page_title) ?> — ClassroomAI</title>
+  <link rel="icon" href="assets/vec-logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="<?= asset('css/theme.css') ?>">
   <script>
     (function(){
@@ -372,10 +373,7 @@ function layout_start_guest(string $page_title = 'ClassroomAI'): void
                height:58px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;
                box-shadow:0 1px 4px rgba(0,0,0,.06)">
   <a href="index.php?page=explore" style="display:flex;align-items:center;gap:9px;text-decoration:none">
-    <span style="width:34px;height:34px;border-radius:9px;background:var(--primary);display:grid;place-items:center">
-      <?= icon('sparkle', 18, '#fff') ?>
-    </span>
-    <span style="font-size:1rem;font-weight:800;color:var(--heading)">Classroom<span style="color:var(--primary)">AI</span></span>
+    <img src="assets/vec-logo.svg" alt="ClassroomAI" style="height:32px;width:auto">
   </a>
   <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
     <!-- Theme toggle -->
