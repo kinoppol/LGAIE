@@ -20,7 +20,19 @@ $note       = trim($_POST['note_text'] ?? '');
 $allow      = isset($_POST['allow_improve']) ? 1 : 0;
 $course_id  = (int)($_POST['course_id'] ?? 0);
 
-if (!$title || !$due || !$prompt_txt || !$course_id) {
+$questions_json = trim($_POST['questions_json'] ?? '');
+$questions = [];
+if ($questions_json !== '' && $questions_json !== '[]') {
+    $questions = json_decode($questions_json, true) ?: [];
+}
+
+if (!$title || !$due || !$course_id) {
+    json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
+}
+if ($type === 'แบบทดสอบ' && empty($questions)) {
+    json_err('แบบทดสอบต้องมีคำถามอย่างน้อย 1 ข้อ');
+}
+if ($type !== 'แบบทดสอบ' && !$prompt_txt) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
 
@@ -43,8 +55,12 @@ if ($ts) {
 try { get_db()->exec("ALTER TABLE assignment_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file VARCHAR(255) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file_name VARCHAR(255) NULL"); } catch (PDOException) {}
+ensure_quiz_schema();
 
-['path' => $example_file, 'name' => $example_file_name] = upload_example_file();
+$example_file = $example_file_name = null;
+if ($prompt_txt !== '') {
+    ['path' => $example_file, 'name' => $example_file_name] = upload_example_file();
+}
 
 $db = get_db();
 $db->beginTransaction();
@@ -53,10 +69,32 @@ try {
         'INSERT INTO assignments (course_id, title, assignment_type, due_date, due_short, points, instructions, allow_improve) VALUES (?,?,?,?,?,?,?,?)',
         [$course_id, $title, $type, $due_display, $due_short, $points, $instr, $allow]
     );
-    db_run(
-        'INSERT INTO assignment_prompts (assignment_id, prompt_text, ai_id, rating, example_text, example_file, example_file_name, note_text) VALUES (?,?,?,?,?,?,?,?)',
-        [$assignment_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null]
-    );
+    if ($prompt_txt !== '') {
+        db_run(
+            'INSERT INTO assignment_prompts (assignment_id, prompt_text, ai_id, rating, example_text, example_file, example_file_name, note_text) VALUES (?,?,?,?,?,?,?,?)',
+            [$assignment_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null]
+        );
+    }
+    foreach ($questions as $i => $q) {
+        $qtext = trim($q['text'] ?? '');
+        $qtype = in_array($q['type'] ?? '', ['MCQ','truefalse']) ? $q['type'] : 'MCQ';
+        $qpts  = max(1, (int)($q['points'] ?? 1));
+        if (!$qtext) continue;
+        $qid = db_run(
+            'INSERT INTO quiz_questions (assignment_id, question_text, question_type, points, sort_order) VALUES (?,?,?,?,?)',
+            [$assignment_id, $qtext, $qtype, $qpts, $i]
+        );
+        $choices = $q['choices'] ?? [];
+        $correct = (int)($q['correct'] ?? 0);
+        foreach ($choices as $ci => $ct) {
+            $ct = trim((string)$ct);
+            if ($ct === '' && $qtype === 'MCQ') continue;
+            db_run(
+                'INSERT INTO quiz_choices (question_id, choice_text, is_correct, sort_order) VALUES (?,?,?,?)',
+                [$qid, $ct, ($ci === $correct) ? 1 : 0, $ci]
+            );
+        }
+    }
     $db->commit();
     json_ok(['assignment_id' => $assignment_id, 'message' => 'เพิ่มงานเรียบร้อยแล้ว']);
 } catch (Exception $e) {

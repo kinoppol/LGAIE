@@ -724,7 +724,8 @@ if (!$guest_mode && is_teacher()):
   <div class="row" style="gap:14px">
     <div class="field" style="flex:1">
       <label>ประเภท</label>
-      <select class="select" name="assignment_type">
+      <select class="select" name="assignment_type" id="asgn-type-sel"
+              onchange="qbToggleSections(this.value)">
         <option value="งาน">งาน</option>
         <option value="การบ้าน">การบ้าน</option>
         <option value="โครงงาน">โครงงาน</option>
@@ -748,6 +749,89 @@ if (!$guest_mode && is_teacher()):
     <label>คำสั่ง / รายละเอียดงาน</label>
     <textarea class="textarea" name="instructions" placeholder="อธิบายสิ่งที่ต้องการให้นักเรียนทำ…"></textarea>
   </div>
+  <!-- ── Quiz Builder (แสดงเฉพาะ แบบทดสอบ) ──────────────────────── -->
+  <div id="asgn-quiz-section" style="display:none;margin-top:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:14px;font-weight:700;color:var(--heading);display:flex;align-items:center;gap:7px">
+        <?= icon('clipboard', 16) ?> รายการคำถาม <span id="qb-count" style="color:var(--sub);font-weight:400">(0)</span>
+      </div>
+    </div>
+
+    <!-- รายการคำถาม -->
+    <div id="qb-list"></div>
+
+    <!-- ฟอร์มเพิ่ม/แก้ไขคำถาม -->
+    <div id="qb-form" style="display:none;border:1.5px solid var(--primary);border-radius:11px;
+                              padding:14px 16px;margin-bottom:10px;background:var(--surface-2)">
+      <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:10px" id="qb-form-title">เพิ่มคำถาม</div>
+      <div class="field" style="margin-bottom:10px">
+        <label style="font-size:12.5px">ข้อคำถาม <span style="color:var(--danger)">*</span></label>
+        <textarea id="qb-text" class="textarea" rows="2" placeholder="พิมพ์ข้อคำถาม..." style="font-size:13.5px;min-height:60px"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <div class="field" style="flex:1;margin-bottom:0">
+          <label style="font-size:12.5px">ประเภท</label>
+          <select id="qb-type" class="select" style="font-size:13px" onchange="qbTypeChange()">
+            <option value="MCQ">เลือกตอบ (MCQ)</option>
+            <option value="truefalse">ถูก / ผิด</option>
+          </select>
+        </div>
+        <div class="field" style="flex:0 0 90px;margin-bottom:0">
+          <label style="font-size:12.5px">คะแนน</label>
+          <input id="qb-points" class="input" type="number" min="1" value="1" style="font-size:13px">
+        </div>
+      </div>
+
+      <!-- MCQ choices -->
+      <div id="qb-mcq-wrap">
+        <div style="font-size:12px;font-weight:600;color:var(--sub);margin-bottom:7px">ตัวเลือก <span style="font-weight:400">(เลือกข้อที่ถูกต้อง)</span></div>
+        <div id="qb-choices"></div>
+        <button type="button" onclick="qbAddChoice()"
+                style="display:flex;align-items:center;gap:5px;background:none;border:1px dashed var(--line-2);
+                       border-radius:7px;padding:5px 12px;font-size:12.5px;color:var(--sub);cursor:pointer;margin-top:4px">
+          + เพิ่มตัวเลือก
+        </button>
+      </div>
+
+      <!-- True/False -->
+      <div id="qb-tf-wrap" style="display:none">
+        <div style="font-size:12px;font-weight:600;color:var(--sub);margin-bottom:8px">เฉลย</div>
+        <div style="display:flex;gap:20px">
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13.5px">
+            <input type="radio" id="qb-tf-true" name="qb-tf" value="true" checked
+                   style="width:16px;height:16px;accent-color:var(--primary)"> ถูก
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13.5px">
+            <input type="radio" id="qb-tf-false" name="qb-tf" value="false"
+                   style="width:16px;height:16px;accent-color:var(--danger)"> ผิด
+          </label>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button type="button" onclick="qbSave()"
+                class="btn btn-primary" style="font-size:13px;flex:1">บันทึกคำถาม</button>
+        <button type="button" onclick="qbCancel()"
+                class="btn btn-ghost" style="font-size:13px">ยกเลิก</button>
+      </div>
+    </div>
+
+    <!-- ปุ่มเพิ่มคำถาม -->
+    <button type="button" id="qb-add-btn" onclick="qbShowForm(-1)"
+            style="display:flex;align-items:center;justify-content:center;gap:7px;width:100%;
+                   background:none;border:1.5px dashed var(--line-2);border-radius:9px;
+                   padding:8px 14px;font-size:13px;color:var(--sub);cursor:pointer;
+                   transition:border-color .15s,color .15s"
+            onmouseenter="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'"
+            onmouseleave="this.style.borderColor='var(--line-2)';this.style.color='var(--sub)'">
+      <?= icon('plus', 15) ?> + เพิ่มคำถามใหม่
+    </button>
+
+    <input type="hidden" name="questions_json" id="qb-json" value="[]">
+  </div>
+
+  <!-- ── Prompt AI (ซ่อนเมื่อ แบบทดสอบ) ──────────────────────── -->
+  <div id="asgn-prompt-section">
   <div class="ai-tint-box" style="padding:16px 16px 6px;margin-top:6px">
     <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
       <span style="width:32px;height:32px;border-radius:9px;background:var(--card);color:var(--primary);display:grid;place-items:center"><?= icon('sparkle', 18) ?></span>
@@ -758,7 +842,8 @@ if (!$guest_mode && is_teacher()):
     </div>
     <div class="field">
       <label>ข้อความ Prompt <span style="color:var(--danger)">*</span></label>
-      <textarea class="textarea" name="prompt_text" style="font-family:ui-monospace,monospace;font-size:13px"
+      <textarea class="textarea" name="prompt_text" id="asgn-prompt-txt"
+                style="font-family:ui-monospace,monospace;font-size:13px"
                 placeholder="วาง prompt ที่คุณใช้กับ AI ที่นี่…" required></textarea>
     </div>
     <div class="row" style="gap:14px">
@@ -791,6 +876,7 @@ if (!$guest_mode && is_teacher()):
       <div class="subtle" style="font-size:12.5px;margin-top:2px">นักเรียนสามารถค้นคว้าหา prompt ที่ให้ผลลัพธ์ดีกว่า แล้วระบุ prompt + AI ที่ใช้ตอนส่งงาน</div>
     </div>
   </label>
+  </div>
 </form>
 <?php modal_foot('add-assignment', 'ยกเลิก', 'มอบหมายงาน'); ?>
 

@@ -704,6 +704,33 @@ function ensure_all_upload_dirs(): void
     }
 }
 
+/** สร้างตาราง quiz ถ้ายังไม่มี */
+function ensure_quiz_schema(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    $db = get_db();
+    try { $db->exec("CREATE TABLE IF NOT EXISTS quiz_questions (
+        id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        assignment_id INT UNSIGNED NOT NULL,
+        question_text TEXT NOT NULL,
+        question_type ENUM('MCQ','truefalse') NOT NULL DEFAULT 'MCQ',
+        points        INT UNSIGNED NOT NULL DEFAULT 1,
+        sort_order    INT UNSIGNED NOT NULL DEFAULT 0,
+        INDEX (assignment_id),
+        FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+    try { $db->exec("CREATE TABLE IF NOT EXISTS quiz_choices (
+        id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        question_id INT UNSIGNED NOT NULL,
+        choice_text TEXT NOT NULL,
+        is_correct  TINYINT(1) NOT NULL DEFAULT 0,
+        sort_order  INT UNSIGNED NOT NULL DEFAULT 0,
+        FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+}
+
 /** อ่าน $_FILES[$field] แบบ multiple → list ของ ['name','tmp_name','error','size'] */
 function collect_uploaded_files(string $field): array
 {

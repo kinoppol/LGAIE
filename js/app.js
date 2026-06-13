@@ -454,8 +454,234 @@ const searchInput = document.querySelector('.searchbox input');
 if (searchInput) {
   searchInput.addEventListener('keydown', e => {
     if (e.key === 'Enter' && searchInput.value.trim()) {
-      // future: implement server-side search
       showToast('ฟีเจอร์ค้นหากำลังพัฒนา…');
     }
   });
 }
+
+// ── Quiz Builder ──────────────────────────────────────────────
+;(function () {
+  let qs = [];        // [{text, type, points, choices:[], correct:0}]
+  let editIdx = -1;   // -1 = add new
+  let dragSrc = -1;
+
+  // ── helpers ─────────────────────────────────────────────────
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function sync() {
+    const f = document.getElementById('qb-json');
+    if (f) f.value = JSON.stringify(qs);
+  }
+
+  // ── toggle prompt / quiz sections based on assignment type ──
+  window.qbToggleSections = function(type) {
+    const quiz   = document.getElementById('asgn-quiz-section');
+    const prompt = document.getElementById('asgn-prompt-section');
+    const pTxt   = document.getElementById('asgn-prompt-txt');
+    const isQuiz = type === 'แบบทดสอบ';
+    if (quiz)   quiz.style.display   = isQuiz ? 'block' : 'none';
+    if (prompt) prompt.style.display = isQuiz ? 'none'  : 'block';
+    if (pTxt)   pTxt.required        = !isQuiz;
+  };
+
+  // ── render question list ────────────────────────────────────
+  function render() {
+    const list = document.getElementById('qb-list');
+    const cnt  = document.getElementById('qb-count');
+    if (!list) return;
+    if (cnt) cnt.textContent = '(' + qs.length + ')';
+
+    if (qs.length === 0) {
+      list.innerHTML = '<p style="color:var(--muted);font-size:12.5px;text-align:center;padding:10px 0 14px">ยังไม่มีคำถาม — กดปุ่มด้านล่างเพื่อเพิ่ม</p>';
+    } else {
+      list.innerHTML = qs.map((q, i) => {
+        const typeLabel = q.type === 'MCQ' ? 'เลือกตอบ (MCQ)' : 'ถูก/ผิด';
+        return `<div class="qb-row" draggable="true" data-idx="${i}"
+          style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;
+                 border:1.5px solid var(--line-2);border-radius:9px;background:var(--surface-2);
+                 cursor:grab;user-select:none;transition:opacity .15s,border-color .15s,box-shadow .15s">
+          <span style="width:24px;height:24px;border-radius:7px;background:var(--primary);color:#fff;
+                       font-size:11.5px;font-weight:700;display:grid;place-items:center;flex:0 0 auto">${i+1}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--heading);
+                        overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(q.text)}</div>
+            <div style="font-size:11.5px;color:var(--sub);margin-top:1px">${typeLabel} · ${q.points} คะแนน</div>
+          </div>
+          <button type="button" title="แก้ไข" onclick="qbShowForm(${i})"
+                  style="width:28px;height:28px;border-radius:7px;border:1px solid var(--line-2);
+                         background:var(--bg);color:var(--sub);cursor:pointer;font-size:14px;
+                         display:grid;place-items:center">✏️</button>
+          <button type="button" title="ลบ" onclick="qbDel(${i})"
+                  style="width:28px;height:28px;border-radius:7px;border:none;
+                         background:#fee2e2;color:#ef4444;cursor:pointer;font-size:14px;
+                         display:grid;place-items:center">🗑</button>
+        </div>`;
+      }).join('');
+
+      // bind drag-and-drop
+      list.querySelectorAll('.qb-row').forEach(row => {
+        row.addEventListener('dragstart', e => {
+          dragSrc = +row.dataset.idx;
+          e.dataTransfer.effectAllowed = 'move';
+          setTimeout(() => { row.style.opacity = '0.35'; row.style.boxShadow = '0 4px 16px rgba(0,0,0,.18)'; }, 0);
+        });
+        row.addEventListener('dragend', () => {
+          row.style.opacity = '1'; row.style.boxShadow = '';
+          list.querySelectorAll('.qb-row').forEach(r => {
+            r.style.borderColor = 'var(--line-2)';
+            r.style.background  = 'var(--surface-2)';
+          });
+        });
+        row.addEventListener('dragover', e => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          row.style.borderColor = 'var(--primary)';
+          row.style.background  = 'var(--primary-soft)';
+        });
+        row.addEventListener('dragleave', () => {
+          row.style.borderColor = 'var(--line-2)';
+          row.style.background  = 'var(--surface-2)';
+        });
+        row.addEventListener('drop', e => {
+          e.preventDefault();
+          const to = +row.dataset.idx;
+          row.style.borderColor = 'var(--line-2)';
+          row.style.background  = 'var(--surface-2)';
+          if (dragSrc < 0 || dragSrc === to) return;
+          const moved = qs.splice(dragSrc, 1)[0];
+          qs.splice(to, 0, moved);
+          dragSrc = -1;
+          render(); sync();
+        });
+      });
+    }
+    sync();
+  }
+
+  // ── choice list renderer ─────────────────────────────────────
+  function renderChoices(choices, correct) {
+    const wrap = document.getElementById('qb-choices');
+    if (!wrap) return;
+    wrap.innerHTML = choices.map((c, i) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <input type="radio" name="qb-correct" value="${i}" ${i===correct?'checked':''}
+               style="width:15px;height:15px;accent-color:var(--primary);flex:0 0 auto;cursor:pointer">
+        <input class="input qb-choice" data-ci="${i}" value="${esc(c)}"
+               placeholder="ตัวเลือก ${i+1}"
+               style="flex:1;font-size:13px;padding:7px 10px">
+        ${choices.length > 2 ? `<button type="button" onclick="qbRmChoice(${i})"
+          style="width:24px;height:24px;border:none;border-radius:6px;background:#fee2e2;
+                 color:#ef4444;cursor:pointer;font-size:13px;display:grid;place-items:center">✕</button>` : ''}
+      </div>`).join('');
+  }
+
+  // ── show / populate form ─────────────────────────────────────
+  window.qbShowForm = function(idx) {
+    editIdx = idx;
+    const q = idx >= 0 ? qs[idx] : { text:'', type:'MCQ', points:1, choices:['','','',''], correct:0 };
+    const form  = document.getElementById('qb-form');
+    const title = document.getElementById('qb-form-title');
+    const addBtn = document.getElementById('qb-add-btn');
+    if (!form) return;
+
+    if (title) title.textContent = idx >= 0 ? `แก้ไขคำถามข้อ ${idx+1}` : 'เพิ่มคำถาม';
+    document.getElementById('qb-text').value   = q.text || '';
+    document.getElementById('qb-type').value   = q.type || 'MCQ';
+    document.getElementById('qb-points').value = q.points || 1;
+
+    updateTypeUI(q.type || 'MCQ', q.choices || ['','','',''], q.correct || 0);
+
+    form.style.display   = 'block';
+    if (addBtn) addBtn.style.display = 'none';
+    document.getElementById('qb-text').focus();
+  };
+
+  function updateTypeUI(type, choices, correct) {
+    const mcqWrap = document.getElementById('qb-mcq-wrap');
+    const tfWrap  = document.getElementById('qb-tf-wrap');
+    if (!mcqWrap || !tfWrap) return;
+    if (type === 'MCQ') {
+      mcqWrap.style.display = 'block';
+      tfWrap.style.display  = 'none';
+      renderChoices(choices && choices.length >= 2 ? choices : ['','','',''], correct || 0);
+    } else {
+      mcqWrap.style.display = 'none';
+      tfWrap.style.display  = 'block';
+      const isTrue = !choices || choices[0] !== 'false';
+      const t = document.getElementById('qb-tf-true');
+      const f = document.getElementById('qb-tf-false');
+      if (t) t.checked = isTrue;
+      if (f) f.checked = !isTrue;
+    }
+  }
+
+  window.qbTypeChange = function() {
+    const type = document.getElementById('qb-type').value;
+    // collect current choice values before re-rendering
+    const existingChoices = [...document.querySelectorAll('.qb-choice')].map(i => i.value);
+    const existingCorrect = +(document.querySelector('[name="qb-correct"]:checked')?.value || 0);
+    updateTypeUI(type, existingChoices.length >= 2 ? existingChoices : ['','','',''], existingCorrect);
+  };
+
+  window.qbAddChoice = function() {
+    const choices = [...document.querySelectorAll('.qb-choice')].map(i => i.value);
+    if (choices.length >= 5) return;
+    const correct = +(document.querySelector('[name="qb-correct"]:checked')?.value || 0);
+    renderChoices([...choices, ''], correct);
+  };
+
+  window.qbRmChoice = function(idx) {
+    const choices = [...document.querySelectorAll('.qb-choice')].map(i => i.value);
+    const correct = +(document.querySelector('[name="qb-correct"]:checked')?.value || 0);
+    choices.splice(idx, 1);
+    const newCorrect = correct >= idx && correct > 0 ? correct - 1 : correct;
+    renderChoices(choices, newCorrect);
+  };
+
+  // ── save form → push to qs array ────────────────────────────
+  window.qbSave = function() {
+    const text   = (document.getElementById('qb-text').value || '').trim();
+    const type   = document.getElementById('qb-type').value;
+    const points = Math.max(1, +(document.getElementById('qb-points').value) || 1);
+    if (!text) { showToast('กรุณาพิมพ์ข้อคำถาม'); return; }
+
+    let choices = [], correct = 0;
+    if (type === 'MCQ') {
+      choices = [...document.querySelectorAll('.qb-choice')].map(i => i.value.trim());
+      correct = +(document.querySelector('[name="qb-correct"]:checked')?.value || 0);
+      if (choices.filter(c => c).length < 2) { showToast('กรุณาพิมพ์ตัวเลือกอย่างน้อย 2 ข้อ'); return; }
+    } else {
+      const t = document.getElementById('qb-tf-true');
+      choices = [t && t.checked ? 'true' : 'false'];
+      correct = 0;
+    }
+
+    const q = { text, type, points, choices, correct };
+    if (editIdx >= 0) { qs[editIdx] = q; } else { qs.push(q); }
+    qbCancel(); render();
+  };
+
+  window.qbCancel = function() {
+    const form   = document.getElementById('qb-form');
+    const addBtn = document.getElementById('qb-add-btn');
+    if (form)   form.style.display   = 'none';
+    if (addBtn) addBtn.style.display = 'flex';
+    editIdx = -1;
+  };
+
+  window.qbDel = function(idx) {
+    qs.splice(idx, 1);
+    if (editIdx === idx) qbCancel();
+    render();
+  };
+
+  // init on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    const sel = document.getElementById('asgn-type-sel');
+    if (sel) { window.qbToggleSections(sel.value); render(); }
+  });
+})();
