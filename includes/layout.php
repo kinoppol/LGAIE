@@ -72,7 +72,8 @@ function layout_start(string $page_title = 'ClassroomAI'): void
 <!-- ── SIDEBAR ──────────────────────────────────────────────── -->
 <aside class="sidebar">
   <div class="sidebar__brand">
-    <img src="assets/ovec-logo.svg" alt="ClassroomAI" style="height:38px;width:auto;max-width:180px">
+    <img src="assets/ovec-logo.svg" alt="ClassroomAI" style="height:38px;width:auto;flex:0 0 auto">
+    <span class="brand-name">Classroom<b>AI</b></span>
   </div>
   <nav class="nav-scroll">
     <?php if (is_admin()): ?>
