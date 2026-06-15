@@ -198,12 +198,12 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
       <div class="home-person">
         <?= avatar($t, 64) ?>
         <div class="pinfo">
+          <?php if (!empty($t['bio'])): ?>
+          <div class="pbio">"<?= h($t['bio']) ?>"</div>
+          <?php endif; ?>
           <div class="pname"><?= h($t['name']) ?></div>
           <?php if (!empty($t['school'])): ?>
           <div class="pschool"><?= h($t['school']) ?></div>
-          <?php endif; ?>
-          <?php if (!empty($t['bio'])): ?>
-          <div class="pbio">"<?= h($t['bio']) ?>"</div>
           <?php endif; ?>
         </div>
       </div>
@@ -228,12 +228,12 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
       <div class="home-person">
         <?= avatar($s, 64) ?>
         <div class="pinfo">
+          <?php if (!empty($s['bio'])): ?>
+          <div class="pbio">"<?= h($s['bio']) ?>"</div>
+          <?php endif; ?>
           <div class="pname"><?= h($s['name']) ?></div>
           <?php if (!empty($s['school'])): ?>
           <div class="pschool"><?= h($s['school']) ?></div>
-          <?php endif; ?>
-          <?php if (!empty($s['bio'])): ?>
-          <div class="pbio">"<?= h($s['bio']) ?>"</div>
           <?php endif; ?>
         </div>
       </div>
