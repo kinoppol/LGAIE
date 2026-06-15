@@ -8,7 +8,7 @@ $is_logged_in   = is_logged_in();
 $theme          = $_SESSION['theme'] ?? 'system';
 
 $public_courses = db_rows("
-    SELECT c.id, c.name, c.description, c.code, c.section,
+    SELECT c.id, c.name, c.code, c.section, c.banner, c.ink_color,
            u.name AS teacher_name, u.avatar_class, u.avatar_path, u.initials,
            (SELECT COUNT(*) FROM lessons WHERE course_id = c.id) AS lesson_count,
            (SELECT COUNT(*) FROM course_enrollments WHERE course_id = c.id) AS student_count
@@ -161,7 +161,7 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
       <?php foreach ($public_courses as $c): ?>
       <a href="index.php?page=course&course_id=<?= $c['id'] ?>" class="home-course-card">
         <div class="cc-title"><?= h($c['name']) ?></div>
-        <div class="cc-desc"><?= h($c['description'] ?: '—') ?></div>
+        <div class="cc-desc"><?= h(($c['code'] ? $c['code'] . ' ' : '') . ($c['section'] ?: '')) ?></div>
         <div class="cc-meta">
           <div class="cc-teacher">
             <?= avatar(['avatar_class' => $c['avatar_class'], 'avatar_path' => $c['avatar_path'], 'initials' => $c['initials']], 22) ?>
