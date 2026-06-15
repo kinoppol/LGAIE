@@ -81,8 +81,8 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
     .home-person .pinfo  { flex: 1; min-width: 0; }
     .home-person .pname  { font-size: .9rem; font-weight: 700; color: var(--heading); line-height: 1.3; }
     .home-person .pschool { font-size: .78rem; color: var(--sub); line-height: 1.3; margin-top: 3px; }
-    .home-person .pbio   { font-size: .85rem; color: var(--body); line-height: 1.5; font-style: italic;
-                            margin-top: 8px; }
+    .home-person .pbio   { font-size: 1rem; color: var(--heading); line-height: 1.55; font-style: italic;
+                            font-weight: 500; margin-bottom: 6px; }
 
     .home-empty { padding: 1.5rem; background: var(--line-2); border-radius: 12px;
                   color: var(--sub); font-size: .875rem; text-align: center; }
