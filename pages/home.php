@@ -79,8 +79,9 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
     .home-person  { display: flex; flex-direction: row; align-items: flex-start; gap: 14px; padding: 16px;
                     background: var(--card); border: 1px solid var(--line-2); border-radius: 14px; }
     .home-person .pinfo  { flex: 1; min-width: 0; }
+    .home-person .pmeta  { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
     .home-person .pname  { font-size: .9rem; font-weight: 700; color: var(--heading); line-height: 1.3; }
-    .home-person .pschool { font-size: .78rem; color: var(--sub); line-height: 1.3; margin-top: 3px; }
+    .home-person .pschool { font-size: .78rem; color: var(--sub); line-height: 1.3; }
     .home-person .pbio   { font-size: 1rem; color: var(--heading); line-height: 1.55; font-style: italic;
                             font-weight: 500; margin-bottom: 6px; }
 
@@ -201,10 +202,12 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
           <?php if (!empty($t['bio'])): ?>
           <div class="pbio">"<?= h($t['bio']) ?>"</div>
           <?php endif; ?>
-          <div class="pname"><?= h($t['name']) ?></div>
-          <?php if (!empty($t['school'])): ?>
-          <div class="pschool"><?= h($t['school']) ?></div>
-          <?php endif; ?>
+          <div class="pmeta">
+            <span class="pname"><?= h($t['name']) ?></span>
+            <?php if (!empty($t['school'])): ?>
+            <span class="pschool"><?= h($t['school']) ?></span>
+            <?php endif; ?>
+          </div>
         </div>
       </div>
       <?php endforeach; ?>
@@ -231,10 +234,12 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
           <?php if (!empty($s['bio'])): ?>
           <div class="pbio">"<?= h($s['bio']) ?>"</div>
           <?php endif; ?>
-          <div class="pname"><?= h($s['name']) ?></div>
-          <?php if (!empty($s['school'])): ?>
-          <div class="pschool"><?= h($s['school']) ?></div>
-          <?php endif; ?>
+          <div class="pmeta">
+            <span class="pname"><?= h($s['name']) ?></span>
+            <?php if (!empty($s['school'])): ?>
+            <span class="pschool"><?= h($s['school']) ?></span>
+            <?php endif; ?>
+          </div>
         </div>
       </div>
       <?php endforeach; ?>
