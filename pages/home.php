@@ -75,10 +75,14 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
     .home-course-card .cc-stats { display: flex; gap: 8px; font-size: .75rem; color: var(--sub); flex-shrink: 0; }
 
     /* People grid */
-    .home-people { display: flex; flex-wrap: wrap; gap: 12px; }
-    .home-person  { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 80px; }
-    .home-person span.name { font-size: .72rem; color: var(--body); text-align: center;
-                              line-height: 1.3; word-break: break-word; }
+    .home-people { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
+    .home-person  { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 10px;
+                    background: var(--card); border: 1px solid var(--line-2); border-radius: 14px;
+                    text-align: center; }
+    .home-person .pname  { font-size: .85rem; font-weight: 700; color: var(--heading); line-height: 1.3; }
+    .home-person .pschool { font-size: .72rem; color: var(--sub); line-height: 1.3; margin-top: 1px; }
+    .home-person .pbio   { font-size: .73rem; color: var(--body); line-height: 1.4; font-style: italic;
+                            margin-top: 2px; }
 
     .home-empty { padding: 1.5rem; background: var(--line-2); border-radius: 12px;
                   color: var(--sub); font-size: .875rem; text-align: center; }
@@ -192,8 +196,14 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
     <div class="home-people">
       <?php foreach ($dir_teachers as $t): ?>
       <div class="home-person">
-        <?= avatar($t, 56) ?>
-        <span class="name"><?= h($t['name']) ?></span>
+        <?= avatar($t, 60) ?>
+        <div class="pname"><?= h($t['name']) ?></div>
+        <?php if (!empty($t['school'])): ?>
+        <div class="pschool"><?= h($t['school']) ?></div>
+        <?php endif; ?>
+        <?php if (!empty($t['bio'])): ?>
+        <div class="pbio">"<?= h($t['bio']) ?>"</div>
+        <?php endif; ?>
       </div>
       <?php endforeach; ?>
     </div>
@@ -214,8 +224,14 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
     <div class="home-people">
       <?php foreach ($dir_students as $s): ?>
       <div class="home-person">
-        <?= avatar($s, 56) ?>
-        <span class="name"><?= h($s['name']) ?></span>
+        <?= avatar($s, 60) ?>
+        <div class="pname"><?= h($s['name']) ?></div>
+        <?php if (!empty($s['school'])): ?>
+        <div class="pschool"><?= h($s['school']) ?></div>
+        <?php endif; ?>
+        <?php if (!empty($s['bio'])): ?>
+        <div class="pbio">"<?= h($s['bio']) ?>"</div>
+        <?php endif; ?>
       </div>
       <?php endforeach; ?>
     </div>

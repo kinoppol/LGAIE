@@ -11,7 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirect('../index.php?page=profile')
 if (($_POST['_action'] ?? '') === 'directory') {
     ensure_directory_schema();
     $show = isset($_POST['show_in_directory']) ? 1 : 0;
-    db_run('UPDATE users SET show_in_directory = ? WHERE id = ?', [$show, current_user_id()]);
+    $bio  = mb_substr(trim($_POST['bio'] ?? ''), 0, 255);
+    db_run('UPDATE users SET show_in_directory = ?, bio = ? WHERE id = ?', [$show, $bio, current_user_id()]);
     $_SESSION['success'] = $show ? 'แสดงชื่อในหน้าสาธารณะเรียบร้อยแล้ว' : 'ซ่อนชื่อจากหน้าสาธารณะเรียบร้อยแล้ว';
     redirect('../index.php?page=profile');
 }

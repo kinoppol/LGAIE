@@ -250,6 +250,14 @@ $provinces = get_provinces();
           </div>
         </div>
       </label>
+
+      <div class="pf" style="margin-top:1rem;margin-bottom:0">
+        <label>คำนิยม / คติพจน์ <span class="opt">(ไม่บังคับ)</span></label>
+        <input type="text" name="bio" maxlength="255"
+               value="<?= h($user['bio'] ?? '') ?>"
+               placeholder="เช่น ครูสอนคอมพิวเตอร์ ผู้หลงรักการเรียนรู้…">
+        <div class="subtle" style="font-size:.72rem;margin-top:4px">แสดงใต้ชื่อในหน้าแรกสาธารณะ</div>
+      </div>
       <div class="prof-foot">
         <button type="submit" class="btn btn-primary" style="gap:8px;min-width:140px;justify-content:center">
           <?= icon('check', 16, '#fff') ?> บันทึก
