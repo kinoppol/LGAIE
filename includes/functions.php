@@ -326,6 +326,33 @@ function get_lesson_with_prompt(int $id): array|false
     return $lesson;
 }
 
+/**
+ * แสดงข้อความคำสั่งงาน: รักษาการขึ้นบรรทัดใหม่และเปลี่ยน URL เป็นลิงก์คลิกได้
+ * ปลอดภัยจาก XSS — escape ทุกส่วนก่อนส่งออก
+ */
+function format_instructions(string $text): string
+{
+    $parts = preg_split('~(https?://\S+)~i', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+    $out = '';
+    foreach ($parts as $i => $part) {
+        if ($i % 2 === 1) {
+            // strip trailing punctuation that's unlikely to be part of the URL
+            $trail = '';
+            while ($part !== '' && in_array(substr($part, -1), ['.', ',', ';', ':', '!', '?', ')'])) {
+                $trail = substr($part, -1) . $trail;
+                $part  = substr($part, 0, -1);
+            }
+            $hurl  = htmlspecialchars($part,  ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $out  .= '<a href="' . $hurl . '" target="_blank" rel="noopener noreferrer" '
+                   . 'style="color:var(--primary);word-break:break-all;text-decoration:underline">' . $hurl . '</a>'
+                   . htmlspecialchars($trail, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        } else {
+            $out .= nl2br(htmlspecialchars($part, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+        }
+    }
+    return $out;
+}
+
 function get_assignment_with_prompt(int $id): array|false
 {
     $a = db_row('SELECT * FROM assignments WHERE id = ?', [$id]);

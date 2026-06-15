@@ -61,7 +61,7 @@ try {
       <?php endif; ?>
     </div>
     <h1 style="font-size:24px;margin-bottom:12px"><?= h($a['title']) ?></h1>
-    <p style="color:var(--body);font-size:15px;line-height:1.7;margin:0"><?= h($a['instructions']) ?></p>
+    <div style="color:var(--body);font-size:15px;line-height:1.7;margin:0"><?= format_instructions($a['instructions'] ?? '') ?></div>
 
     <?php if (!empty($a['links'])): ?>
     <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px">
