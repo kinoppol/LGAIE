@@ -63,6 +63,18 @@ try {
     <h1 style="font-size:24px;margin-bottom:12px"><?= h($a['title']) ?></h1>
     <p style="color:var(--body);font-size:15px;line-height:1.7;margin:0"><?= h($a['instructions']) ?></p>
 
+    <?php if (!empty($a['links'])): ?>
+    <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px">
+      <?php foreach ($a['links'] as $lnk): ?>
+      <a href="<?= h($lnk['url']) ?>" target="_blank" rel="noopener noreferrer"
+         style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid var(--line-2);background:var(--card);color:var(--primary);font-size:13px;text-decoration:none;transition:background .15s"
+         onmouseover="this.style.background='var(--primary-soft)'" onmouseout="this.style.background='var(--card)'">
+        <?= icon('link', 13) ?> <?= h($lnk['label'] ?: $lnk['url']) ?>
+      </a>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+
     <?php if (is_teacher()): ?>
     <hr class="divider">
     <div style="display:flex;gap:24px;flex-wrap:wrap">
@@ -381,6 +393,29 @@ document.addEventListener('DOMContentLoaded', function() {
         <label>หมายเหตุ/คำแนะนำ <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
         <textarea class="textarea" name="note_text" style="min-height:60px"><?= h($ep['note_text'] ?? '') ?></textarea>
       </div>
+    </div>
+
+    <!-- ── ลิงก์สื่อการสอน ──────────────────────── -->
+    <div style="margin-top:12px;padding:14px 15px;border:1px solid var(--line-2);border-radius:10px">
+      <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:10px;display:flex;align-items:center;gap:7px">
+        <?= icon('link', 15) ?> ลิงก์สื่อการสอน <span class="subtle" style="font-weight:400;font-size:12px">(ไม่บังคับ)</span>
+      </div>
+      <div id="edit-asgn-links-container">
+        <?php foreach ($a['links'] as $lnk): ?>
+        <div class="link-row" style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+          <input class="input" name="link_url[]" type="url" placeholder="https://..."
+                 value="<?= h($lnk['url']) ?>" style="flex:2;min-width:0">
+          <input class="input" name="link_label[]" placeholder="ชื่อลิงก์ (ไม่บังคับ)"
+                 value="<?= h($lnk['label']) ?>" style="flex:1;min-width:0">
+          <button type="button" onclick="this.closest('.link-row').remove()"
+                  style="flex:0 0 32px;height:32px;border:none;border-radius:8px;background:var(--danger-soft,#fee2e2);color:var(--danger,#dc2626);cursor:pointer;font-size:18px;line-height:1;display:grid;place-items:center">×</button>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <button type="button" onclick="addLinkRow('edit-asgn-links-container')"
+              class="btn btn-sm btn-ghost" style="margin-top:2px">
+        <?= icon('plus', 14) ?> เพิ่มลิงก์
+      </button>
     </div>
   </form>
   <?php modal_foot('edit-assignment', 'ยกเลิก', 'บันทึกการแก้ไข'); ?>

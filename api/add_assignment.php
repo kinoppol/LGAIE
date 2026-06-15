@@ -95,6 +95,17 @@ try {
             );
         }
     }
+    $link_urls   = $_POST['link_url']   ?? [];
+    $link_labels = $_POST['link_label'] ?? [];
+    foreach ($link_urls as $i => $url) {
+        $url = trim($url);
+        if ($url === '') continue;
+        $label = trim($link_labels[$i] ?? '');
+        db_run(
+            'INSERT INTO assignment_links (assignment_id, url, label, sort_order) VALUES (?,?,?,?)',
+            [$assignment_id, $url, $label, $i]
+        );
+    }
     $db->commit();
     json_ok(['assignment_id' => $assignment_id, 'message' => 'เพิ่มงานเรียบร้อยแล้ว']);
 } catch (Exception $e) {

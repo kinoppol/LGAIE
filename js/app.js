@@ -685,3 +685,19 @@ if (searchInput) {
     if (sel) { window.qbToggleSections(sel.value); render(); }
   });
 })();
+
+window.addLinkRow = function(containerId, url, label) {
+  url   = url   || '';
+  label = label || '';
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const row = document.createElement('div');
+  row.className = 'link-row';
+  row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
+  const esc = s => s.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  row.innerHTML =
+    '<input class="input" name="link_url[]" type="url" placeholder="https://..." value="' + esc(url) + '" style="flex:2;min-width:0">' +
+    '<input class="input" name="link_label[]" placeholder="ชื่อลิงก์ (ไม่บังคับ)" value="' + esc(label) + '" style="flex:1;min-width:0">' +
+    '<button type="button" onclick="this.closest(\'.link-row\').remove()" style="flex:0 0 32px;height:32px;border:none;border-radius:8px;background:var(--danger-soft,#fee2e2);color:var(--danger,#dc2626);cursor:pointer;font-size:18px;line-height:1;display:grid;place-items:center">×</button>';
+  c.appendChild(row);
+};

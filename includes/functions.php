@@ -331,6 +331,11 @@ function get_assignment_with_prompt(int $id): array|false
     $a = db_row('SELECT * FROM assignments WHERE id = ?', [$id]);
     if (!$a) return false;
     $a['prompt'] = db_row('SELECT * FROM assignment_prompts WHERE assignment_id = ?', [$id]) ?: [];
+    try {
+        $a['links'] = db_rows('SELECT * FROM assignment_links WHERE assignment_id = ? ORDER BY sort_order, id', [$id]);
+    } catch (PDOException) {
+        $a['links'] = [];
+    }
     return $a;
 }
 
@@ -728,6 +733,15 @@ function ensure_quiz_schema(): void
         is_correct  TINYINT(1) NOT NULL DEFAULT 0,
         sort_order  INT UNSIGNED NOT NULL DEFAULT 0,
         FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+    try { $db->exec("CREATE TABLE IF NOT EXISTS assignment_links (
+        id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        assignment_id INT UNSIGNED NOT NULL,
+        url           VARCHAR(2048) NOT NULL,
+        label         VARCHAR(255)  NOT NULL DEFAULT '',
+        sort_order    INT UNSIGNED  NOT NULL DEFAULT 0,
+        INDEX (assignment_id),
+        FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
 }
 

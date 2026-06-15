@@ -877,6 +877,18 @@ if (!$guest_mode && is_teacher()):
     </div>
   </label>
   </div>
+
+  <!-- ── ลิงก์สื่อการสอน ──────────────────────── -->
+  <div style="margin-top:12px;padding:14px 15px;border:1px solid var(--line-2);border-radius:10px">
+    <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:10px;display:flex;align-items:center;gap:7px">
+      <?= icon('link', 15) ?> ลิงก์สื่อการสอน <span class="subtle" style="font-weight:400;font-size:12px">(ไม่บังคับ)</span>
+    </div>
+    <div id="asgn-links-container"></div>
+    <button type="button" onclick="addLinkRow('asgn-links-container')"
+            class="btn btn-sm btn-ghost" style="margin-top:2px">
+      <?= icon('plus', 14) ?> เพิ่มลิงก์
+    </button>
+  </div>
 </form>
 <?php modal_foot('add-assignment', 'ยกเลิก', 'มอบหมายงาน'); ?>
 
