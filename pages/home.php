@@ -78,12 +78,13 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
     .home-people  { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
     .home-person  { display: flex; flex-direction: row; align-items: flex-start; gap: 14px; padding: 16px;
                     background: var(--card); border: 1px solid var(--line-2); border-radius: 14px; }
+    .home-person .pleft  { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+    .home-person .pmeta  { text-align: center; }
+    .home-person .pname  { font-size: .82rem; font-weight: 700; color: var(--heading); line-height: 1.3; display: block; }
+    .home-person .pschool { font-size: .72rem; color: var(--sub); line-height: 1.3; display: block; margin-top: 2px; }
     .home-person .pinfo  { flex: 1; min-width: 0; }
-    .home-person .pmeta  { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-    .home-person .pname  { font-size: .9rem; font-weight: 700; color: var(--heading); line-height: 1.3; }
-    .home-person .pschool { font-size: .78rem; color: var(--sub); line-height: 1.3; }
     .home-person .pbio   { font-size: 1rem; color: var(--heading); line-height: 1.55; font-style: italic;
-                            font-weight: 500; margin-bottom: 6px; }
+                            font-weight: 500; }
 
     .home-empty { padding: 1.5rem; background: var(--line-2); border-radius: 12px;
                   color: var(--sub); font-size: .875rem; text-align: center; }
@@ -197,11 +198,8 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
     <div class="home-people">
       <?php foreach ($dir_teachers as $t): ?>
       <div class="home-person">
-        <?= avatar($t, 64) ?>
-        <div class="pinfo">
-          <?php if (!empty($t['bio'])): ?>
-          <div class="pbio">"<?= h($t['bio']) ?>"</div>
-          <?php endif; ?>
+        <div class="pleft">
+          <?= avatar($t, 64) ?>
           <div class="pmeta">
             <span class="pname"><?= h($t['name']) ?></span>
             <?php if (!empty($t['school'])): ?>
@@ -209,6 +207,9 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
             <?php endif; ?>
           </div>
         </div>
+        <?php if (!empty($t['bio'])): ?>
+        <div class="pinfo"><div class="pbio">"<?= h($t['bio']) ?>"</div></div>
+        <?php endif; ?>
       </div>
       <?php endforeach; ?>
     </div>
@@ -229,11 +230,8 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
     <div class="home-people">
       <?php foreach ($dir_students as $s): ?>
       <div class="home-person">
-        <?= avatar($s, 64) ?>
-        <div class="pinfo">
-          <?php if (!empty($s['bio'])): ?>
-          <div class="pbio">"<?= h($s['bio']) ?>"</div>
-          <?php endif; ?>
+        <div class="pleft">
+          <?= avatar($s, 64) ?>
           <div class="pmeta">
             <span class="pname"><?= h($s['name']) ?></span>
             <?php if (!empty($s['school'])): ?>
@@ -241,6 +239,9 @@ $dir_students = db_rows('SELECT * FROM users WHERE role = "student" AND show_in_
             <?php endif; ?>
           </div>
         </div>
+        <?php if (!empty($s['bio'])): ?>
+        <div class="pinfo"><div class="pbio">"<?= h($s['bio']) ?>"</div></div>
+        <?php endif; ?>
       </div>
       <?php endforeach; ?>
     </div>
