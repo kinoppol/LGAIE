@@ -215,6 +215,7 @@ function get_courses_with_stats(bool $include_archived = false): array
         $sql    = "
             SELECT c.*,
                 u.avatar_class AS teacher_av,
+                u.avatar_path  AS teacher_av_path,
                 u.initials     AS teacher_initials,
                 u.name         AS teacher_name,
                 (SELECT COUNT(*) FROM lessons             WHERE course_id = c.id) AS lesson_count,
@@ -231,6 +232,7 @@ function get_courses_with_stats(bool $include_archived = false): array
         $sql    = "
             SELECT c.*,
                 u.avatar_class AS teacher_av,
+                u.avatar_path  AS teacher_av_path,
                 u.initials     AS teacher_initials,
                 u.name         AS teacher_name,
                 COALESCE(e.status, 'active') AS enrollment_status,
@@ -274,6 +276,7 @@ function get_archived_courses(): array
         return db_rows('
             SELECT c.*,
                 u.avatar_class AS teacher_av,
+                u.avatar_path  AS teacher_av_path,
                 u.initials     AS teacher_initials,
                 u.name         AS teacher_name,
                 (SELECT COUNT(*) FROM lessons        WHERE course_id = c.id) AS lesson_count,
@@ -288,6 +291,7 @@ function get_archived_courses(): array
     return db_rows('
         SELECT c.*,
             u.avatar_class AS teacher_av,
+            u.avatar_path  AS teacher_av_path,
             u.initials     AS teacher_initials,
             u.name         AS teacher_name,
             (SELECT COUNT(*) FROM lessons        WHERE course_id = c.id) AS lesson_count,
@@ -306,6 +310,7 @@ function get_course(int $id): array|false
     return db_row('
         SELECT c.*,
             u.avatar_class AS teacher_av,
+            u.avatar_path  AS teacher_av_path,
             u.initials     AS teacher_initials,
             u.name         AS teacher_name,
             (SELECT COUNT(*) FROM lessons        WHERE course_id = c.id) AS lesson_count,
@@ -1012,6 +1017,12 @@ function icon(
 /** Avatar สำหรับ course card (ใช้ avatar ครูเจ้าของ) */
 function course_avatar(array $course, string $extra_style = ''): string
 {
+    $path = trim((string)($course['teacher_av_path'] ?? ''));
+    if ($path !== '') {
+        return "<span class=\"avatar cc-av\" style=\"overflow:hidden;background:var(--surface-2)\"{$extra_style}>"
+            . "<img src=\"" . h($path) . "\" alt=\"\" loading=\"lazy\" "
+            . "style=\"width:100%;height:100%;object-fit:cover;display:block\"></span>";
+    }
     $av  = h($course['teacher_av']       ?? 'av-1');
     $ini = h($course['teacher_initials'] ?? $course['short_name'] ?? '?');
     return "<span class=\"avatar {$av} cc-av\"{$extra_style}>{$ini}</span>";

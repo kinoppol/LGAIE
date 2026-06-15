@@ -24,7 +24,7 @@ if ($q !== '') {
 }
 
 $courses = db_rows("
-    SELECT c.*, u.name AS teacher_name, u.avatar_class AS teacher_av, u.initials AS teacher_initials,
+    SELECT c.*, u.name AS teacher_name, u.avatar_class AS teacher_av, u.avatar_path AS teacher_av_path, u.initials AS teacher_initials,
            (SELECT COUNT(*) FROM lessons WHERE course_id = c.id) AS lesson_count,
            (SELECT COUNT(*) FROM assignments WHERE course_id = c.id) AS assignment_count,
            (SELECT COUNT(*) FROM course_enrollments WHERE course_id = c.id) AS student_count
@@ -137,9 +137,7 @@ $courses = db_rows("
       </div>
       <div class="course-card__body">
         <div style="display:flex;align-items:center;gap:7px">
-          <span class="avatar <?= h($c['teacher_av'] ?? 'av-1') ?>" style="width:24px;height:24px;font-size:10px">
-            <?= h($c['teacher_initials'] ?? '?') ?>
-          </span>
+          <?= avatar(['avatar_class' => $c['teacher_av'] ?? 'av-1', 'avatar_path' => $c['teacher_av_path'] ?? '', 'initials' => $c['teacher_initials'] ?? '?'], 24) ?>
           <span style="font-size:12.5px;color:var(--sub);font-weight:600"><?= h($c['teacher_name']) ?></span>
         </div>
       </div>
