@@ -737,6 +737,14 @@ function ensure_all_upload_dirs(): void
 }
 
 /** สร้างตาราง quiz ถ้ายังไม่มี */
+function ensure_directory_schema(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try { get_db()->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS show_in_directory TINYINT(1) NOT NULL DEFAULT 0"); } catch (PDOException) {}
+}
+
 function ensure_quiz_schema(): void
 {
     static $done = false;

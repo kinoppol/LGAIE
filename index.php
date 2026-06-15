@@ -6,10 +6,10 @@ require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/layout.php';
 
-$page = $_GET['page'] ?? 'dashboard';
+$page = $_GET['page'] ?? (is_logged_in() ? 'dashboard' : 'home');
 
 // ── Pages that render their own full HTML (no app shell) ──────
-$standalone = ['login', 'register', 'explore'];
+$standalone = ['login', 'register', 'explore', 'home'];
 if (in_array($page, $standalone, true)) {
     $file = __DIR__ . "/pages/{$page}.php";
     if (file_exists($file)) require $file;

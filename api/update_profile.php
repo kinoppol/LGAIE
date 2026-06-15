@@ -7,6 +7,15 @@ require_once __DIR__ . '/../includes/functions.php';
 if (!is_logged_in()) redirect('../index.php?page=login');
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirect('../index.php?page=profile');
 
+// ── Directory visibility toggle (separate lightweight action) ────────────
+if (($_POST['_action'] ?? '') === 'directory') {
+    ensure_directory_schema();
+    $show = isset($_POST['show_in_directory']) ? 1 : 0;
+    db_run('UPDATE users SET show_in_directory = ? WHERE id = ?', [$show, current_user_id()]);
+    $_SESSION['success'] = $show ? 'แสดงชื่อในหน้าสาธารณะเรียบร้อยแล้ว' : 'ซ่อนชื่อจากหน้าสาธารณะเรียบร้อยแล้ว';
+    redirect('../index.php?page=profile');
+}
+
 $uid      = current_user_id();
 $name     = trim($_POST['name']     ?? '');
 $phone    = trim($_POST['phone']    ?? '');

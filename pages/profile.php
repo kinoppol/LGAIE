@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 ensure_storage_schema();
+ensure_directory_schema();
 $user      = current_user();
 $provinces = get_provinces();
 ?>
@@ -225,6 +226,35 @@ $provinces = get_provinces();
         </button>
       </div>
 
+    </form>
+  </div>
+
+  <!-- ── Card 3: Directory visibility ── -->
+  <div class="prof-card">
+    <div class="prof-sec">การแสดงตนในหน้าสาธารณะ</div>
+    <form method="post" action="api/update_profile.php">
+      <input type="hidden" name="_action" value="directory">
+      <label style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1.5px solid var(--line-2);border-radius:12px;cursor:pointer;transition:background .15s;background:<?= ($user['show_in_directory'] ?? 0) ? 'var(--accent-soft)' : 'var(--card)' ?>"
+             id="dir-label">
+        <input type="checkbox" name="show_in_directory" value="1"
+               <?= ($user['show_in_directory'] ?? 0) ? 'checked' : '' ?>
+               style="margin-top:2px;width:17px;height:17px;accent-color:var(--primary);flex-shrink:0"
+               onchange="this.closest('label').style.background=this.checked?'var(--accent-soft)':'var(--card)'">
+        <div>
+          <div style="font-weight:700;color:var(--heading);font-size:14.5px">
+            แสดงรูปและชื่อในหน้าแรกสาธารณะ
+          </div>
+          <div class="subtle" style="font-size:12.5px;margin-top:3px">
+            ชื่อและรูปโปรไฟล์ของคุณจะแสดงในส่วน<?= is_teacher() ? 'ครูผู้สอน' : 'นักเรียน' ?>บนหน้าแรกของระบบ
+            ซึ่งทุกคนสามารถเห็นได้โดยไม่ต้องเข้าสู่ระบบ
+          </div>
+        </div>
+      </label>
+      <div class="prof-foot">
+        <button type="submit" class="btn btn-primary" style="gap:8px;min-width:140px;justify-content:center">
+          <?= icon('check', 16, '#fff') ?> บันทึก
+        </button>
+      </div>
     </form>
   </div>
 
