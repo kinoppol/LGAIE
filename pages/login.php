@@ -68,12 +68,6 @@ $theme_js = "var m=localStorage.getItem('ca-theme')||'system';document.documentE
     </div>
     <?php endif; ?>
 
-    <div class="demo-hint">
-      <strong>ข้อมูลทดสอบ</strong><br>
-      ครู: <code>teacher@demo.com</code> / <code>demo1234</code><br>
-      นักเรียน: <code>student1@demo.com</code> / <code>demo1234</code>
-    </div>
-
     <form method="post" action="api/login.php">
       <input type="hidden" name="redirect" value="<?= h($_GET['redirect'] ?? '') ?>">
 
