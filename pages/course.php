@@ -557,15 +557,28 @@ function inviteByEmail(e) {
         });
 }
 
+var _rmStudentId = null;
+
 function removeStudent(sid, cid, name) {
-    if (!confirm('นำ "' + name + '" ออกจากรายวิชานี้?')) return;
+    _rmStudentId = sid;
+    document.getElementById('rm-student-name').textContent = name;
+    openModal('remove-student');
+}
+
+function doRemoveStudent() {
+    var sid = _rmStudentId;
+    if (sid === null) return;
+    var btn = document.getElementById('rm-student-confirm');
+    btn.disabled = true; btn.style.opacity = '.6';
     var fd = new FormData();
-    fd.append('course_id', cid);
+    fd.append('course_id', _cid);
     fd.append('action', 'remove_student');
     fd.append('student_id', sid);
     fetch('api/manage_invite.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(res => {
+            closeModal('remove-student');
+            btn.disabled = false; btn.style.opacity = '1';
             if (res.ok) {
                 showToast(res.message || 'นำออกแล้ว');
                 var row = document.getElementById('student-row-' + sid);
@@ -573,9 +586,40 @@ function removeStudent(sid, cid, name) {
             } else {
                 showToast(res.error || 'เกิดข้อผิดพลาด', true);
             }
+        })
+        .catch(() => {
+            closeModal('remove-student');
+            btn.disabled = false; btn.style.opacity = '1';
+            showToast('เกิดข้อผิดพลาด', true);
         });
 }
 </script>
+
+<!-- Remove student confirmation modal -->
+<div id="remove-student-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('remove-student')" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal__head">
+      <span class="modal__ic" style="background:var(--danger-soft,#fee2e2);color:var(--danger,#ef4444)"><?= icon('user-x', 20, 'var(--danger,#ef4444)') ?></span>
+      <h2 class="modal__title">นำนักเรียนออกจากรายวิชา</h2>
+      <button class="modal__close" onclick="closeModal('remove-student')"><?= icon('x', 18) ?></button>
+    </div>
+    <div class="modal__body">
+      <p style="color:var(--body);line-height:1.7;margin:0">
+        คุณต้องการนำ <strong id="rm-student-name" style="color:var(--heading)"></strong>
+        ออกจากรายวิชานี้ใช่หรือไม่?
+      </p>
+      <p style="font-size:13px;color:var(--sub);margin:10px 0 0">
+        นักเรียนจะไม่เห็นรายวิชานี้อีก แต่งานและคะแนนที่ส่งไว้แล้วจะยังคงอยู่ หากต้องการให้กลับเข้าเรียน ต้องเชิญใหม่อีกครั้ง
+      </p>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('remove-student')">ยกเลิก</button>
+      <button type="button" id="rm-student-confirm" class="btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="doRemoveStudent()">
+        <?= icon('user-x', 15, '#fff') ?> ยืนยันนำออก
+      </button>
+    </div>
+  </div>
+</div>
 <?php endif; ?>
 
 
