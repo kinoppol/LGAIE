@@ -212,6 +212,8 @@ function get_courses_with_stats(bool $include_archived = false): array
 
     if (is_teacher()) {
         $archived_clause = $include_archived ? '' : 'AND c.is_archived = 0';
+        $co_ids   = co_taught_course_ids($uid);
+        $co_clause = $co_ids ? ('OR c.id IN (' . implode(',', $co_ids) . ')') : '';
         $sql    = "
             SELECT c.*,
                 u.avatar_class AS teacher_av,
@@ -223,13 +225,11 @@ function get_courses_with_stats(bool $include_archived = false): array
                 (SELECT COUNT(*) FROM course_enrollments  WHERE course_id = c.id AND COALESCE(status,'active') = 'active') AS student_count
             FROM courses c
             JOIN users u ON u.id = c.teacher_id
-            WHERE (c.teacher_id = ?
-                   OR c.id IN (SELECT course_id FROM course_teachers WHERE user_id = ?))
+            WHERE (c.teacher_id = ? {$co_clause})
                   {$archived_clause}
             ORDER BY c.id
         ";
-        $params = [$uid, $uid];
-        ensure_coteacher_schema();
+        $params = [$uid];
     } else {
         $archived_clause = $include_archived ? '' : 'AND c.is_archived = 0';
         $sql    = "
@@ -276,8 +276,9 @@ function get_archived_courses(): array
 {
     $uid = current_user_id();
     if (is_teacher()) {
-        ensure_coteacher_schema();
-        return db_rows('
+        $co_ids   = co_taught_course_ids($uid);
+        $co_clause = $co_ids ? ('OR c.id IN (' . implode(',', $co_ids) . ')') : '';
+        return db_rows("
             SELECT c.*,
                 u.avatar_class AS teacher_av,
                 u.avatar_path  AS teacher_av_path,
@@ -288,11 +289,9 @@ function get_archived_courses(): array
                 (SELECT COUNT(*) FROM course_enrollments WHERE course_id = c.id) AS student_count
             FROM courses c
             JOIN users u ON u.id = c.teacher_id
-            WHERE c.is_archived = 1
-              AND (c.teacher_id = ?
-                   OR c.id IN (SELECT course_id FROM course_teachers WHERE user_id = ?))
+            WHERE c.is_archived = 1 AND (c.teacher_id = ? {$co_clause})
             ORDER BY c.archived_at DESC
-        ', [$uid, $uid]);
+        ", [$uid]);
     }
     return db_rows('
         SELECT c.*,
@@ -841,10 +840,25 @@ function ensure_coteacher_schema(): void
         added_by   INT UNSIGNED NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE KEY uq_course_teacher (course_id, user_id),
-        INDEX (user_id),
-        FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE
+        INDEX (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+}
+
+/**
+ * Course IDs the user co-teaches. Safe even if course_teachers is missing
+ * (e.g. migration not yet run on the server) — returns [] on any DB error.
+ */
+function co_taught_course_ids(?int $uid = null): array
+{
+    $uid = $uid ?? current_user_id();
+    if (!$uid) return [];
+    ensure_coteacher_schema();
+    try {
+        $rows = db_rows('SELECT course_id FROM course_teachers WHERE user_id = ?', [$uid]);
+        return array_map(static fn($r) => (int) $r['course_id'], $rows);
+    } catch (PDOException) {
+        return [];
+    }
 }
 
 /** True if the user owns OR co-teaches the course (i.e. may teach/manage it). */
@@ -852,10 +866,8 @@ function teaches_course(int $course_id, ?int $uid = null): bool
 {
     $uid = $uid ?? current_user_id();
     if (!$uid) return false;
-    $owner = db_val('SELECT 1 FROM courses WHERE id = ? AND teacher_id = ?', [$course_id, $uid]);
-    if ($owner) return true;
-    ensure_coteacher_schema();
-    return (bool) db_val('SELECT 1 FROM course_teachers WHERE course_id = ? AND user_id = ?', [$course_id, $uid]);
+    if (db_val('SELECT 1 FROM courses WHERE id = ? AND teacher_id = ?', [$course_id, $uid])) return true;
+    return in_array($course_id, co_taught_course_ids($uid), true);
 }
 
 /** True only for the original course owner (owner-only actions). */
@@ -1004,15 +1016,16 @@ function thai_due_ts(string $due): int
 
 function count_pending_for_teacher(): int
 {
-    ensure_coteacher_schema();
     $uid = current_user_id();
-    return (int) db_val('
+    $co_ids   = co_taught_course_ids($uid);
+    $co_clause = $co_ids ? ('OR c.id IN (' . implode(',', $co_ids) . ')') : '';
+    return (int) db_val("
         SELECT COUNT(*) FROM submissions s
         JOIN assignments a ON a.id = s.assignment_id
         JOIN courses c     ON c.id = a.course_id
-        WHERE s.status = "submitted" AND c.is_archived = 0
-          AND (c.teacher_id = ? OR c.id IN (SELECT course_id FROM course_teachers WHERE user_id = ?))
-    ', [$uid, $uid]);
+        WHERE s.status = 'submitted' AND c.is_archived = 0
+          AND (c.teacher_id = ? {$co_clause})
+    ", [$uid]);
 }
 
 function count_pending_for_student(int $student_id): int

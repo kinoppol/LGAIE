@@ -432,7 +432,11 @@ elseif ($tab === 'people'):
     try { get_db()->exec('CREATE TABLE IF NOT EXISTS course_invites (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, course_id INT UNSIGNED NOT NULL, invite_type ENUM("link","code","email") NOT NULL DEFAULT "code", invite_token VARCHAR(40) NULL, invite_code VARCHAR(10) NULL, invited_email VARCHAR(150) NULL, created_by INT UNSIGNED NOT NULL, expires_at DATETIME NULL, max_uses INT UNSIGNED NULL, use_count INT UNSIGNED DEFAULT 0, is_active TINYINT(1) DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE, FOREIGN KEY (created_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'); } catch (PDOException) {}
     $invite_code_row = db_row('SELECT * FROM course_invites WHERE course_id = ? AND invite_type = "code" ORDER BY id DESC LIMIT 1', [$course_id]);
     ensure_coteacher_schema();
-    $coteachers = db_rows('SELECT u.*, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? ORDER BY ct.created_at', [$course_id]);
+    try {
+        $coteachers = db_rows('SELECT u.*, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? ORDER BY ct.created_at', [$course_id]);
+    } catch (PDOException) {
+        $coteachers = [];
+    }
 ?>
 <div class="row wrap" style="align-items:flex-start">
   <div style="flex:1 1 340px;display:flex;flex-direction:column;gap:18px">

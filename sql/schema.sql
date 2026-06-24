@@ -206,9 +206,7 @@ CREATE TABLE IF NOT EXISTS course_teachers (
   added_by   INT UNSIGNED NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_course_teacher (course_id, user_id),
-  INDEX (user_id),
-  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE
+  INDEX (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- -------- Submission Votes --------

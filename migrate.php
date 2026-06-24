@@ -5,16 +5,18 @@
  * URL: http://localhost/LGAIE/migrate.php
  */
 declare(strict_types=1);
-
-// ป้องกันเรียกจากภายนอก — อนุญาตเฉพาะ localhost
-$allowed_hosts = ['127.0.0.1', '::1', 'localhost'];
-if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', $allowed_hosts, true)) {
-    http_response_code(403);
-    exit('Access denied — localhost only.');
-}
+session_start();
 
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
+
+// ป้องกันเรียกจากภายนอก — อนุญาตเฉพาะ localhost หรือผู้ดูแลระบบที่ล็อกอินอยู่
+$allowed_hosts = ['127.0.0.1', '::1', 'localhost'];
+$is_local      = in_array($_SERVER['REMOTE_ADDR'] ?? '', $allowed_hosts, true);
+if (!$is_local && !is_admin()) {
+    http_response_code(403);
+    exit('Access denied — เข้าถึงได้เฉพาะจาก localhost หรือผู้ดูแลระบบ (admin) ที่ล็อกอินอยู่เท่านั้น');
+}
 
 $db = get_db();
 $results = [];
@@ -155,9 +157,7 @@ $results[] = migrate_run($db, 'table: course_teachers',
         added_by   INT UNSIGNED NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE KEY uq_course_teacher (course_id, user_id),
-        INDEX (user_id),
-        FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE
+        INDEX (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
 // ── 7. app_settings seed ─────────────────────────────────────────────────────
