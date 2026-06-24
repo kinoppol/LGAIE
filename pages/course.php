@@ -364,6 +364,9 @@ elseif ($tab === 'people'):
         <?= avatar($teacher, 46) ?>
         <div>
           <div style="font-weight:700;color:var(--heading)"><?= h($teacher['name'] ?? '') ?></div>
+          <?php if (!empty($teacher['email'])): ?>
+          <div class="subtle" style="font-size:12.5px"><?= h($teacher['email']) ?></div>
+          <?php endif; ?>
           <div class="subtle" style="font-size:13px">ครูผู้สอน</div>
         </div>
       </div>
@@ -459,6 +462,9 @@ elseif ($tab === 'people'):
           <?= avatar($s, 38) ?>
           <div style="min-width:0;flex:1">
             <div style="font-weight:600;color:var(--heading);font-size:14px"><?= h($s['name']) ?></div>
+            <?php if (!empty($s['email'])): ?>
+            <div class="subtle" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?= h($s['email']) ?></div>
+            <?php endif; ?>
             <?php if ($is_pending): ?>
             <div style="font-size:11.5px;color:var(--sub)"><?= icon('clock', 12, 'var(--sub)') ?> รอตอบรับคำเชิญ</div>
             <?php endif; ?>
