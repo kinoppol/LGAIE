@@ -73,9 +73,13 @@ function cert_bg_svg(string $style, string $image_path = ''): string
                      style="background:url(\'' . h($image_path) . '\') center/cover no-repeat"></div>';
     }
     $c = '#7b94be'; // pattern color — prints cleanly on white
+    // Wrap the SVG in a <div class="cert-bg"> — a non-replaced element reliably
+    // stretches to inset:0, whereas an absolutely-positioned <svg>/<img> may fail
+    // to fill an auto-height container in some browsers (top edge left uncovered).
+    $svg = '';
     switch ($style) {
         case 'circuit':
-            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            $svg = '<svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
               <defs><pattern id="cbg" width="80" height="80" patternUnits="userSpaceOnUse">
                 <path d="M0 28 L18 28 L18 52 L62 52 L62 28 L80 28 M38 0 L38 18 L62 18 M38 80 L38 62 L18 62"
                       stroke="'.$c.'" stroke-width="1.1" fill="none"/>
@@ -88,8 +92,9 @@ function cert_bg_svg(string $style, string $image_path = ''): string
               </pattern></defs>
               <rect width="100%" height="100%" fill="url(#cbg)"/>
             </svg>';
+            break;
         case 'neural':
-            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            $svg = '<svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
               <defs><pattern id="cbg" width="150" height="110" patternUnits="userSpaceOnUse">
                 <line x1="18" y1="22" x2="65" y2="48" stroke="'.$c.'" stroke-width="0.9"/>
                 <line x1="65" y1="48" x2="110" y2="18" stroke="'.$c.'" stroke-width="0.9"/>
@@ -108,16 +113,18 @@ function cert_bg_svg(string $style, string $image_path = ''): string
               </pattern></defs>
               <rect width="100%" height="100%" fill="url(#cbg)"/>
             </svg>';
+            break;
         case 'mesh':
-            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            $svg = '<svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
               <defs><pattern id="cbg" width="32" height="32" patternUnits="userSpaceOnUse">
                 <path d="M 32 0 L 0 0 0 32" fill="none" stroke="'.$c.'" stroke-width="0.55"/>
                 <circle cx="0" cy="0" r="1.2" fill="'.$c.'"/>
               </pattern></defs>
               <rect width="100%" height="100%" fill="url(#cbg)"/>
             </svg>';
+            break;
         case 'wave':
-            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            $svg = '<svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
               <defs><pattern id="cbg" width="220" height="80" patternUnits="userSpaceOnUse">
                 <path d="M0 20  Q55 3   110 20  Q165 37  220 20"  stroke="'.$c.'" stroke-width="1"   fill="none"/>
                 <path d="M0 44  Q55 27  110 44  Q165 61  220 44"  stroke="'.$c.'" stroke-width="1"   fill="none"/>
@@ -126,9 +133,12 @@ function cert_bg_svg(string $style, string $image_path = ''): string
               </pattern></defs>
               <rect width="100%" height="100%" fill="url(#cbg)"/>
             </svg>';
+            break;
         default: // plain
             return '';
     }
+    if ($svg === '') return '';
+    return '<div class="cert-bg" aria-hidden="true">' . $svg . '</div>';
 }
 $today   = date('j F Y', strtotime('+543 years', strtotime(date('Y-m-d'))));
 // Thai month names
@@ -227,8 +237,10 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
 
     .cert-bg {
       position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: .38;
+      overflow: hidden;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
+    .cert-bg svg { display: block; width: 100%; height: 100%; }
     .cert-inner { position: relative; z-index: 1; }
 
     @media print {
