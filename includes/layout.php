@@ -134,8 +134,8 @@ function layout_start(string $page_title = 'ClassroomAI'): void
     <?php endif; ?>
 
     <div class="nav-label">อื่น ๆ</div>
-    <button class="nav-item"><?= icon('calendar', 20) ?> ปฏิทิน</button>
-    <button class="nav-item"><?= icon('settings', 20) ?> ตั้งค่า</button>
+    <a href="<?= url('calendar') ?>" class="nav-item<?= $active === 'calendar' ? ' active' : '' ?>"><?= icon('calendar', 20) ?> ปฏิทิน</a>
+    <a href="<?= url('profile') ?>" class="nav-item<?= $active === 'profile' ? ' active' : '' ?>"><?= icon('settings', 20) ?> ตั้งค่า</a>
   </nav>
 
   <div class="sidebar__foot">

@@ -56,6 +56,7 @@ $title_map = [
     'todo'       => 'งานที่ต้องส่ง',
     'tograde'    => 'งานรอตรวจ',
     'workqueue'  => 'คิวงาน',
+    'calendar'        => 'ปฏิทิน',
     'profile'         => 'โปรไฟล์',
     'course_settings' => 'ตั้งค่ารายวิชา',
     'explore'         => 'ค้นหารายวิชา',
