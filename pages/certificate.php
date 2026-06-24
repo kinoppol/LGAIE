@@ -259,7 +259,11 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
     <?= cert_bg_svg($bg_style, $bg_image) ?>
 
     <div class="cert-inner">
+    <?php if ($bg_style !== 'custom' || !$bg_image): ?>
     <div class="cert-banner" style="background:<?= h($course['banner'] ?: 'linear-gradient(135deg,var(--primary),var(--primary-dark,var(--primary)))') ?>"></div>
+    <?php else: ?>
+    <div style="height:40px"></div>
+    <?php endif; ?>
 
     <div class="cert-logo">
       <img src="<?= asset('assets/ovec-logo.svg') ?>" alt="ClassroomAI">

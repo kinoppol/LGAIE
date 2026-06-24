@@ -28,8 +28,11 @@ CREATE TABLE IF NOT EXISTS users (
   phone         VARCHAR(20)  NULL,
   school        VARCHAR(200) NULL,
   province      VARCHAR(100) NULL,
-  status        ENUM('active','pending','suspended') NOT NULL DEFAULT 'active',
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  status            ENUM('active','pending','suspended') NOT NULL DEFAULT 'active',
+  avatar_path       VARCHAR(255) NULL,
+  show_in_directory TINYINT(1)   NOT NULL DEFAULT 0,
+  bio               VARCHAR(255) NOT NULL DEFAULT '',
+  created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- -------- Courses --------
@@ -231,12 +234,15 @@ ALTER TABLE users
   MODIFY COLUMN role ENUM('teacher','student','admin') NOT NULL;
 
 ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS email         VARCHAR(150) NULL     AFTER initials,
-  ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NOT NULL DEFAULT '' AFTER email,
-  ADD COLUMN IF NOT EXISTS phone         VARCHAR(20)  NULL     AFTER password_hash,
-  ADD COLUMN IF NOT EXISTS school        VARCHAR(200) NULL     AFTER phone,
-  ADD COLUMN IF NOT EXISTS province      VARCHAR(100) NULL     AFTER school,
-  ADD COLUMN IF NOT EXISTS status        ENUM('active','pending','suspended') NOT NULL DEFAULT 'active' AFTER province;
+  ADD COLUMN IF NOT EXISTS email             VARCHAR(150) NULL     AFTER initials,
+  ADD COLUMN IF NOT EXISTS password_hash     VARCHAR(255) NOT NULL DEFAULT '' AFTER email,
+  ADD COLUMN IF NOT EXISTS phone             VARCHAR(20)  NULL     AFTER password_hash,
+  ADD COLUMN IF NOT EXISTS school            VARCHAR(200) NULL     AFTER phone,
+  ADD COLUMN IF NOT EXISTS province          VARCHAR(100) NULL     AFTER school,
+  ADD COLUMN IF NOT EXISTS status            ENUM('active','pending','suspended') NOT NULL DEFAULT 'active' AFTER province,
+  ADD COLUMN IF NOT EXISTS avatar_path       VARCHAR(255) NULL,
+  ADD COLUMN IF NOT EXISTS show_in_directory TINYINT(1)   NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS bio               VARCHAR(255) NOT NULL DEFAULT '';
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_email ON users (email);
 

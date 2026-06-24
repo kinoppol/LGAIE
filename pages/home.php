@@ -2,6 +2,7 @@
 declare(strict_types=1);
 // db.php, functions.php, layout.php already loaded by index.php
 
+ensure_storage_schema();
 ensure_directory_schema();
 
 $is_logged_in   = is_logged_in();
