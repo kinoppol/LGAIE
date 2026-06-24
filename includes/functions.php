@@ -742,6 +742,20 @@ function ensure_all_upload_dirs(): void
 }
 
 /** สร้างตาราง quiz ถ้ายังไม่มี */
+function ensure_certificate_schema(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try { get_db()->exec("CREATE TABLE IF NOT EXISTS course_certificates (
+        id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        course_id   INT UNSIGNED NOT NULL UNIQUE,
+        enabled     TINYINT(1)   NOT NULL DEFAULT 0,
+        grade_json  TEXT         NOT NULL DEFAULT '[]',
+        FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+}
+
 function ensure_directory_schema(): void
 {
     static $done = false;

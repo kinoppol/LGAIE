@@ -93,6 +93,7 @@ $is_owner = !$guest_mode && is_teacher() && (int)$c['teacher_id'] === current_us
         ['lessons', 'book',      'เนื้อหาบทเรียน', count($lessons)],
         ['work',    'clipboard', 'งาน / การบ้าน',  count($works)],
         ['people',  'users',     'สมาชิก',          (int)$c['student_count']],
+        ['scores',  'trophy',    'คะแนน',           null],
     ];
     foreach ($tabs as [$tid, $tic, $tlbl, $tcnt]):
         $act = $tab === $tid ? ' active' : '';
@@ -571,7 +572,253 @@ function removeStudent(sid, cid, name) {
 </script>
 <?php endif; ?>
 
+
+<?php
+// ── SCORES tab ─────────────────────────────────────────────────
+elseif ($tab === 'scores' && !$guest_mode):
+    ensure_certificate_schema();
+    $asgn_info  = db_row('SELECT COUNT(*) AS cnt, COALESCE(SUM(points),0) AS total FROM assignments WHERE course_id = ?', [$course_id]);
+    $total_asgn = (int)($asgn_info['cnt']   ?? 0);
+    $total_pts  = (int)($asgn_info['total'] ?? 0);
+    $cert        = db_row('SELECT * FROM course_certificates WHERE course_id = ?', [$course_id]) ?: ['enabled'=>0,'grade_json'=>'[]'];
+    $cert_enabled = (bool)($cert['enabled'] ?? 0);
+    $cert_grades  = json_decode($cert['grade_json'] ?? '[]', true) ?: [];
+    usort($cert_grades, fn($a,$b) => ($b['min']??0) <=> ($a['min']??0));
+
+    function cert_grade(float $pct, array $grades): string {
+        foreach ($grades as $g) { if ($pct >= (float)($g['min']??0)) return (string)($g['label']??''); }
+        return '';
+    }
+
+    if (is_teacher()):
+        $score_rows = db_rows('
+            SELECT u.id, u.name, u.avatar_class, u.avatar_path, u.initials,
+                COUNT(DISTINCT s.id) AS submitted_count,
+                COALESCE(SUM(CASE WHEN s.status = "graded" THEN s.grade ELSE 0 END),0) AS earned_points
+            FROM users u
+            JOIN course_enrollments e ON e.user_id = u.id AND e.course_id = ?
+            LEFT JOIN assignments a ON a.course_id = ?
+            LEFT JOIN submissions s ON s.assignment_id = a.id AND s.student_id = u.id
+            WHERE u.role = "student"
+            GROUP BY u.id, u.name, u.avatar_class, u.avatar_path, u.initials
+            ORDER BY earned_points DESC
+        ', [$course_id, $course_id]);
+?>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+  <div>
+    <div style="font-size:13px;color:var(--sub)">คะแนนรวมเต็ม <strong style="color:var(--heading)"><?= $total_pts ?> คะแนน</strong>
+      &ensp;·&ensp; <?= $total_asgn ?> งาน &ensp;·&ensp; <?= count($score_rows) ?> นักเรียน</div>
+  </div>
+  <?php if ($is_owner): ?>
+  <button class="btn btn-soft" style="gap:7px" onclick="openModal('cert-settings')">
+    <?= icon('trophy', 15) ?>
+    <?= $cert_enabled ? 'เกียรติบัตร: เปิด' : 'ตั้งค่าเกียรติบัตร' ?>
+    <?php if ($cert_enabled): ?><span class="badge green" style="font-size:11px">ON</span><?php endif; ?>
+  </button>
+  <?php endif; ?>
+</div>
+
+<?php if ($score_rows): ?>
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;font-size:14px">
+  <thead>
+    <tr style="border-bottom:2px solid var(--line-2);text-align:left">
+      <th style="padding:10px 12px;font-weight:700;color:var(--heading)">นักเรียน</th>
+      <th style="padding:10px 12px;font-weight:700;color:var(--heading);text-align:center">ส่งแล้ว</th>
+      <th style="padding:10px 12px;font-weight:700;color:var(--heading);text-align:center">คะแนนที่ได้</th>
+      <th style="padding:10px 12px;font-weight:700;color:var(--heading);min-width:140px">ร้อยละ</th>
+      <?php if ($cert_enabled && $cert_grades): ?>
+      <th style="padding:10px 12px;font-weight:700;color:var(--heading)">ระดับ</th>
+      <?php endif; ?>
+    </tr>
+  </thead>
+  <tbody>
+    <?php foreach ($score_rows as $row):
+        $pct    = $total_pts > 0 ? round((int)$row['earned_points'] / $total_pts * 100, 1) : 0;
+        $done   = (int)$row['submitted_count'] >= $total_asgn && $total_asgn > 0;
+        $glabel = $cert_enabled ? cert_grade($pct, $cert_grades) : '';
+        $bar_c  = $pct >= 80 ? 'var(--primary)' : ($pct >= 60 ? 'var(--warn)' : 'var(--danger)');
+    ?>
+    <tr style="border-bottom:1px solid var(--line-2)">
+      <td style="padding:10px 12px">
+        <div style="display:flex;align-items:center;gap:9px">
+          <?= avatar($row, 32) ?>
+          <span style="font-weight:600;color:var(--heading)"><?= h($row['name']) ?></span>
+        </div>
+      </td>
+      <td style="padding:10px 12px;text-align:center">
+        <span style="font-weight:600;color:<?= $done ? 'var(--primary)' : 'var(--body)' ?>">
+          <?= (int)$row['submitted_count'] ?>/<?= $total_asgn ?>
+        </span>
+      </td>
+      <td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--heading)">
+        <?= (int)$row['earned_points'] ?>/<?= $total_pts ?>
+      </td>
+      <td style="padding:10px 12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:7px;background:var(--line-2);border-radius:99px;overflow:hidden">
+            <div style="height:100%;width:<?= min(100,$pct) ?>%;background:<?= $bar_c ?>;border-radius:99px;transition:width .4s"></div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:var(--heading);flex-shrink:0;min-width:38px;text-align:right"><?= $pct ?>%</span>
+        </div>
+      </td>
+      <?php if ($cert_enabled && $cert_grades): ?>
+      <td style="padding:10px 12px">
+        <?php if ($glabel): ?>
+        <span class="badge green" style="font-size:12px"><?= h($glabel) ?></span>
+        <?php elseif ($done): ?>
+        <span class="badge gray" style="font-size:12px">ไม่ผ่านเกณฑ์</span>
+        <?php else: ?>
+        <span style="color:var(--sub);font-size:12px">ส่งงานยังไม่ครบ</span>
+        <?php endif; ?>
+      </td>
+      <?php endif; ?>
+    </tr>
+    <?php endforeach; ?>
+  </tbody>
+</table>
+</div>
+<?php else: ?>
+<div class="empty"><div class="e-ic"><?= icon('users', 28) ?></div><h3>ยังไม่มีนักเรียนในวิชานี้</h3></div>
 <?php endif; ?>
+
+<?php else: // student view
+    $uid = current_user_id();
+    $my  = db_row('
+        SELECT COUNT(DISTINCT s.id) AS submitted_count,
+            COALESCE(SUM(CASE WHEN s.status = "graded" THEN s.grade ELSE 0 END),0) AS earned_points
+        FROM assignments a
+        LEFT JOIN submissions s ON s.assignment_id = a.id AND s.student_id = ?
+        WHERE a.course_id = ?
+    ', [$uid, $course_id]) ?: ['submitted_count'=>0,'earned_points'=>0];
+    $my_submitted = (int)$my['submitted_count'];
+    $my_earned    = (int)$my['earned_points'];
+    $my_pct       = $total_pts > 0 ? round($my_earned / $total_pts * 100, 1) : 0;
+    $my_done      = $my_submitted >= $total_asgn && $total_asgn > 0;
+    $my_grade     = cert_grade($my_pct, $cert_grades);
+    $my_bar_c     = $my_pct >= 80 ? 'var(--primary)' : ($my_pct >= 60 ? 'var(--warn)' : 'var(--danger)');
+?>
+<div style="max-width:520px;margin:0 auto">
+  <div class="card card-pad" style="text-align:center">
+    <div style="font-size:13px;color:var(--sub);margin-bottom:20px">ผลการเรียนของคุณในวิชานี้</div>
+
+    <div style="font-size:3rem;font-weight:800;color:var(--heading);line-height:1"><?= $my_pct ?>%</div>
+    <div style="font-size:14px;color:var(--sub);margin-top:4px"><?= $my_earned ?>/<?= $total_pts ?> คะแนน</div>
+
+    <div style="margin:20px 0 6px;height:10px;background:var(--line-2);border-radius:99px;overflow:hidden">
+      <div style="height:100%;width:<?= min(100,$my_pct) ?>%;background:<?= $my_bar_c ?>;border-radius:99px;transition:width .6s"></div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-bottom:20px">
+      <span>ส่งแล้ว <?= $my_submitted ?>/<?= $total_asgn ?> งาน</span>
+      <?php if ($my_done): ?><span style="color:var(--primary);font-weight:600"><?= icon('check',13,'var(--primary)') ?> ส่งครบแล้ว</span><?php endif; ?>
+    </div>
+
+    <?php if ($cert_enabled && $cert_grades): ?>
+    <?php if ($my_grade): ?>
+    <div style="padding:16px;background:var(--primary-soft);border-radius:12px;margin-bottom:16px">
+      <div style="font-size:12px;color:var(--primary);font-weight:700;margin-bottom:4px"><?= icon('trophy',14,'var(--primary)') ?> ระดับผลการสำเร็จ</div>
+      <div style="font-size:1.4rem;font-weight:800;color:var(--heading)"><?= h($my_grade) ?></div>
+    </div>
+    <?php if ($my_done): ?>
+    <a href="index.php?page=certificate&course_id=<?= $course_id ?>&student_id=<?= $uid ?>"
+       target="_blank" class="btn btn-primary" style="text-decoration:none;gap:8px;justify-content:center;width:100%">
+      <?= icon('trophy', 16, '#fff') ?> ดูเกียรติบัตร
+    </a>
+    <?php endif; ?>
+    <?php else: ?>
+    <div style="padding:14px;background:var(--line-2);border-radius:10px;font-size:13px;color:var(--sub)">
+      <?= $my_done ? 'คะแนนไม่ผ่านเกณฑ์รับเกียรติบัตร' : 'ส่งงานให้ครบเพื่อรับเกียรติบัตร' ?>
+    </div>
+    <?php endif; ?>
+    <?php endif; ?>
+  </div>
+
+  <?php if ($cert_grades): ?>
+  <div class="card card-pad" style="margin-top:14px">
+    <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:12px"><?= icon('trophy',15,'var(--primary)') ?> เกณฑ์ระดับผลการสำเร็จ</div>
+    <?php foreach ($cert_grades as $g): ?>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line-2)">
+      <span style="font-weight:600;color:var(--heading)"><?= h($g['label']) ?></span>
+      <span class="badge gray">≥ <?= (int)$g['min'] ?>%</span>
+    </div>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<?php
+// ── Certificate settings modal (teacher only) ──────────────────
+if ($is_owner):
+    modal_start('cert-settings', 'ตั้งค่าเกียรติบัตร', 'trophy', false, true);
+?>
+<form method="post" action="api/save_certificate.php" data-ajax onsubmit="certSyncGrades()">
+  <input type="hidden" name="course_id" value="<?= $course_id ?>">
+  <label style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1.5px solid var(--line-2);border-radius:12px;cursor:pointer;margin-bottom:16px"
+         id="cert-toggle-label" style="background:<?= $cert_enabled ? 'var(--accent-soft)' : 'var(--card)' ?>">
+    <input type="checkbox" name="enabled" value="1" id="cert-toggle" <?= $cert_enabled ? 'checked' : '' ?>
+           style="margin-top:2px;width:17px;height:17px;accent-color:var(--primary);flex-shrink:0"
+           onchange="document.getElementById('cert-toggle-label').style.background=this.checked?'var(--accent-soft)':'var(--card)'">
+    <div>
+      <div style="font-weight:700;color:var(--heading);font-size:14.5px">เปิดระบบเกียรติบัตร</div>
+      <div class="subtle" style="font-size:12.5px;margin-top:3px">นักเรียนที่ส่งงานครบและผ่านเกณฑ์จะสามารถดูและพิมพ์เกียรติบัตรได้</div>
+    </div>
+  </label>
+
+  <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:10px;display:flex;align-items:center;gap:7px">
+    <?= icon('trophy', 15) ?> ระดับผลการสำเร็จ
+    <span class="subtle" style="font-weight:400;font-size:12px">(เรียงจากคะแนนสูงสุดก่อน)</span>
+  </div>
+  <div id="cert-grades-container">
+    <?php foreach ($cert_grades as $g): ?>
+    <div class="cert-grade-row" style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+      <input class="input" name="grade_label[]" placeholder="ระดับ เช่น ดีเยี่ยม" value="<?= h($g['label']) ?>" style="flex:2;min-width:0">
+      <input class="input" name="grade_min[]" type="number" min="0" max="100" placeholder="%" value="<?= (int)$g['min'] ?>" style="flex:0 0 80px;text-align:center">
+      <span style="font-size:13px;color:var(--sub);flex-shrink:0">%</span>
+      <button type="button" onclick="this.closest('.cert-grade-row').remove()"
+              style="flex:0 0 32px;height:32px;border:none;border-radius:8px;background:var(--danger-soft,#fee2e2);color:var(--danger,#dc2626);cursor:pointer;font-size:18px;display:grid;place-items:center">×</button>
+    </div>
+    <?php endforeach; ?>
+  </div>
+  <button type="button" onclick="certAddGrade()" class="btn btn-sm btn-ghost" style="margin-bottom:12px">
+    <?= icon('plus', 14) ?> เพิ่มระดับ
+  </button>
+  <input type="hidden" name="grade_json" id="cert-grade-json" value="<?= h($cert['grade_json'] ?? '[]') ?>">
+  <div style="font-size:12px;color:var(--sub);padding:10px 14px;background:var(--line-2);border-radius:8px;margin-top:4px">
+    <?= icon('info', 13) ?> นักเรียนต้องส่งงานครบทุกชิ้นก่อน จึงจะตรวจสอบเกณฑ์ได้
+  </div>
+</form>
+<?php modal_foot('cert-settings', 'ยกเลิก', 'บันทึก'); ?>
+<script>
+function certAddGrade(label, min) {
+  var c = document.getElementById('cert-grades-container');
+  var row = document.createElement('div');
+  row.className = 'cert-grade-row';
+  row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
+  var lv = label ? String(label).replace(/"/g,'&quot;') : '';
+  var mv = min !== undefined ? min : '';
+  row.innerHTML =
+    '<input class="input" name="grade_label[]" placeholder="ระดับ เช่น ดีเยี่ยม" value="' + lv + '" style="flex:2;min-width:0">' +
+    '<input class="input" name="grade_min[]" type="number" min="0" max="100" placeholder="%" value="' + mv + '" style="flex:0 0 80px;text-align:center">' +
+    '<span style="font-size:13px;color:var(--sub);flex-shrink:0">%</span>' +
+    '<button type="button" onclick="this.closest(\'.cert-grade-row\').remove()" style="flex:0 0 32px;height:32px;border:none;border-radius:8px;background:var(--danger-soft,#fee2e2);color:var(--danger,#dc2626);cursor:pointer;font-size:18px;display:grid;place-items:center">×</button>';
+  c.appendChild(row);
+}
+function certSyncGrades() {
+  var rows = document.querySelectorAll('#cert-grades-container .cert-grade-row');
+  var data = [];
+  rows.forEach(function(r) {
+    var lbl = r.querySelector('[name="grade_label[]"]').value.trim();
+    var mn  = parseInt(r.querySelector('[name="grade_min[]"]').value) || 0;
+    if (lbl) data.push({label: lbl, min: mn});
+  });
+  document.getElementById('cert-grade-json').value = JSON.stringify(data);
+}
+</script>
+<?php endif; // close if ($is_owner) for cert modal ?>
+
+<?php endif; // close entire tab if/elseif chain ?>
 
 <?php
 // ── Add Post Modal ────────────────────────────────────────────
