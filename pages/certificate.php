@@ -69,8 +69,8 @@ $theme     = $_SESSION['theme'] ?? 'system';
 function cert_bg_svg(string $style, string $image_path = ''): string
 {
     if ($style === 'custom' && $image_path) {
-        return '<img class="cert-bg" src="' . h($image_path) . '" alt="" aria-hidden="true"
-                     style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;z-index:0;opacity:.3">';
+        return '<div class="cert-bg" aria-hidden="true"
+                     style="background:url(\'' . h($image_path) . '\') center/cover no-repeat"></div>';
     }
     $c = '#7b94be'; // pattern color — prints cleanly on white
     switch ($style) {
