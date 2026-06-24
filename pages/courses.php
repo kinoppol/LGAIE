@@ -15,7 +15,17 @@ $archived    = is_teacher() ? get_archived_courses() : [];
       <?= $role === 'teacher' ? 'รายวิชาที่คุณเป็นผู้สอน' : 'รายวิชาที่คุณลงทะเบียนเรียน' ?>
     </p>
   </div>
-  <div style="margin-left:auto;display:flex;gap:8px">
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+  <?php if (!empty($courses)): ?>
+  <div class="view-toggle" role="group" aria-label="สลับมุมมอง">
+    <button type="button" id="vt-grid" class="vt-btn" title="มุมมองตาราง" onclick="setCourseView('grid')">
+      <?= icon('grid', 17) ?>
+    </button>
+    <button type="button" id="vt-list" class="vt-btn" title="มุมมองรายการ" onclick="setCourseView('list')">
+      <?= icon('list', 17) ?>
+    </button>
+  </div>
+  <?php endif; ?>
   <?php if (!is_teacher()): ?>
   <button class="btn btn-soft" style="gap:8px" onclick="openModal('join-course')">
     <?= icon('plus', 18, 'var(--primary)') ?> ลงทะเบียนรายวิชา
@@ -80,7 +90,7 @@ $archived    = is_teacher() ? get_archived_courses() : [];
   <?= icon('book', 17, 'var(--primary)') ?> รายวิชาที่กำลังเรียน
 </h2>
 <?php endif; ?>
-<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(290px,1fr))">
+<div class="grid course-grid" id="course-grid" style="grid-template-columns:repeat(auto-fill,minmax(290px,1fr))">
   <?php foreach ($courses as $c): ?>
   <a href="<?= url('course', ['course_id' => $c['id'], 'tab' => 'stream']) ?>" class="course-card" style="text-decoration:none;display:block">
     <div class="course-card__banner" style="background:<?= h($c['banner']) ?>;color:<?= h($c['ink_color']) ?>">
@@ -344,4 +354,38 @@ function restoreCourse(courseId, btn) {
 
 <style>
 .field-label { display:block; font-size:.82rem; font-weight:600; color:var(--heading); margin-bottom:.4rem; }
+
+/* ── View toggle ── */
+.view-toggle { display:flex; border:1px solid var(--line-2); border-radius:9px; overflow:hidden; background:var(--card); }
+.vt-btn { display:grid; place-items:center; width:36px; height:36px; border:none; background:none;
+          color:var(--sub); cursor:pointer; transition:background .12s, color .12s; }
+.vt-btn:hover { background:var(--primary-soft); }
+.vt-btn.active { background:var(--primary); color:#fff; }
+.vt-btn + .vt-btn { border-left:1px solid var(--line-2); }
+
+/* ── List view layout ── */
+.course-grid.list-view { grid-template-columns:1fr !important; gap:10px; }
+.course-grid.list-view .course-card {
+    display:grid; grid-template-columns:210px 1fr; align-items:stretch; }
+.course-grid.list-view .course-card__banner {
+    grid-row:1 / span 2; min-height:0; }
+.course-grid.list-view .course-card__banner h3 { font-size:1rem; }
+.course-grid.list-view .course-card__body { grid-column:2; grid-row:1; align-self:end; }
+.course-grid.list-view .course-card__foot { grid-column:2; grid-row:2; }
+@media (max-width:560px) {
+    .course-grid.list-view .course-card { grid-template-columns:120px 1fr; }
+}
 </style>
+
+<script>
+function setCourseView(mode) {
+  var grid = document.getElementById('course-grid');
+  if (!grid) return;
+  grid.classList.toggle('list-view', mode === 'list');
+  var g = document.getElementById('vt-grid'), l = document.getElementById('vt-list');
+  if (g) g.classList.toggle('active', mode !== 'list');
+  if (l) l.classList.toggle('active', mode === 'list');
+  try { localStorage.setItem('courseView', mode); } catch (e) {}
+}
+setCourseView(((function(){ try { return localStorage.getItem('courseView'); } catch(e){ return null; } })()) === 'list' ? 'list' : 'grid');
+</script>
