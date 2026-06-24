@@ -629,6 +629,7 @@ elseif ($tab === 'scores' && !$guest_mode):
       <th style="padding:10px 12px;font-weight:700;color:var(--heading);min-width:140px">ร้อยละ</th>
       <?php if ($cert_enabled && $cert_grades): ?>
       <th style="padding:10px 12px;font-weight:700;color:var(--heading)">ระดับ</th>
+      <th style="padding:10px 12px;font-weight:700;color:var(--heading)"></th>
       <?php endif; ?>
     </tr>
   </thead>
@@ -670,6 +671,14 @@ elseif ($tab === 'scores' && !$guest_mode):
         <span class="badge gray" style="font-size:12px">ไม่ผ่านเกณฑ์</span>
         <?php else: ?>
         <span style="color:var(--sub);font-size:12px">ส่งงานยังไม่ครบ</span>
+        <?php endif; ?>
+      </td>
+      <td style="padding:10px 12px">
+        <?php if ($glabel && $done): ?>
+        <a href="index.php?page=certificate&course_id=<?= $course_id ?>&student_id=<?= (int)$row['id'] ?>"
+           target="_blank" class="btn btn-sm btn-ghost" style="gap:5px;text-decoration:none">
+          <?= icon('trophy', 13) ?> เกียรติบัตร
+        </a>
         <?php endif; ?>
       </td>
       <?php endif; ?>
