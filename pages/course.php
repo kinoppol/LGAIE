@@ -386,10 +386,37 @@ elseif ($tab === 'people'):
             <?= h($invite_code_row['invite_code']) ?>
           </span>
           <button class="btn btn-ghost" style="padding:10px 14px"
+                  onclick="showCodeFullscreen()"
+                  title="แสดงเต็มจอ">
+            <?= icon('maximize', 18) ?>
+          </button>
+          <button class="btn btn-ghost" style="padding:10px 14px"
                   onclick="navigator.clipboard.writeText('<?= h($invite_code_row['invite_code']) ?>').then(()=>showToast('คัดลอกรหัสแล้ว'))"
                   title="คัดลอกรหัส">
             <?= icon('copy', 18) ?>
           </button>
+        </div>
+
+        <!-- Fullscreen invite-code overlay -->
+        <div id="code-fs-overlay" onclick="hideCodeFullscreen()"
+             style="display:none;position:fixed;inset:0;z-index:9000;background:var(--bg,#0b1220);
+                    flex-direction:column;align-items:center;justify-content:center;gap:2.5vh;padding:4vw;cursor:zoom-out">
+          <div style="font-size:clamp(1rem,3.5vw,2rem);font-weight:700;color:var(--sub);text-align:center">
+            <?= icon('globe', 28, 'var(--primary)') ?> รหัสเชิญเข้าเรียน
+          </div>
+          <div style="font-size:clamp(1.2rem,4vw,2.6rem);font-weight:700;color:var(--heading);text-align:center;max-width:90vw">
+            <?= h($c['name'] ?? '') ?>
+          </div>
+          <div style="font-family:ui-monospace,monospace;font-weight:800;letter-spacing:.12em;
+                      color:var(--primary);background:var(--primary-soft);border-radius:18px;
+                      padding:clamp(1rem,4vw,2.5rem) clamp(1.5rem,7vw,4rem);
+                      font-size:clamp(3rem,18vw,12rem);line-height:1;white-space:nowrap;max-width:94vw;
+                      display:flex;align-items:center;justify-content:center">
+            <?= h($invite_code_row['invite_code']) ?>
+          </div>
+          <div style="font-size:clamp(.95rem,2.6vw,1.4rem);color:var(--sub);text-align:center">
+            แตะที่ใดก็ได้เพื่อปิด · กด Esc
+          </div>
         </div>
         <div class="subtle" style="font-size:12px;margin-bottom:12px">
           ใช้แล้ว <?= (int)$invite_code_row['use_count'] ?> ครั้ง · รหัสนี้ใช้งานได้อยู่
@@ -490,6 +517,18 @@ elseif ($tab === 'people'):
 <?php if ($is_owner): ?>
 <script>
 const _cid = <?= $course_id ?>;
+
+function showCodeFullscreen() {
+    var ov = document.getElementById('code-fs-overlay');
+    if (ov) ov.style.display = 'flex';
+}
+function hideCodeFullscreen() {
+    var ov = document.getElementById('code-fs-overlay');
+    if (ov) ov.style.display = 'none';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') hideCodeFullscreen();
+});
 
 function manageInvite(action) {
     var btn = document.getElementById(action === 'reset_code' ? 'reset-code-btn' : 'toggle-code-btn');
