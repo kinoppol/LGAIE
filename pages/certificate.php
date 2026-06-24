@@ -59,8 +59,70 @@ if (!$grade_label) {
     echo '<p style="padding:2rem;font-family:sans-serif">คะแนน ' . $pct . '% ไม่ผ่านเกณฑ์รับเกียรติบัตร (ต้องการ ≥' . ($grades ? (int)end($grades)['min'] : 0) . '%)</p>'; exit;
 }
 
-$teacher = db_row('SELECT * FROM users WHERE id = ?', [$course['teacher_id']]);
-$theme   = $_SESSION['theme'] ?? 'system';
+$teacher  = db_row('SELECT * FROM users WHERE id = ?', [$course['teacher_id']]);
+$bg_style = $cert['background_style'] ?? 'plain';
+$theme    = $_SESSION['theme'] ?? 'system';
+
+function cert_bg_svg(string $style): string
+{
+    $c = '#7b94be'; // pattern color — prints cleanly on white
+    switch ($style) {
+        case 'circuit':
+            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+              <defs><pattern id="cbg" width="80" height="80" patternUnits="userSpaceOnUse">
+                <path d="M0 28 L18 28 L18 52 L62 52 L62 28 L80 28 M38 0 L38 18 L62 18 M38 80 L38 62 L18 62"
+                      stroke="'.$c.'" stroke-width="1.1" fill="none"/>
+                <circle cx="18" cy="28" r="2.8" fill="'.$c.'"/>
+                <circle cx="62" cy="28" r="2.8" fill="'.$c.'"/>
+                <circle cx="62" cy="18" r="2.8" fill="'.$c.'"/>
+                <circle cx="18" cy="62" r="2.8" fill="'.$c.'"/>
+                <circle cx="38" cy="52" r="2"   fill="'.$c.'"/>
+                <circle cx="38" cy="18" r="2"   fill="'.$c.'"/>
+              </pattern></defs>
+              <rect width="100%" height="100%" fill="url(#cbg)"/>
+            </svg>';
+        case 'neural':
+            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+              <defs><pattern id="cbg" width="150" height="110" patternUnits="userSpaceOnUse">
+                <line x1="18" y1="22" x2="65" y2="48" stroke="'.$c.'" stroke-width="0.9"/>
+                <line x1="65" y1="48" x2="110" y2="18" stroke="'.$c.'" stroke-width="0.9"/>
+                <line x1="65" y1="48" x2="90"  y2="88" stroke="'.$c.'" stroke-width="0.9"/>
+                <line x1="18" y1="22" x2="35"  y2="78" stroke="'.$c.'" stroke-width="0.9"/>
+                <line x1="35" y1="78" x2="90"  y2="88" stroke="'.$c.'" stroke-width="0.9"/>
+                <line x1="110" y1="18" x2="138" y2="55" stroke="'.$c.'" stroke-width="0.9"/>
+                <line x1="90" y1="88" x2="138" y2="55" stroke="'.$c.'" stroke-width="0.9"/>
+                <line x1="65" y1="48" x2="35"  y2="78" stroke="'.$c.'" stroke-width="0.5"/>
+                <circle cx="18"  cy="22" r="4.5" fill="none" stroke="'.$c.'" stroke-width="1.3"/>
+                <circle cx="65"  cy="48" r="6"   fill="none" stroke="'.$c.'" stroke-width="1.4"/>
+                <circle cx="110" cy="18" r="4"   fill="none" stroke="'.$c.'" stroke-width="1.2"/>
+                <circle cx="35"  cy="78" r="4"   fill="none" stroke="'.$c.'" stroke-width="1.2"/>
+                <circle cx="90"  cy="88" r="4.5" fill="none" stroke="'.$c.'" stroke-width="1.3"/>
+                <circle cx="138" cy="55" r="3.5" fill="none" stroke="'.$c.'" stroke-width="1.2"/>
+              </pattern></defs>
+              <rect width="100%" height="100%" fill="url(#cbg)"/>
+            </svg>';
+        case 'mesh':
+            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+              <defs><pattern id="cbg" width="32" height="32" patternUnits="userSpaceOnUse">
+                <path d="M 32 0 L 0 0 0 32" fill="none" stroke="'.$c.'" stroke-width="0.55"/>
+                <circle cx="0" cy="0" r="1.2" fill="'.$c.'"/>
+              </pattern></defs>
+              <rect width="100%" height="100%" fill="url(#cbg)"/>
+            </svg>';
+        case 'wave':
+            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+              <defs><pattern id="cbg" width="220" height="80" patternUnits="userSpaceOnUse">
+                <path d="M0 20  Q55 3   110 20  Q165 37  220 20"  stroke="'.$c.'" stroke-width="1"   fill="none"/>
+                <path d="M0 44  Q55 27  110 44  Q165 61  220 44"  stroke="'.$c.'" stroke-width="1"   fill="none"/>
+                <path d="M0 68  Q55 51  110 68  Q165 85  220 68"  stroke="'.$c.'" stroke-width="1"   fill="none"/>
+                <path d="M0 -4  Q55 -21 110 -4  Q165 13  220 -4"  stroke="'.$c.'" stroke-width="0.7" fill="none"/>
+              </pattern></defs>
+              <rect width="100%" height="100%" fill="url(#cbg)"/>
+            </svg>';
+        default: // plain
+            return '';
+    }
+}
 $today   = date('j F Y', strtotime('+543 years', strtotime(date('Y-m-d'))));
 // Thai month names
 $months_th = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
@@ -156,11 +218,18 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
 
     .cert-date { font-size: 12px; color: var(--sub); margin-top: 28px; }
 
+    .cert-bg {
+      position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: .38;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .cert-inner { position: relative; z-index: 1; }
+
     @media print {
       .no-print { display: none !important; }
       body { background: #fff; }
       .cert-page { margin: 0; padding: 0; max-width: 100%; }
       .cert-box { border-color: #ccc; border-radius: 0; page-break-inside: avoid; }
+      .cert-bg { opacity: .2; }
     }
   </style>
 </head>
@@ -180,6 +249,9 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
 <div class="cert-page">
   <div class="cert-box">
 
+    <?= cert_bg_svg($bg_style) ?>
+
+    <div class="cert-inner">
     <div class="cert-banner" style="background:<?= h($course['banner'] ?: 'linear-gradient(135deg,var(--primary),var(--primary-dark,var(--primary)))') ?>"></div>
 
     <div class="cert-logo">
@@ -230,7 +302,8 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
 
     <div class="cert-date"><?= $date_th ?></div>
 
-  </div>
+    </div><!-- .cert-inner -->
+  </div><!-- .cert-box -->
 </div>
 
 <script>window.AI_TOOLS = [];</script>

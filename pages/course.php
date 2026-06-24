@@ -775,6 +775,32 @@ if ($is_owner):
     </div>
   </label>
 
+  <?php
+  $cur_bg = $cert['background_style'] ?? 'plain';
+  $bg_previews = [
+    'plain'   => ['เรียบ',           '<rect width="96" height="58" fill="#f8f9fc"/><rect x="0" y="0" width="96" height="5" fill="#c8d5e8" rx="2"/>'],
+    'circuit' => ['วงจรดิจิทัล',     '<rect width="96" height="58" fill="#f8f9fc"/><path d="M0 22 L14 22 L14 40 L50 40 L50 22 L96 22 M30 0 L30 14 L50 14 M30 58 L30 46 L14 46" stroke="#7b94be" stroke-width="1.1" fill="none"/><circle cx="14" cy="22" r="2.5" fill="#7b94be"/><circle cx="50" cy="22" r="2.5" fill="#7b94be"/><circle cx="50" cy="14" r="2.5" fill="#7b94be"/><circle cx="14" cy="46" r="2.5" fill="#7b94be"/><circle cx="30" cy="40" r="2" fill="#7b94be"/>'],
+    'neural'  => ['โครงข่าย AI',     '<rect width="96" height="58" fill="#f8f9fc"/><line x1="12" y1="14" x2="42" y2="29" stroke="#7b94be" stroke-width="0.9"/><line x1="42" y1="29" x2="72" y2="12" stroke="#7b94be" stroke-width="0.9"/><line x1="42" y1="29" x2="58" y2="48" stroke="#7b94be" stroke-width="0.9"/><line x1="12" y1="14" x2="22" y2="46" stroke="#7b94be" stroke-width="0.9"/><line x1="22" y1="46" x2="58" y2="48" stroke="#7b94be" stroke-width="0.9"/><line x1="72" y1="12" x2="88" y2="32" stroke="#7b94be" stroke-width="0.9"/><line x1="58" y1="48" x2="88" y2="32" stroke="#7b94be" stroke-width="0.9"/><circle cx="12" cy="14" r="3.5" fill="none" stroke="#7b94be" stroke-width="1.2"/><circle cx="42" cy="29" r="4.5" fill="none" stroke="#7b94be" stroke-width="1.3"/><circle cx="72" cy="12" r="3"   fill="none" stroke="#7b94be" stroke-width="1.1"/><circle cx="22" cy="46" r="3"   fill="none" stroke="#7b94be" stroke-width="1.1"/><circle cx="58" cy="48" r="3.5" fill="none" stroke="#7b94be" stroke-width="1.2"/><circle cx="88" cy="32" r="2.8" fill="none" stroke="#7b94be" stroke-width="1.1"/>'],
+    'mesh'    => ['ตารางเรขาคณิต',   '<rect width="96" height="58" fill="#f8f9fc"/><path d="M0 0 L96 0 M0 16 L96 16 M0 32 L96 32 M0 48 L96 48 M0 0 L0 58 M16 0 L16 58 M32 0 L32 58 M48 0 L48 58 M64 0 L64 58 M80 0 L80 58 M96 0 L96 58" stroke="#7b94be" stroke-width="0.55"/>'],
+    'wave'    => ['คลื่นข้อมูล',     '<rect width="96" height="58" fill="#f8f9fc"/><path d="M0 12 Q24 2  48 12 Q72 22 96 12" stroke="#7b94be" stroke-width="1" fill="none"/><path d="M0 28 Q24 18 48 28 Q72 38 96 28" stroke="#7b94be" stroke-width="1" fill="none"/><path d="M0 44 Q24 34 48 44 Q72 54 96 44" stroke="#7b94be" stroke-width="1" fill="none"/>'],
+  ];
+  ?>
+  <div style="margin-bottom:18px">
+    <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:10px"><?= icon('image', 15) ?> พื้นหลังเกียรติบัตร</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <?php foreach ($bg_previews as $key => [$label, $inner_svg]): ?>
+      <label onclick="document.querySelectorAll('.bg-opt').forEach(e=>e.style.cssText='border:2px solid var(--line-2);border-radius:9px;cursor:pointer;overflow:hidden');this.querySelector('.bg-opt').style.cssText='border:2px solid var(--primary);border-radius:9px;cursor:pointer;overflow:hidden;outline:3px solid var(--primary-soft)'">
+        <input type="radio" name="background_style" value="<?= $key ?>"
+               <?= $cur_bg === $key ? 'checked' : '' ?> style="display:none">
+        <div class="bg-opt" style="border:2px solid <?= $cur_bg === $key ? 'var(--primary)' : 'var(--line-2)' ?>;border-radius:9px;cursor:pointer;overflow:hidden;<?= $cur_bg === $key ? 'outline:3px solid var(--primary-soft)' : '' ?>">
+          <svg width="96" height="58" xmlns="http://www.w3.org/2000/svg"><?= $inner_svg ?></svg>
+          <div style="text-align:center;font-size:10.5px;color:var(--sub);padding:4px 6px;background:var(--card)"><?= $label ?></div>
+        </div>
+      </label>
+      <?php endforeach; ?>
+    </div>
+  </div>
+
   <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:10px;display:flex;align-items:center;gap:7px">
     <?= icon('trophy', 15) ?> ระดับผลการสำเร็จ
     <span class="subtle" style="font-weight:400;font-size:12px">(เรียงจากคะแนนสูงสุดก่อน)</span>

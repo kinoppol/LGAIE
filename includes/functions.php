@@ -748,12 +748,25 @@ function ensure_certificate_schema(): void
     if ($done) return;
     $done = true;
     try { get_db()->exec("CREATE TABLE IF NOT EXISTS course_certificates (
-        id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        course_id   INT UNSIGNED NOT NULL UNIQUE,
-        enabled     TINYINT(1)   NOT NULL DEFAULT 0,
-        grade_json  TEXT         NOT NULL DEFAULT '[]',
+        id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        course_id        INT UNSIGNED NOT NULL UNIQUE,
+        enabled          TINYINT(1)   NOT NULL DEFAULT 0,
+        grade_json       TEXT         NOT NULL DEFAULT '[]',
+        background_style VARCHAR(32)  NOT NULL DEFAULT 'plain',
         FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+    try { get_db()->exec("ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_style VARCHAR(32) NOT NULL DEFAULT 'plain'"); } catch (PDOException) {}
+}
+
+/** Returns ordered list of certificate background styles. */
+function cert_bg_styles(): array {
+    return [
+        'plain'   => 'เรียบ',
+        'circuit' => 'วงจรดิจิทัล',
+        'neural'  => 'โครงข่าย AI',
+        'mesh'    => 'ตารางเรขาคณิต',
+        'wave'    => 'คลื่นข้อมูล',
+    ];
 }
 
 function ensure_directory_schema(): void
