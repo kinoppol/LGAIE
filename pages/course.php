@@ -776,28 +776,71 @@ if ($is_owner):
   </label>
 
   <?php
-  $cur_bg = $cert['background_style'] ?? 'plain';
+  $cur_bg       = $cert['background_style'] ?? 'plain';
+  $cur_bg_image = (string)($cert['background_image'] ?? '');
+  if (!str_starts_with($cur_bg_image, 'uploads/')) $cur_bg_image = '';
   $bg_previews = [
-    'plain'   => ['เรียบ',           '<rect width="96" height="58" fill="#f8f9fc"/><rect x="0" y="0" width="96" height="5" fill="#c8d5e8" rx="2"/>'],
-    'circuit' => ['วงจรดิจิทัล',     '<rect width="96" height="58" fill="#f8f9fc"/><path d="M0 22 L14 22 L14 40 L50 40 L50 22 L96 22 M30 0 L30 14 L50 14 M30 58 L30 46 L14 46" stroke="#7b94be" stroke-width="1.1" fill="none"/><circle cx="14" cy="22" r="2.5" fill="#7b94be"/><circle cx="50" cy="22" r="2.5" fill="#7b94be"/><circle cx="50" cy="14" r="2.5" fill="#7b94be"/><circle cx="14" cy="46" r="2.5" fill="#7b94be"/><circle cx="30" cy="40" r="2" fill="#7b94be"/>'],
-    'neural'  => ['โครงข่าย AI',     '<rect width="96" height="58" fill="#f8f9fc"/><line x1="12" y1="14" x2="42" y2="29" stroke="#7b94be" stroke-width="0.9"/><line x1="42" y1="29" x2="72" y2="12" stroke="#7b94be" stroke-width="0.9"/><line x1="42" y1="29" x2="58" y2="48" stroke="#7b94be" stroke-width="0.9"/><line x1="12" y1="14" x2="22" y2="46" stroke="#7b94be" stroke-width="0.9"/><line x1="22" y1="46" x2="58" y2="48" stroke="#7b94be" stroke-width="0.9"/><line x1="72" y1="12" x2="88" y2="32" stroke="#7b94be" stroke-width="0.9"/><line x1="58" y1="48" x2="88" y2="32" stroke="#7b94be" stroke-width="0.9"/><circle cx="12" cy="14" r="3.5" fill="none" stroke="#7b94be" stroke-width="1.2"/><circle cx="42" cy="29" r="4.5" fill="none" stroke="#7b94be" stroke-width="1.3"/><circle cx="72" cy="12" r="3"   fill="none" stroke="#7b94be" stroke-width="1.1"/><circle cx="22" cy="46" r="3"   fill="none" stroke="#7b94be" stroke-width="1.1"/><circle cx="58" cy="48" r="3.5" fill="none" stroke="#7b94be" stroke-width="1.2"/><circle cx="88" cy="32" r="2.8" fill="none" stroke="#7b94be" stroke-width="1.1"/>'],
-    'mesh'    => ['ตารางเรขาคณิต',   '<rect width="96" height="58" fill="#f8f9fc"/><path d="M0 0 L96 0 M0 16 L96 16 M0 32 L96 32 M0 48 L96 48 M0 0 L0 58 M16 0 L16 58 M32 0 L32 58 M48 0 L48 58 M64 0 L64 58 M80 0 L80 58 M96 0 L96 58" stroke="#7b94be" stroke-width="0.55"/>'],
-    'wave'    => ['คลื่นข้อมูล',     '<rect width="96" height="58" fill="#f8f9fc"/><path d="M0 12 Q24 2  48 12 Q72 22 96 12" stroke="#7b94be" stroke-width="1" fill="none"/><path d="M0 28 Q24 18 48 28 Q72 38 96 28" stroke="#7b94be" stroke-width="1" fill="none"/><path d="M0 44 Q24 34 48 44 Q72 54 96 44" stroke="#7b94be" stroke-width="1" fill="none"/>'],
+    'plain'   => ['เรียบ',          '<rect width="96" height="58" fill="#f8f9fc"/><rect x="0" y="0" width="96" height="5" fill="#c8d5e8" rx="2"/>'],
+    'circuit' => ['วงจรดิจิทัล',    '<rect width="96" height="58" fill="#f8f9fc"/><path d="M0 22 L14 22 L14 40 L50 40 L50 22 L96 22 M30 0 L30 14 L50 14 M30 58 L30 46 L14 46" stroke="#7b94be" stroke-width="1.1" fill="none"/><circle cx="14" cy="22" r="2.5" fill="#7b94be"/><circle cx="50" cy="22" r="2.5" fill="#7b94be"/><circle cx="50" cy="14" r="2.5" fill="#7b94be"/><circle cx="14" cy="46" r="2.5" fill="#7b94be"/><circle cx="30" cy="40" r="2" fill="#7b94be"/>'],
+    'neural'  => ['โครงข่าย AI',    '<rect width="96" height="58" fill="#f8f9fc"/><line x1="12" y1="14" x2="42" y2="29" stroke="#7b94be" stroke-width="0.9"/><line x1="42" y1="29" x2="72" y2="12" stroke="#7b94be" stroke-width="0.9"/><line x1="42" y1="29" x2="58" y2="48" stroke="#7b94be" stroke-width="0.9"/><line x1="12" y1="14" x2="22" y2="46" stroke="#7b94be" stroke-width="0.9"/><line x1="22" y1="46" x2="58" y2="48" stroke="#7b94be" stroke-width="0.9"/><line x1="72" y1="12" x2="88" y2="32" stroke="#7b94be" stroke-width="0.9"/><line x1="58" y1="48" x2="88" y2="32" stroke="#7b94be" stroke-width="0.9"/><circle cx="12" cy="14" r="3.5" fill="none" stroke="#7b94be" stroke-width="1.2"/><circle cx="42" cy="29" r="4.5" fill="none" stroke="#7b94be" stroke-width="1.3"/><circle cx="72" cy="12" r="3" fill="none" stroke="#7b94be" stroke-width="1.1"/><circle cx="22" cy="46" r="3" fill="none" stroke="#7b94be" stroke-width="1.1"/><circle cx="58" cy="48" r="3.5" fill="none" stroke="#7b94be" stroke-width="1.2"/><circle cx="88" cy="32" r="2.8" fill="none" stroke="#7b94be" stroke-width="1.1"/>'],
+    'mesh'    => ['ตารางเรขาคณิต',  '<rect width="96" height="58" fill="#f8f9fc"/><path d="M0 0 L96 0 M0 16 L96 16 M0 32 L96 32 M0 48 L96 48 M0 0 L0 58 M16 0 L16 58 M32 0 L32 58 M48 0 L48 58 M64 0 L64 58 M80 0 L80 58 M96 0 L96 58" stroke="#7b94be" stroke-width="0.55"/>'],
+    'wave'    => ['คลื่นข้อมูล',    '<rect width="96" height="58" fill="#f8f9fc"/><path d="M0 12 Q24 2 48 12 Q72 22 96 12" stroke="#7b94be" stroke-width="1" fill="none"/><path d="M0 28 Q24 18 48 28 Q72 38 96 28" stroke="#7b94be" stroke-width="1" fill="none"/><path d="M0 44 Q24 34 48 44 Q72 54 96 44" stroke="#7b94be" stroke-width="1" fill="none"/>'],
   ];
   ?>
   <div style="margin-bottom:18px">
     <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:10px"><?= icon('image', 15) ?> พื้นหลังเกียรติบัตร</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <?php foreach ($bg_previews as $key => [$label, $inner_svg]): ?>
-      <label onclick="document.querySelectorAll('.bg-opt').forEach(e=>e.style.cssText='border:2px solid var(--line-2);border-radius:9px;cursor:pointer;overflow:hidden');this.querySelector('.bg-opt').style.cssText='border:2px solid var(--primary);border-radius:9px;cursor:pointer;overflow:hidden;outline:3px solid var(--primary-soft)'">
+      <?php foreach ($bg_previews as $key => [$label, $inner_svg]):
+            $is_sel = ($cur_bg === $key); ?>
+      <label onclick="certBgSelect(this,'<?= $key ?>')">
         <input type="radio" name="background_style" value="<?= $key ?>"
-               <?= $cur_bg === $key ? 'checked' : '' ?> style="display:none">
-        <div class="bg-opt" style="border:2px solid <?= $cur_bg === $key ? 'var(--primary)' : 'var(--line-2)' ?>;border-radius:9px;cursor:pointer;overflow:hidden;<?= $cur_bg === $key ? 'outline:3px solid var(--primary-soft)' : '' ?>">
+               <?= $is_sel ? 'checked' : '' ?> style="display:none">
+        <div class="bg-opt" style="border:2px solid <?= $is_sel ? 'var(--primary)' : 'var(--line-2)' ?>;border-radius:9px;cursor:pointer;overflow:hidden;<?= $is_sel ? 'outline:3px solid var(--primary-soft)' : '' ?>">
           <svg width="96" height="58" xmlns="http://www.w3.org/2000/svg"><?= $inner_svg ?></svg>
           <div style="text-align:center;font-size:10.5px;color:var(--sub);padding:4px 6px;background:var(--card)"><?= $label ?></div>
         </div>
       </label>
       <?php endforeach; ?>
+
+      <?php /* ── Custom image option ── */
+            $is_custom = ($cur_bg === 'custom'); ?>
+      <label onclick="certBgSelect(this,'custom')">
+        <input type="radio" name="background_style" value="custom"
+               <?= $is_custom ? 'checked' : '' ?> style="display:none">
+        <div class="bg-opt" style="border:2px solid <?= $is_custom ? 'var(--primary)' : 'var(--line-2)' ?>;border-radius:9px;cursor:pointer;overflow:hidden;<?= $is_custom ? 'outline:3px solid var(--primary-soft)' : '' ?>">
+          <?php if ($cur_bg_image): ?>
+          <img src="<?= h($cur_bg_image) ?>" width="96" height="58" style="display:block;object-fit:cover">
+          <?php else: ?>
+          <svg width="96" height="58" xmlns="http://www.w3.org/2000/svg">
+            <rect width="96" height="58" fill="#f8f9fc"/>
+            <text x="48" y="26" text-anchor="middle" font-size="18" fill="#94a3b8">🖼</text>
+            <text x="48" y="44" text-anchor="middle" font-size="9.5" fill="#94a3b8">อัปโหลด</text>
+          </svg>
+          <?php endif; ?>
+          <div style="text-align:center;font-size:10.5px;color:var(--sub);padding:4px 6px;background:var(--card)">รูปภาพของครู</div>
+        </div>
+      </label>
+    </div>
+
+    <!-- Custom image upload section -->
+    <div id="cert-custom-bg" style="display:<?= $is_custom ? 'block' : 'none' ?>;margin-top:12px;padding:14px 16px;border:1px solid var(--line-2);border-radius:10px">
+      <div style="font-size:12.5px;color:var(--sub);margin-bottom:8px">
+        <?= icon('info', 13) ?> แนะนำ: ใช้รูป landscape 1200×800px หรือใกล้เคียง · ไม่เกิน 5 MB (JPG, PNG, WebP)
+      </div>
+      <input type="file" name="background_image" accept="image/jpeg,image/png,image/gif,image/webp"
+             class="input" style="margin-bottom:10px"
+             onchange="certBgPreview(this)">
+      <div id="cert-bg-new-preview" style="display:none;margin-bottom:10px">
+        <img id="cert-bg-preview-img" src="" style="max-height:100px;border-radius:6px;border:1px solid var(--line-2)">
+      </div>
+      <?php if ($cur_bg_image): ?>
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="<?= h($cur_bg_image) ?>" style="height:48px;border-radius:5px;object-fit:cover;border:1px solid var(--line-2)">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12.5px;color:var(--danger)">
+          <input type="checkbox" name="remove_background_image" value="1"> ลบรูปภาพปัจจุบัน
+        </label>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 
@@ -826,6 +869,23 @@ if ($is_owner):
 </form>
 <?php modal_foot('cert-settings', 'ยกเลิก', 'บันทึก'); ?>
 <script>
+function certBgSelect(lbl, key) {
+  var sel = 'border:2px solid var(--primary);border-radius:9px;cursor:pointer;overflow:hidden;outline:3px solid var(--primary-soft)';
+  var nor = 'border:2px solid var(--line-2);border-radius:9px;cursor:pointer;overflow:hidden';
+  document.querySelectorAll('.bg-opt').forEach(function(e){ e.style.cssText = nor; });
+  lbl.querySelector('.bg-opt').style.cssText = sel;
+  var cs = document.getElementById('cert-custom-bg');
+  if (cs) cs.style.display = key === 'custom' ? 'block' : 'none';
+}
+function certBgPreview(input) {
+  var p = document.getElementById('cert-bg-new-preview');
+  var img = document.getElementById('cert-bg-preview-img');
+  if (input.files && input.files[0]) {
+    var r = new FileReader();
+    r.onload = function(e){ img.src = e.target.result; p.style.display = 'block'; };
+    r.readAsDataURL(input.files[0]);
+  }
+}
 function certAddGrade(label, min) {
   var c = document.getElementById('cert-grades-container');
   var row = document.createElement('div');

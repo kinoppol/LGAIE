@@ -60,11 +60,18 @@ if (!$grade_label) {
 }
 
 $teacher  = db_row('SELECT * FROM users WHERE id = ?', [$course['teacher_id']]);
-$bg_style = $cert['background_style'] ?? 'plain';
-$theme    = $_SESSION['theme'] ?? 'system';
+$bg_style  = $cert['background_style'] ?? 'plain';
+$bg_image  = (string)($cert['background_image'] ?? '');
+// Safety: only allow paths inside uploads/
+if (!str_starts_with($bg_image, 'uploads/')) $bg_image = '';
+$theme     = $_SESSION['theme'] ?? 'system';
 
-function cert_bg_svg(string $style): string
+function cert_bg_svg(string $style, string $image_path = ''): string
 {
+    if ($style === 'custom' && $image_path) {
+        return '<img class="cert-bg" src="' . h($image_path) . '" alt="" aria-hidden="true"
+                     style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;z-index:0;opacity:.3">';
+    }
     $c = '#7b94be'; // pattern color — prints cleanly on white
     switch ($style) {
         case 'circuit':
@@ -249,7 +256,7 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
 <div class="cert-page">
   <div class="cert-box">
 
-    <?= cert_bg_svg($bg_style) ?>
+    <?= cert_bg_svg($bg_style, $bg_image) ?>
 
     <div class="cert-inner">
     <div class="cert-banner" style="background:<?= h($course['banner'] ?: 'linear-gradient(135deg,var(--primary),var(--primary-dark,var(--primary)))') ?>"></div>

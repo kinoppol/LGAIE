@@ -756,9 +756,10 @@ function ensure_certificate_schema(): void
         FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
     try { get_db()->exec("ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_style VARCHAR(32) NOT NULL DEFAULT 'plain'"); } catch (PDOException) {}
+    try { get_db()->exec("ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_image VARCHAR(255) NOT NULL DEFAULT ''"); } catch (PDOException) {}
 }
 
-/** Returns ordered list of certificate background styles. */
+/** Returns ordered list of certificate background styles (key => label). */
 function cert_bg_styles(): array {
     return [
         'plain'   => 'เรียบ',
@@ -766,6 +767,7 @@ function cert_bg_styles(): array {
         'neural'  => 'โครงข่าย AI',
         'mesh'    => 'ตารางเรขาคณิต',
         'wave'    => 'คลื่นข้อมูล',
+        'custom'  => 'รูปภาพของครู',
     ];
 }
 
