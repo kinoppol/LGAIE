@@ -143,6 +143,8 @@ $results[] = migrate_run($db, 'course_certificates.background_style',
     "ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_style VARCHAR(32) NOT NULL DEFAULT 'plain'");
 $results[] = migrate_run($db, 'course_certificates.background_image',
     "ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_image VARCHAR(255) NOT NULL DEFAULT ''");
+$results[] = migrate_run($db, 'course_certificates.orientation',
+    "ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS orientation VARCHAR(16) NOT NULL DEFAULT 'portrait'");
 
 $results[] = migrate_run($db, 'table: course_teachers',
     "CREATE TABLE IF NOT EXISTS course_teachers (

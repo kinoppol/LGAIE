@@ -763,6 +763,7 @@ function ensure_certificate_schema(): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
     try { get_db()->exec("ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_style VARCHAR(32) NOT NULL DEFAULT 'plain'"); } catch (PDOException) {}
     try { get_db()->exec("ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_image VARCHAR(255) NOT NULL DEFAULT ''"); } catch (PDOException) {}
+    try { get_db()->exec("ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS orientation VARCHAR(16) NOT NULL DEFAULT 'portrait'"); } catch (PDOException) {}
 }
 
 /** Returns ordered list of certificate background styles (key => label). */

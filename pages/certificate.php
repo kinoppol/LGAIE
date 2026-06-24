@@ -60,7 +60,8 @@ if (!$grade_label) {
 }
 
 $teacher  = db_row('SELECT * FROM users WHERE id = ?', [$course['teacher_id']]);
-$bg_style  = $cert['background_style'] ?? 'plain';
+$bg_style    = $cert['background_style'] ?? 'plain';
+$orientation = ($cert['orientation'] ?? 'portrait') === 'landscape' ? 'landscape' : 'portrait';
 $bg_image  = (string)($cert['background_image'] ?? '');
 // Safety: only allow paths inside uploads/
 if (!str_starts_with($bg_image, 'uploads/')) $bg_image = '';
@@ -171,6 +172,13 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
     .no-print a:hover { color: var(--heading); }
 
     .cert-page { max-width: 780px; margin: 36px auto; padding: 0 16px 60px; }
+    /* Landscape orientation: wider page and roomier horizontal box */
+    .cert-page.landscape { max-width: 1040px; }
+    .cert-page.landscape .cert-box { padding: 44px 80px; }
+    .cert-page.landscape .cert-subtitle { margin-bottom: 28px; }
+    .cert-page.landscape .cert-school { margin-bottom: 26px; }
+    .cert-page.landscape .cert-grade-badge { margin-bottom: 24px; }
+    .cert-page.landscape .cert-score { margin-bottom: 28px; }
 
     .cert-box {
       background: var(--card);
@@ -250,6 +258,7 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
       .cert-box { border-color: #ccc; border-radius: 0; page-break-inside: avoid; }
       .cert-bg { opacity: .2; }
     }
+    @page { size: A4 <?= $orientation ?>; margin: 12mm; }
   </style>
 </head>
 <body>
@@ -265,7 +274,7 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
   </div>
 </div>
 
-<div class="cert-page">
+<div class="cert-page <?= $orientation === 'landscape' ? 'landscape' : '' ?>">
   <div class="cert-box">
 
     <?= cert_bg_svg($bg_style, $bg_image) ?>

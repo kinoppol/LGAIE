@@ -1087,6 +1087,25 @@ if ($is_owner):
     </div>
   </label>
 
+  <?php $cur_orient = ($cert['orientation'] ?? 'portrait') === 'landscape' ? 'landscape' : 'portrait'; ?>
+  <div style="margin-bottom:18px">
+    <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:10px"><?= icon('image', 15) ?> รูปแบบเกียรติบัตร</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <?php foreach (['portrait' => ['แนวตั้ง (ปกติ)', 34, 46], 'landscape' => ['แนวนอน', 46, 34]] as $okey => [$olabel, $ow, $oh]):
+            $osel = ($cur_orient === $okey); ?>
+      <label onclick="certOrientSelect(this,'<?= $okey ?>')" style="cursor:pointer">
+        <input type="radio" name="orientation" value="<?= $okey ?>" <?= $osel ? 'checked' : '' ?> style="display:none">
+        <div class="orient-opt" style="display:flex;flex-direction:column;align-items:center;gap:6px;border:2px solid <?= $osel ? 'var(--primary)' : 'var(--line-2)' ?>;border-radius:10px;padding:12px 18px;<?= $osel ? 'outline:3px solid var(--primary-soft)' : '' ?>">
+          <div style="width:<?= $ow ?>px;height:<?= $oh ?>px;border:2px solid var(--sub);border-radius:3px;background:var(--card);display:grid;place-items:center">
+            <div style="width:60%;height:2px;background:var(--sub);opacity:.5"></div>
+          </div>
+          <div style="font-size:12px;color:var(--heading);font-weight:600"><?= $olabel ?></div>
+        </div>
+      </label>
+      <?php endforeach; ?>
+    </div>
+  </div>
+
   <?php
   $cur_bg       = $cert['background_style'] ?? 'plain';
   $cur_bg_image = (string)($cert['background_image'] ?? '');
@@ -1181,6 +1200,13 @@ if ($is_owner):
 </form>
 <?php modal_foot('cert-settings', 'ยกเลิก', 'บันทึก'); ?>
 <script>
+function certOrientSelect(lbl, key) {
+  var sel = 'display:flex;flex-direction:column;align-items:center;gap:6px;border:2px solid var(--primary);border-radius:10px;padding:12px 18px;outline:3px solid var(--primary-soft)';
+  var nor = 'display:flex;flex-direction:column;align-items:center;gap:6px;border:2px solid var(--line-2);border-radius:10px;padding:12px 18px';
+  document.querySelectorAll('.orient-opt').forEach(function(e){
+    e.style.cssText = (e === lbl.querySelector('.orient-opt')) ? sel : nor;
+  });
+}
 function certBgSelect(lbl, key) {
   var sel = 'border:2px solid var(--primary);border-radius:9px;cursor:pointer;overflow:hidden;outline:3px solid var(--primary-soft)';
   var nor = 'border:2px solid var(--line-2);border-radius:9px;cursor:pointer;overflow:hidden';
