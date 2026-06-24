@@ -19,6 +19,7 @@ $course_id  = (int)($_POST['course_id'] ?? 0);
 if (!$title || !$week || !$course_id) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
+if (!teaches_course($course_id)) json_err('ไม่มีสิทธิ์เพิ่มบทเรียนในรายวิชานี้', 403);
 
 // Auto-migrate columns
 try { get_db()->exec("ALTER TABLE lesson_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL"); } catch (PDOException) {}

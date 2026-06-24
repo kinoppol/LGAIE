@@ -289,7 +289,10 @@ function openGradeModal(sub) {
   if (resultWrap) resultWrap.style.display = sub.result ? '' : 'none';
   const gradeInput = document.getElementById('gf-grade');
   gradeInput.max   = sub.points;
-  gradeInput.value = sub.grade || '';
+  // Pre-fill with the existing grade, or default to full marks while waiting.
+  const hasGrade = sub.grade !== null && sub.grade !== undefined && sub.grade !== '';
+  gradeInput.value = hasGrade ? sub.grade : sub.points;
+  clampGrade(gradeInput);
   document.getElementById('gf-feedback').value   = sub.feedback || '';
   document.getElementById('gf-pts-lbl').textContent = 'คะแนน (เต็ม ' + sub.points + ')';
   document.getElementById('grade-modal-title').textContent = 'ตรวจงาน: ' + sub.name;

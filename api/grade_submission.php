@@ -13,15 +13,15 @@ $feedback      = trim($_POST['feedback'] ?? '');
 
 if (!$submission_id) json_err('ไม่พบข้อมูลงาน');
 
-// Verify the teacher owns the assignment for this submission
+// Verify the teacher teaches the course this submission belongs to
 $check = db_row('
-    SELECT s.id, a.points FROM submissions s
+    SELECT s.id, a.points, c.id AS course_id FROM submissions s
     JOIN assignments a ON a.id = s.assignment_id
     JOIN courses c ON c.id = a.course_id
-    WHERE s.id = ? AND c.teacher_id = ?
-', [$submission_id, current_user_id()]);
+    WHERE s.id = ?
+', [$submission_id]);
 
-if (!$check) json_err('ไม่มีสิทธิ์ให้คะแนนงานนี้', 403);
+if (!$check || !teaches_course((int)$check['course_id'])) json_err('ไม่มีสิทธิ์ให้คะแนนงานนี้', 403);
 
 // Clamp the grade to 0..full marks
 if ($grade !== null) {

@@ -9,13 +9,9 @@ if (!is_teacher()) json_err('ไม่มีสิทธิ์', 403);
 $assignment_id = (int)($_POST['assignment_id'] ?? 0);
 if (!$assignment_id) json_err('ไม่พบงานที่ต้องการลบ');
 
-// Ownership check — teacher must own the course this assignment belongs to
-$owns = db_val('
-    SELECT 1 FROM assignments a
-    JOIN courses c ON c.id = a.course_id
-    WHERE a.id = ? AND c.teacher_id = ?
-', [$assignment_id, current_user_id()]);
-if (!$owns) json_err('ไม่มีสิทธิ์ลบงานนี้', 403);
+// Access check — teacher must teach the course this assignment belongs to
+$course_id = (int)db_val('SELECT course_id FROM assignments WHERE id = ?', [$assignment_id]);
+if (!$course_id || !teaches_course($course_id)) json_err('ไม่มีสิทธิ์ลบงานนี้', 403);
 
 // Collect on-disk files to remove after the DB rows are gone (FK cascade
 // removes the rows but not the uploaded files).

@@ -10,8 +10,7 @@ if (!is_teacher()) json_err('ไม่มีสิทธิ์', 403);
 $course_id = (int)($_POST['course_id'] ?? 0);
 if (!$course_id) json_err('ไม่ระบุรายวิชา');
 
-$owns = db_val('SELECT 1 FROM courses WHERE id = ? AND teacher_id = ?', [$course_id, current_user_id()]);
-if (!$owns) json_err('ไม่มีสิทธิ์แก้ไขรายวิชานี้', 403);
+if (!teaches_course($course_id)) json_err('ไม่มีสิทธิ์แก้ไขรายวิชานี้', 403);
 
 $enabled   = isset($_POST['enabled']) ? 1 : 0;
 $bg_style  = array_key_exists($_POST['background_style'] ?? '', cert_bg_styles()) ? $_POST['background_style'] : 'plain';

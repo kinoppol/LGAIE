@@ -15,8 +15,7 @@ if (!$course_id || $body === '') {
     json_err('กรุณากรอกข้อความประกาศ');
 }
 
-$course = db_row('SELECT id FROM courses WHERE id = ? AND teacher_id = ?', [$course_id, current_user_id()]);
-if (!$course) json_err('ไม่มีสิทธิ์ในรายวิชานี้', 403);
+if (!teaches_course($course_id)) json_err('ไม่มีสิทธิ์ในรายวิชานี้', 403);
 
 // Auto-create table for existing installations
 get_db()->exec("CREATE TABLE IF NOT EXISTS course_posts (

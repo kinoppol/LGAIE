@@ -13,9 +13,9 @@ $action    = trim($_POST['action'] ?? '');
 
 if (!$course_id) json_err('ไม่พบรายวิชา');
 
-// Ownership check
-$course = db_row('SELECT id, name FROM courses WHERE id = ? AND teacher_id = ?', [$course_id, current_user_id()]);
-if (!$course) json_err('ไม่มีสิทธิ์จัดการรายวิชานี้', 403);
+// Access check — owner or co-teacher may manage students/invites
+if (!teaches_course($course_id)) json_err('ไม่มีสิทธิ์จัดการรายวิชานี้', 403);
+$course = db_row('SELECT id, name FROM courses WHERE id = ?', [$course_id]);
 
 // Auto-migrate: ensure course_invites table exists
 try {

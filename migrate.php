@@ -144,6 +144,20 @@ $results[] = migrate_run($db, 'course_certificates.background_style',
 $results[] = migrate_run($db, 'course_certificates.background_image',
     "ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_image VARCHAR(255) NOT NULL DEFAULT ''");
 
+$results[] = migrate_run($db, 'table: course_teachers',
+    "CREATE TABLE IF NOT EXISTS course_teachers (
+        id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        course_id  INT UNSIGNED NOT NULL,
+        user_id    INT UNSIGNED NOT NULL,
+        co_role    ENUM('co','supervisor') NOT NULL DEFAULT 'co',
+        added_by   INT UNSIGNED NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_course_teacher (course_id, user_id),
+        INDEX (user_id),
+        FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
 // ── 7. app_settings seed ─────────────────────────────────────────────────────
 $results[] = migrate_run($db, 'app_settings seed',
     "INSERT IGNORE INTO app_settings (setting_key, setting_value) VALUES

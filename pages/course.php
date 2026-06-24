@@ -57,7 +57,10 @@ function storage_donut(float $pct, string $color): string {
 // ── Course header ──────────────────────────────────────────────
 ?>
 <?php
-$is_owner = !$guest_mode && is_teacher() && (int)$c['teacher_id'] === current_user_id();
+// $is_course_owner: the original owner only (owner-only actions).
+// $is_owner: owner OR co-teacher — may manage/teach this course.
+$is_course_owner = !$guest_mode && is_teacher() && (int)$c['teacher_id'] === current_user_id();
+$is_owner        = !$guest_mode && is_teacher() && teaches_course($course_id);
 ?>
 
 <div style="display:flex;align-items:center;margin-bottom:4px">
@@ -428,12 +431,21 @@ elseif ($tab === 'people'):
     // Auto-migrate: ensure invite table exists
     try { get_db()->exec('CREATE TABLE IF NOT EXISTS course_invites (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, course_id INT UNSIGNED NOT NULL, invite_type ENUM("link","code","email") NOT NULL DEFAULT "code", invite_token VARCHAR(40) NULL, invite_code VARCHAR(10) NULL, invited_email VARCHAR(150) NULL, created_by INT UNSIGNED NOT NULL, expires_at DATETIME NULL, max_uses INT UNSIGNED NULL, use_count INT UNSIGNED DEFAULT 0, is_active TINYINT(1) DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE, FOREIGN KEY (created_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'); } catch (PDOException) {}
     $invite_code_row = db_row('SELECT * FROM course_invites WHERE course_id = ? AND invite_type = "code" ORDER BY id DESC LIMIT 1', [$course_id]);
+    ensure_coteacher_schema();
+    $coteachers = db_rows('SELECT u.*, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? ORDER BY ct.created_at', [$course_id]);
 ?>
 <div class="row wrap" style="align-items:flex-start">
   <div style="flex:1 1 340px;display:flex;flex-direction:column;gap:18px">
     <!-- Teacher card -->
     <div class="card">
-      <div class="card-head"><?= icon('edit', 18, 'var(--primary)') ?><h3>ครูผู้สอน</h3></div>
+      <div class="card-head">
+        <?= icon('edit', 18, 'var(--primary)') ?><h3>ทีมผู้สอน</h3>
+        <?php if ($is_course_owner): ?>
+        <button class="btn btn-sm btn-soft" style="margin-left:auto;gap:6px;font-size:12.5px" onclick="openModal('add-coteacher')">
+          <?= icon('plus', 14, 'var(--primary)') ?> เพิ่มครู
+        </button>
+        <?php endif; ?>
+      </div>
       <div class="card-pad" style="display:flex;align-items:center;gap:12px">
         <?= avatar($teacher, 46) ?>
         <div>
@@ -441,9 +453,30 @@ elseif ($tab === 'people'):
           <?php if (!empty($teacher['email'])): ?>
           <div class="subtle" style="font-size:12.5px"><?= h($teacher['email']) ?></div>
           <?php endif; ?>
-          <div class="subtle" style="font-size:13px">ครูผู้สอน</div>
+          <div class="subtle" style="font-size:13px">ครูผู้สอน (เจ้าของรายวิชา)</div>
         </div>
       </div>
+      <?php foreach ($coteachers as $ct): ?>
+      <div class="card-pad" style="display:flex;align-items:center;gap:12px;border-top:1px solid var(--line-2)"
+           id="coteacher-row-<?= (int)$ct['id'] ?>">
+        <?= avatar($ct, 46) ?>
+        <div style="min-width:0;flex:1">
+          <div style="font-weight:700;color:var(--heading)"><?= h($ct['name'] ?? '') ?></div>
+          <?php if (!empty($ct['email'])): ?>
+          <div class="subtle" style="font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?= h($ct['email']) ?></div>
+          <?php endif; ?>
+          <div class="subtle" style="font-size:13px">
+            <?= $ct['co_role'] === 'supervisor' ? 'ครูนิเทศ' : 'ครูร่วมสอน' ?>
+          </div>
+        </div>
+        <?php if ($is_course_owner): ?>
+        <button class="btn btn-sm btn-ghost" style="color:var(--danger)" title="นำออกจากทีมผู้สอน"
+                onclick="confirmRemoveCoteacher(<?= (int)$ct['id'] ?>, '<?= h(addslashes($ct['name'])) ?>')">
+          <?= icon('x', 14) ?>
+        </button>
+        <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
     </div>
 
     <?php if ($is_owner): ?>
@@ -587,6 +620,122 @@ elseif ($tab === 'people'):
     </div>
   </div>
 </div>
+
+<?php if ($is_course_owner): ?>
+<!-- Add co-teacher modal -->
+<div id="add-coteacher-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('add-coteacher')" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <div class="modal__head">
+      <span class="modal__ic" style="background:var(--primary-soft);color:var(--primary)"><?= icon('edit', 20, 'var(--primary)') ?></span>
+      <h2 class="modal__title">เพิ่มครูร่วมสอน / นิเทศ</h2>
+      <button class="modal__close" onclick="closeModal('add-coteacher')"><?= icon('x', 18) ?></button>
+    </div>
+    <div class="modal__body">
+      <p style="color:var(--sub);font-size:13.5px;margin:0 0 16px">
+        ระบุอีเมลของครูที่มีบัญชีในระบบอยู่แล้ว เพื่อเพิ่มเข้าร่วมสอนหรือนิเทศการสอนในรายวิชานี้
+      </p>
+      <div class="field" style="margin-bottom:14px">
+        <label class="field-label" style="display:block;font-size:.82rem;font-weight:600;color:var(--heading);margin-bottom:.4rem">
+          อีเมลครู <span style="color:#ef4444">*</span>
+        </label>
+        <input class="input" type="email" id="coteacher-email" placeholder="teacher@school.ac.th" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="field-label" style="display:block;font-size:.82rem;font-weight:600;color:var(--heading);margin-bottom:.4rem">บทบาท</label>
+        <select class="input" id="coteacher-role">
+          <option value="co">ครูร่วมสอน — ช่วยจัดการบทเรียน งาน และให้คะแนน</option>
+          <option value="supervisor">ครูนิเทศ — เข้าดูและช่วยจัดการการสอน</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('add-coteacher')">ยกเลิก</button>
+      <button type="button" id="add-coteacher-confirm" class="btn btn-primary" onclick="addCoteacher()">
+        <?= icon('plus', 15, '#fff') ?> เพิ่มเข้าทีมผู้สอน
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Remove co-teacher confirmation modal -->
+<div id="remove-coteacher-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('remove-coteacher')" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal__head">
+      <span class="modal__ic" style="background:var(--danger-soft,#fee2e2);color:var(--danger,#ef4444)"><?= icon('user-x', 20, 'var(--danger,#ef4444)') ?></span>
+      <h2 class="modal__title">นำครูออกจากทีมผู้สอน</h2>
+      <button class="modal__close" onclick="closeModal('remove-coteacher')"><?= icon('x', 18) ?></button>
+    </div>
+    <div class="modal__body">
+      <p style="color:var(--body);line-height:1.7;margin:0">
+        นำ <strong id="rm-coteacher-name" style="color:var(--heading)"></strong> ออกจากการร่วมสอนรายวิชานี้ใช่หรือไม่?
+      </p>
+      <p style="font-size:13px;color:var(--sub);margin:10px 0 0">ครูท่านนี้จะไม่เห็นและจัดการรายวิชานี้อีก สามารถเพิ่มกลับได้ภายหลัง</p>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('remove-coteacher')">ยกเลิก</button>
+      <button type="button" id="rm-coteacher-confirm" class="btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="doRemoveCoteacher()">
+        <?= icon('user-x', 15, '#fff') ?> ยืนยันนำออก
+      </button>
+    </div>
+  </div>
+</div>
+<script>
+const _coteacherCid = <?= $course_id ?>;
+function addCoteacher() {
+    var email = document.getElementById('coteacher-email').value.trim();
+    var role  = document.getElementById('coteacher-role').value;
+    if (!email) { showToast('กรุณากรอกอีเมล', true); return; }
+    var btn = document.getElementById('add-coteacher-confirm');
+    btn.disabled = true; btn.style.opacity = '.6';
+    var fd = new FormData();
+    fd.append('course_id', _coteacherCid);
+    fd.append('action', 'add');
+    fd.append('email', email);
+    fd.append('co_role', role);
+    fetch('api/manage_coteacher.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled = false; btn.style.opacity = '1';
+            if (res.ok) {
+                showToast(res.message || 'เพิ่มครูแล้ว');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast(res.error || 'เกิดข้อผิดพลาด', true);
+            }
+        })
+        .catch(() => { btn.disabled = false; btn.style.opacity = '1'; showToast('เกิดข้อผิดพลาด', true); });
+}
+var _rmCoteacherId = null;
+function confirmRemoveCoteacher(id, name) {
+    _rmCoteacherId = id;
+    document.getElementById('rm-coteacher-name').textContent = name;
+    openModal('remove-coteacher');
+}
+function doRemoveCoteacher() {
+    if (_rmCoteacherId === null) return;
+    var btn = document.getElementById('rm-coteacher-confirm');
+    btn.disabled = true; btn.style.opacity = '.6';
+    var fd = new FormData();
+    fd.append('course_id', _coteacherCid);
+    fd.append('action', 'remove');
+    fd.append('coteacher_id', _rmCoteacherId);
+    fetch('api/manage_coteacher.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled = false; btn.style.opacity = '1';
+            closeModal('remove-coteacher');
+            if (res.ok) {
+                showToast(res.message || 'นำออกแล้ว');
+                var row = document.getElementById('coteacher-row-' + _rmCoteacherId);
+                if (row) { row.style.opacity = '0'; row.style.transition = 'opacity .3s'; setTimeout(() => row.remove(), 300); }
+            } else {
+                showToast(res.error || 'เกิดข้อผิดพลาด', true);
+            }
+        })
+        .catch(() => { btn.disabled = false; btn.style.opacity = '1'; closeModal('remove-coteacher'); showToast('เกิดข้อผิดพลาด', true); });
+}
+</script>
+<?php endif; ?>
 
 <?php if ($is_owner): ?>
 <script>

@@ -197,6 +197,20 @@ CREATE TABLE IF NOT EXISTS app_settings (
   setting_value VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- -------- Co-teachers (ครูร่วมสอน / นิเทศ) --------
+CREATE TABLE IF NOT EXISTS course_teachers (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  course_id  INT UNSIGNED NOT NULL,
+  user_id    INT UNSIGNED NOT NULL,
+  co_role    ENUM('co','supervisor') NOT NULL DEFAULT 'co',
+  added_by   INT UNSIGNED NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_course_teacher (course_id, user_id),
+  INDEX (user_id),
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- -------- Submission Votes --------
 CREATE TABLE IF NOT EXISTS submission_votes (
   id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -6,15 +6,17 @@ $uid   = current_user_id();
 $page  = $_GET['page'] ?? 'todo';
 
 if (is_teacher()) {
+    ensure_coteacher_schema();
     $items = db_rows('
         SELECT a.*, c.name AS course_name, c.primary_color AS course_color,
             (SELECT COUNT(*) FROM submissions s WHERE s.assignment_id = a.id) AS sub_count,
             (SELECT COUNT(*) FROM submissions s WHERE s.assignment_id = a.id AND s.status = "submitted") AS pending_count
         FROM assignments a
         JOIN courses c ON c.id = a.course_id
-        WHERE c.is_archived = 0 AND c.teacher_id = ?
+        WHERE c.is_archived = 0
+          AND (c.teacher_id = ? OR c.id IN (SELECT course_id FROM course_teachers WHERE user_id = ?))
         ORDER BY a.due_date
-    ', [$uid]);
+    ', [$uid, $uid]);
 } else {
     $items = db_rows('
         SELECT a.*, c.name AS course_name, c.primary_color AS course_color,

@@ -29,6 +29,7 @@ if ($questions_json !== '' && $questions_json !== '[]') {
 if (!$title || !$due || !$course_id) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
+if (!teaches_course($course_id)) json_err('ไม่มีสิทธิ์เพิ่มงานในรายวิชานี้', 403);
 if ($type === 'แบบทดสอบ' && empty($questions)) {
     json_err('แบบทดสอบต้องมีคำถามอย่างน้อย 1 ข้อ');
 }
