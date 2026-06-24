@@ -271,7 +271,13 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
     <?= cert_bg_svg($bg_style, $bg_image) ?>
 
     <div class="cert-inner">
-    <?php if ($bg_style !== 'custom' || !$bg_image): ?>
+    <?php
+      // Show the decorative banner strip only for the "plain" style. For any
+      // background pattern/image, the strip would cover the top edge, so use a
+      // plain spacer instead and let the background reach the very top.
+      $has_bg = ($bg_style !== 'plain') && ($bg_style !== 'custom' || $bg_image);
+    ?>
+    <?php if (!$has_bg): ?>
     <div class="cert-banner" style="background:<?= h($course['banner'] ?: 'linear-gradient(135deg,var(--primary),var(--primary-dark,var(--primary)))') ?>"></div>
     <?php else: ?>
     <div style="height:40px"></div>
