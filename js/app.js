@@ -238,7 +238,9 @@ document.addEventListener('submit', e => {
   if (!('ajax' in form.dataset)) return;
   e.preventDefault();
 
-  const btn  = form.closest('.modal')?.querySelector('[type=submit]');
+  // The modal footer's submit button is type="button" (id ending in -submit);
+  // fall back to a real [type=submit] for forms that have one.
+  const btn  = form.closest('.modal')?.querySelector('.modal__foot [id$="-submit"], [type=submit]');
   const orig = btn?.textContent;
   if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก…'; }
 

@@ -340,9 +340,83 @@ elseif ($tab === 'work'): ?>
         echo "<span class=\"badge gray\" style=\"font-size:11px\">{$w['points']} คะแนน</span>";
     }
     ?>
+    <?php if (is_teacher()): ?>
+    <button class="btn btn-sm btn-ghost" style="color:var(--danger);padding:6px 8px" title="ลบงานนี้"
+            onclick="event.preventDefault();event.stopPropagation();confirmDeleteAssignment(<?= (int)$w['id'] ?>, '<?= h(addslashes($w['title'])) ?>', <?= $sub_cnt ?>)">
+      <?= icon('trash', 15) ?>
+    </button>
+    <?php endif; ?>
   </div>
 </a>
 <?php endforeach; ?>
+
+<?php if (is_teacher()): ?>
+<!-- Delete assignment confirmation modal -->
+<div id="del-assignment-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('del-assignment')" style="display:none">
+  <div class="modal" style="max-width:430px">
+    <div class="modal__head">
+      <span class="modal__ic" style="background:var(--danger-soft,#fee2e2);color:var(--danger,#ef4444)"><?= icon('trash', 20, 'var(--danger,#ef4444)') ?></span>
+      <h2 class="modal__title">ลบงานที่มอบหมาย</h2>
+      <button class="modal__close" onclick="closeModal('del-assignment')"><?= icon('x', 18) ?></button>
+    </div>
+    <div class="modal__body">
+      <p style="color:var(--body);line-height:1.7;margin:0">
+        คุณต้องการลบงาน <strong id="del-asgn-name" style="color:var(--heading)"></strong>
+        ออกจากรายวิชานี้ใช่หรือไม่?
+      </p>
+      <p id="del-asgn-warn" style="font-size:13px;color:var(--danger);margin:10px 0 0;display:none">
+        <?= icon('info', 14, 'var(--danger,#ef4444)') ?> งานนี้มีนักเรียนส่งแล้ว <span id="del-asgn-count"></span> คน — งานที่ส่ง คะแนน และไฟล์แนบทั้งหมดจะถูกลบถาวร
+      </p>
+      <p style="font-size:13px;color:var(--sub);margin:10px 0 0">การลบนี้ไม่สามารถย้อนกลับได้</p>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('del-assignment')">ยกเลิก</button>
+      <button type="button" id="del-asgn-confirm" class="btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="doDeleteAssignment()">
+        <?= icon('trash', 15, '#fff') ?> ยืนยันลบงาน
+      </button>
+    </div>
+  </div>
+</div>
+<script>
+var _delAsgnId = null;
+function confirmDeleteAssignment(id, title, subCount) {
+    _delAsgnId = id;
+    document.getElementById('del-asgn-name').textContent = '"' + title + '"';
+    var warn = document.getElementById('del-asgn-warn');
+    if (subCount > 0) {
+        document.getElementById('del-asgn-count').textContent = subCount;
+        warn.style.display = '';
+    } else {
+        warn.style.display = 'none';
+    }
+    openModal('del-assignment');
+}
+function doDeleteAssignment() {
+    if (_delAsgnId === null) return;
+    var btn = document.getElementById('del-asgn-confirm');
+    btn.disabled = true; btn.style.opacity = '.6';
+    var fd = new FormData();
+    fd.append('assignment_id', _delAsgnId);
+    fetch('api/delete_assignment.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled = false; btn.style.opacity = '1';
+            closeModal('del-assignment');
+            if (res.ok) {
+                showToast(res.message || 'ลบงานแล้ว');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast(res.error || 'เกิดข้อผิดพลาด', true);
+            }
+        })
+        .catch(() => {
+            btn.disabled = false; btn.style.opacity = '1';
+            closeModal('del-assignment');
+            showToast('เกิดข้อผิดพลาด', true);
+        });
+}
+</script>
+<?php endif; ?>
 
 <?php
 
