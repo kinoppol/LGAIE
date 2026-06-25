@@ -256,16 +256,27 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
       html, body { background: #fff; margin: 0; padding: 0; }
       .cert-page { margin: 0; padding: 0; max-width: none; width: 100%; }
       .cert-page.landscape { max-width: none; }
-      /* Fill exactly one A4 page (printable area = page size − @page margin). */
+      /* Lock to exactly one A4 page: A4 height − 2×12 mm margin */
       .cert-box {
         border-color: #999; border-radius: 0;
         box-sizing: border-box;
         width: 100%;
-        min-height: <?= $orientation === 'landscape' ? '184mm' : '271mm' ?>;
+        height: <?= $orientation === 'landscape' ? '186mm' : '273mm' ?>;
+        overflow: hidden;
+        padding: <?= $orientation === 'landscape' ? '8mm 14mm' : '10mm 14mm' ?>;
         display: flex; flex-direction: column; justify-content: center;
         page-break-inside: avoid; break-inside: avoid;
       }
-      .cert-page.landscape .cert-box { padding: 10mm 16mm; }
+      /* Tighten spacing so all elements fit within the fixed height */
+      .cert-logo { margin-bottom: 14px; }
+      .cert-subtitle { margin-bottom: 16px; }
+      .cert-divider { margin-bottom: 12px; }
+      .cert-school { margin-bottom: 14px; }
+      .cert-desc { margin-bottom: 10px; }
+      .cert-grade-badge { margin-bottom: 12px; padding: 7px 18px; }
+      .cert-score { margin-bottom: 16px; }
+      .cert-date { margin-top: 14px; }
+      .cert-banner { margin-bottom: 20px; }
       .cert-bg { opacity: .2; }
     }
     @page { size: A4 <?= $orientation ?>; margin: 12mm; }
