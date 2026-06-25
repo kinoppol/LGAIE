@@ -56,7 +56,7 @@ function layout_start(string $page_title = 'ClassroomAI'): void
   <?php if (!empty($_SESSION['error'])): ?>
   <meta name="flash-error" content="<?= h($_SESSION['error']) ?>">
   <?php unset($_SESSION['error']); endif; ?>
-  <link rel="icon" href="<?= asset('assets/ovec-logo.svg') ?>" type="image/svg+xml">
+  <link rel="icon" href="<?= asset('assets/favicon.svg') ?>" type="image/svg+xml">
   <link rel="stylesheet" href="<?= asset('css/theme.css') ?>">
   <script>
     (function(){
@@ -354,7 +354,7 @@ function layout_start_guest(string $page_title = 'ClassroomAI'): void
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= h($page_title) ?> — ClassroomAI</title>
-  <link rel="icon" href="<?= asset('assets/ovec-logo.svg') ?>" type="image/svg+xml">
+  <link rel="icon" href="<?= asset('assets/favicon.svg') ?>" type="image/svg+xml">
   <link rel="stylesheet" href="<?= asset('css/theme.css') ?>">
   <script>
     (function(){
