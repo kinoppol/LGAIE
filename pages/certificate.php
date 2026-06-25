@@ -253,9 +253,19 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
 
     @media print {
       .no-print { display: none !important; }
-      body { background: #fff; }
-      .cert-page { margin: 0; padding: 0; max-width: 100%; }
-      .cert-box { border-color: #ccc; border-radius: 0; page-break-inside: avoid; }
+      html, body { background: #fff; margin: 0; padding: 0; }
+      .cert-page { margin: 0; padding: 0; max-width: none; width: 100%; }
+      .cert-page.landscape { max-width: none; }
+      /* Fill exactly one A4 page (printable area = page size − @page margin). */
+      .cert-box {
+        border-color: #999; border-radius: 0;
+        box-sizing: border-box;
+        width: 100%;
+        min-height: <?= $orientation === 'landscape' ? '184mm' : '271mm' ?>;
+        display: flex; flex-direction: column; justify-content: center;
+        page-break-inside: avoid; break-inside: avoid;
+      }
+      .cert-page.landscape .cert-box { padding: 10mm 16mm; }
       .cert-bg { opacity: .2; }
     }
     @page { size: A4 <?= $orientation ?>; margin: 12mm; }
