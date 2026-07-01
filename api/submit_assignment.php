@@ -47,7 +47,8 @@ try {
          VALUES (?,?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
            answer_text=VALUES(answer_text), prompt_used=VALUES(prompt_used), ai_used=VALUES(ai_used),
-           better_than_teacher=VALUES(better_than_teacher), compare_note=VALUES(compare_note), result_text=VALUES(result_text)',
+           better_than_teacher=VALUES(better_than_teacher), compare_note=VALUES(compare_note), result_text=VALUES(result_text),
+           status="submitted", grade=NULL, feedback=NULL, submitted_at=NOW()',
         [$assignment_id, $student_id, $answer ?: null, $prompt_used, $ai_used, $better, $compare_note ?: null, $result ?: null]
     );
     $submission_id = (int)db_val(

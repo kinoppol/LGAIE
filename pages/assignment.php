@@ -488,6 +488,10 @@ document.addEventListener('DOMContentLoaded', function() {
       <span class="badge <?= $my_sub['status'] === 'graded' ? 'green' : 'gray' ?>" style="margin-left:auto">
         <?= $my_sub['status'] === 'graded' ? 'ได้คะแนน ' . $my_sub['grade'] . '/' . $a['points'] : 'รอตรวจ' ?>
       </span>
+      <button class="btn btn-sm btn-ghost" id="resubmit-toggle-btn" onclick="toggleResubmit()"
+              style="gap:5px;font-size:12px;flex-shrink:0">
+        <?= icon('edit', 13) ?> แก้ไขงาน
+      </button>
     </div>
     <div class="card-pad">
       <div class="field" style="margin-bottom:14px">
@@ -519,6 +523,111 @@ document.addEventListener('DOMContentLoaded', function() {
       <?php endif; ?>
     </div>
   </div>
+
+  <!-- Resubmit form (hidden, toggled by แก้ไขงาน button) -->
+  <div id="resubmit-wrap" style="display:none;margin-top:14px">
+    <div class="card" style="border:2px dashed var(--line-2)">
+      <div class="card-head" style="background:var(--warn-soft);border-bottom:1px solid #fde8c8">
+        <?= icon('edit', 18, '#c76a13') ?>
+        <h3 style="color:#c76a13">แก้ไขและส่งงานใหม่</h3>
+        <span class="subtle" style="font-size:12px;margin-left:auto">งานที่ให้คะแนนไว้จะถูกรีเซ็ตเพื่อตรวจใหม่</span>
+      </div>
+      <div class="card-pad">
+        <form id="resubmit-form" method="post" action="api/submit_assignment.php" enctype="multipart/form-data">
+          <input type="hidden" name="assignment_id" value="<?= $assignment_id ?>">
+          <input type="hidden" name="redirect" value="<?= h($_SERVER['REQUEST_URI']) ?>">
+
+          <div class="field">
+            <label>คำตอบ / ผลงานของคุณ
+              <span class="subtle" style="font-weight:400;font-size:12px">(จำเป็นถ้าไม่มีไฟล์แนบ)</span>
+            </label>
+            <textarea class="textarea" name="answer_text" id="resubmit-answer-input"
+                      placeholder="เขียนคำตอบหรือสรุปผลงานของคุณที่นี่…"><?= h($my_sub['answer_text'] ?? '') ?></textarea>
+          </div>
+
+          <?php multi_file_input('files', 'เพิ่มไฟล์แนบใหม่') ?>
+
+          <div class="ai-tint-box" style="padding:16px;margin-top:6px">
+            <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
+              <span style="width:30px;height:30px;border-radius:8px;background:var(--card);color:var(--primary);display:grid;place-items:center">
+                <?= icon('sparkle', 17) ?>
+              </span>
+              <div style="font-weight:700;color:var(--heading);font-size:14px">ระบุ AI และ Prompt ที่คุณใช้</div>
+            </div>
+            <div class="field">
+              <label>Prompt ที่คุณใช้ <span style="color:var(--danger)">*</span></label>
+              <textarea class="textarea" name="prompt_used" style="font-family:ui-monospace,monospace;font-size:13px;min-height:80px"
+                        placeholder="วาง prompt ที่คุณปรับแต่งและใช้จริง…" required><?= h($my_sub['prompt_used'] ?? '') ?></textarea>
+            </div>
+            <div class="field">
+              <label>AI ที่ให้คำตอบดีที่สุด</label>
+              <?= ai_select('ai_used', $my_sub['ai_used'] ?? 'claude') ?>
+            </div>
+            <div class="field" style="margin-bottom:6px">
+              <label>ผลลัพธ์ที่ได้จาก AI <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
+              <textarea class="textarea" name="result_text" style="min-height:60px"
+                        placeholder="สรุปสั้น ๆ ว่า AI ตอบกลับมาอย่างไร…"><?= h($my_sub['result_text'] ?? '') ?></textarea>
+            </div>
+          </div>
+
+          <?php if ($a['allow_improve']): ?>
+          <div style="margin-top:16px;padding:14px 16px;border:1px solid var(--line-2);border-radius:10px">
+            <label style="display:flex;align-items:flex-start;gap:11px;cursor:pointer">
+              <input type="checkbox" name="better_than_teacher" value="1"
+                     style="margin-top:3px;width:17px;height:17px;accent-color:var(--primary)"
+                     <?= $my_sub['better_than_teacher'] ? 'checked' : '' ?>
+                     onchange="this.closest('label').querySelector('.resub-note').style.display=this.checked?'block':'none'">
+              <div style="flex:1">
+                <div style="font-weight:700;color:var(--heading);font-size:14px;display:flex;align-items:center;gap:7px">
+                  <?= icon('trophy', 16, 'var(--warn)') ?> prompt ของฉันให้ผลลัพธ์ดีกว่าของครู
+                </div>
+                <textarea class="textarea resub-note" name="compare_note"
+                          style="min-height:56px;margin-top:10px;display:<?= $my_sub['better_than_teacher'] ? 'block' : 'none' ?>"
+                          placeholder="อธิบายว่าทำไม prompt ของคุณถึงดีกว่า…"><?= h($my_sub['compare_note'] ?? '') ?></textarea>
+              </div>
+            </label>
+          </div>
+          <?php endif; ?>
+
+          <div style="display:flex;gap:10px;margin-top:18px">
+            <button type="submit" class="btn btn-primary" onclick="return validateResubmit()">
+              <?= icon('send', 17, '#fff') ?> ส่งงานใหม่
+            </button>
+            <button type="button" class="btn btn-ghost" onclick="toggleResubmit()">ยกเลิก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script>
+  function toggleResubmit() {
+    var wrap = document.getElementById('resubmit-wrap');
+    var btn  = document.getElementById('resubmit-toggle-btn');
+    var open = wrap.style.display === 'none' || wrap.style.display === '';
+    // toggle: if currently hidden → show; if shown → hide
+    var nowHidden = wrap.style.display === 'none';
+    wrap.style.display = nowHidden ? '' : 'none';
+    if (btn) btn.innerHTML = nowHidden
+      ? '<?= addslashes(icon('x', 13)) ?> ยกเลิก'
+      : '<?= addslashes(icon('edit', 13)) ?> แก้ไขงาน';
+    if (nowHidden) wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  function validateResubmit() {
+    var answer = document.getElementById('resubmit-answer-input');
+    var hasText = answer && answer.value.trim().length > 0;
+    var hasFiles = false;
+    document.querySelectorAll('#resubmit-form input[type="file"]').forEach(function(inp) {
+      if (inp.files && inp.files.length > 0) hasFiles = true;
+    });
+    document.querySelectorAll('#resubmit-form .multifile-item').forEach(function() { hasFiles = true; });
+    if (!hasText && !hasFiles) {
+      showToast('กรุณาพิมพ์คำตอบหรือแนบไฟล์ผลงานอย่างน้อย 1 ไฟล์', true);
+      if (answer) answer.focus();
+      return false;
+    }
+    return true;
+  }
+  </script>
 
   <?php
   // ── Peer submissions: visible only after the student's own work is graded ──
