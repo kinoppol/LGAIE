@@ -57,7 +57,10 @@ function storage_donut(float $pct, string $color): string {
 // ── Course header ──────────────────────────────────────────────
 ?>
 <?php
-$is_owner = !$guest_mode && is_teacher() && (int)$c['teacher_id'] === current_user_id();
+// $is_course_owner: the original owner only (owner-only actions).
+// $is_owner: owner OR co-teacher — may manage/teach this course.
+$is_course_owner = !$guest_mode && is_teacher() && (int)$c['teacher_id'] === current_user_id();
+$is_owner        = !$guest_mode && is_teacher() && teaches_course($course_id);
 ?>
 
 <div style="display:flex;align-items:center;margin-bottom:4px">
@@ -340,9 +343,83 @@ elseif ($tab === 'work'): ?>
         echo "<span class=\"badge gray\" style=\"font-size:11px\">{$w['points']} คะแนน</span>";
     }
     ?>
+    <?php if (is_teacher()): ?>
+    <button class="btn btn-sm btn-ghost" style="color:var(--danger);padding:6px 8px" title="ลบงานนี้"
+            onclick="event.preventDefault();event.stopPropagation();confirmDeleteAssignment(<?= (int)$w['id'] ?>, '<?= h(addslashes($w['title'])) ?>', <?= $sub_cnt ?>)">
+      <?= icon('trash', 15) ?>
+    </button>
+    <?php endif; ?>
   </div>
 </a>
 <?php endforeach; ?>
+
+<?php if (is_teacher()): ?>
+<!-- Delete assignment confirmation modal -->
+<div id="del-assignment-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('del-assignment')" style="display:none">
+  <div class="modal" style="max-width:430px">
+    <div class="modal__head">
+      <span class="modal__ic" style="background:var(--danger-soft,#fee2e2);color:var(--danger,#ef4444)"><?= icon('trash', 20, 'var(--danger,#ef4444)') ?></span>
+      <h2 class="modal__title">ลบงานที่มอบหมาย</h2>
+      <button class="modal__close" onclick="closeModal('del-assignment')"><?= icon('x', 18) ?></button>
+    </div>
+    <div class="modal__body">
+      <p style="color:var(--body);line-height:1.7;margin:0">
+        คุณต้องการลบงาน <strong id="del-asgn-name" style="color:var(--heading)"></strong>
+        ออกจากรายวิชานี้ใช่หรือไม่?
+      </p>
+      <p id="del-asgn-warn" style="font-size:13px;color:var(--danger);margin:10px 0 0;display:none">
+        <?= icon('info', 14, 'var(--danger,#ef4444)') ?> งานนี้มีนักเรียนส่งแล้ว <span id="del-asgn-count"></span> คน — งานที่ส่ง คะแนน และไฟล์แนบทั้งหมดจะถูกลบถาวร
+      </p>
+      <p style="font-size:13px;color:var(--sub);margin:10px 0 0">การลบนี้ไม่สามารถย้อนกลับได้</p>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('del-assignment')">ยกเลิก</button>
+      <button type="button" id="del-asgn-confirm" class="btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="doDeleteAssignment()">
+        <?= icon('trash', 15, '#fff') ?> ยืนยันลบงาน
+      </button>
+    </div>
+  </div>
+</div>
+<script>
+var _delAsgnId = null;
+function confirmDeleteAssignment(id, title, subCount) {
+    _delAsgnId = id;
+    document.getElementById('del-asgn-name').textContent = '"' + title + '"';
+    var warn = document.getElementById('del-asgn-warn');
+    if (subCount > 0) {
+        document.getElementById('del-asgn-count').textContent = subCount;
+        warn.style.display = '';
+    } else {
+        warn.style.display = 'none';
+    }
+    openModal('del-assignment');
+}
+function doDeleteAssignment() {
+    if (_delAsgnId === null) return;
+    var btn = document.getElementById('del-asgn-confirm');
+    btn.disabled = true; btn.style.opacity = '.6';
+    var fd = new FormData();
+    fd.append('assignment_id', _delAsgnId);
+    fetch('api/delete_assignment.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled = false; btn.style.opacity = '1';
+            closeModal('del-assignment');
+            if (res.ok) {
+                showToast(res.message || 'ลบงานแล้ว');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast(res.error || 'เกิดข้อผิดพลาด', true);
+            }
+        })
+        .catch(() => {
+            btn.disabled = false; btn.style.opacity = '1';
+            closeModal('del-assignment');
+            showToast('เกิดข้อผิดพลาด', true);
+        });
+}
+</script>
+<?php endif; ?>
 
 <?php
 
@@ -363,19 +440,56 @@ elseif ($tab === 'people'):
         $invite_url = $scheme . '://' . $host . $dir . '/index.php?page=courses&join='
                     . urlencode((string)$invite_code_row['invite_code']);
     }
+    ensure_coteacher_schema();
+    try {
+        $coteachers = db_rows('SELECT u.*, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? ORDER BY ct.created_at', [$course_id]);
+    } catch (PDOException) {
+        $coteachers = [];
+    }
 ?>
 <div class="row wrap" style="align-items:flex-start">
   <div style="flex:1 1 340px;display:flex;flex-direction:column;gap:18px">
     <!-- Teacher card -->
     <div class="card">
-      <div class="card-head"><?= icon('edit', 18, 'var(--primary)') ?><h3>ครูผู้สอน</h3></div>
+      <div class="card-head">
+        <?= icon('edit', 18, 'var(--primary)') ?><h3>ทีมผู้สอน</h3>
+        <?php if ($is_course_owner): ?>
+        <button class="btn btn-sm btn-soft" style="margin-left:auto;gap:6px;font-size:12.5px" onclick="openModal('add-coteacher')">
+          <?= icon('plus', 14, 'var(--primary)') ?> เพิ่มครู
+        </button>
+        <?php endif; ?>
+      </div>
       <div class="card-pad" style="display:flex;align-items:center;gap:12px">
         <?= avatar($teacher, 46) ?>
         <div>
           <div style="font-weight:700;color:var(--heading)"><?= h($teacher['name'] ?? '') ?></div>
-          <div class="subtle" style="font-size:13px">ครูผู้สอน</div>
+          <?php if (!empty($teacher['email'])): ?>
+          <div class="subtle" style="font-size:12.5px"><?= h($teacher['email']) ?></div>
+          <?php endif; ?>
+          <div class="subtle" style="font-size:13px">ครูผู้สอน (เจ้าของรายวิชา)</div>
         </div>
       </div>
+      <?php foreach ($coteachers as $ct): ?>
+      <div class="card-pad" style="display:flex;align-items:center;gap:12px;border-top:1px solid var(--line-2)"
+           id="coteacher-row-<?= (int)$ct['id'] ?>">
+        <?= avatar($ct, 46) ?>
+        <div style="min-width:0;flex:1">
+          <div style="font-weight:700;color:var(--heading)"><?= h($ct['name'] ?? '') ?></div>
+          <?php if (!empty($ct['email'])): ?>
+          <div class="subtle" style="font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?= h($ct['email']) ?></div>
+          <?php endif; ?>
+          <div class="subtle" style="font-size:13px">
+            <?= $ct['co_role'] === 'supervisor' ? 'ครูนิเทศ' : 'ครูร่วมสอน' ?>
+          </div>
+        </div>
+        <?php if ($is_course_owner): ?>
+        <button class="btn btn-sm btn-ghost" style="color:var(--danger)" title="นำออกจากทีมผู้สอน"
+                onclick="confirmRemoveCoteacher(<?= (int)$ct['id'] ?>, '<?= h(addslashes($ct['name'])) ?>')">
+          <?= icon('x', 14) ?>
+        </button>
+        <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
     </div>
 
     <?php if ($is_owner): ?>
@@ -392,10 +506,37 @@ elseif ($tab === 'people'):
             <?= h($invite_code_row['invite_code']) ?>
           </span>
           <button class="btn btn-ghost" style="padding:10px 14px"
+                  onclick="showCodeFullscreen()"
+                  title="แสดงเต็มจอ">
+            <?= icon('maximize', 18) ?>
+          </button>
+          <button class="btn btn-ghost" style="padding:10px 14px"
                   onclick="navigator.clipboard.writeText('<?= h($invite_code_row['invite_code']) ?>').then(()=>showToast('คัดลอกรหัสแล้ว'))"
                   title="คัดลอกรหัส">
             <?= icon('copy', 18) ?>
           </button>
+        </div>
+
+        <!-- Fullscreen invite-code overlay -->
+        <div id="code-fs-overlay" onclick="hideCodeFullscreen()"
+             style="display:none;position:fixed;inset:0;z-index:9000;background:var(--bg,#0b1220);
+                    flex-direction:column;align-items:center;justify-content:center;gap:2.5vh;padding:4vw;cursor:zoom-out">
+          <div style="font-size:clamp(1rem,3.5vw,2rem);font-weight:700;color:var(--sub);text-align:center">
+            <?= icon('globe', 28, 'var(--primary)') ?> รหัสเชิญเข้าเรียน
+          </div>
+          <div style="font-size:clamp(1.2rem,4vw,2.6rem);font-weight:700;color:var(--heading);text-align:center;max-width:90vw">
+            <?= h($c['name'] ?? '') ?>
+          </div>
+          <div style="font-family:ui-monospace,monospace;font-weight:800;letter-spacing:.12em;
+                      color:var(--primary);background:var(--primary-soft);border-radius:18px;
+                      padding:clamp(1rem,4vw,2.5rem) clamp(1.5rem,7vw,4rem);
+                      font-size:clamp(3rem,18vw,12rem);line-height:1;white-space:nowrap;max-width:94vw;
+                      display:flex;align-items:center;justify-content:center">
+            <?= h($invite_code_row['invite_code']) ?>
+          </div>
+          <div style="font-size:clamp(.95rem,2.6vw,1.4rem);color:var(--sub);text-align:center">
+            แตะที่ใดก็ได้เพื่อปิด · กด Esc
+          </div>
         </div>
         <div class="subtle" style="font-size:12px;margin-bottom:12px">
           ใช้แล้ว <?= (int)$invite_code_row['use_count'] ?> ครั้ง · รหัสนี้ใช้งานได้อยู่
@@ -486,6 +627,9 @@ elseif ($tab === 'people'):
           <?= avatar($s, 38) ?>
           <div style="min-width:0;flex:1">
             <div style="font-weight:600;color:var(--heading);font-size:14px"><?= h($s['name']) ?></div>
+            <?php if (!empty($s['email'])): ?>
+            <div class="subtle" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?= h($s['email']) ?></div>
+            <?php endif; ?>
             <?php if ($is_pending): ?>
             <div style="font-size:11.5px;color:var(--sub)"><?= icon('clock', 12, 'var(--sub)') ?> รอตอบรับคำเชิญ</div>
             <?php endif; ?>
@@ -507,6 +651,122 @@ elseif ($tab === 'people'):
     </div>
   </div>
 </div>
+
+<?php if ($is_course_owner): ?>
+<!-- Add co-teacher modal -->
+<div id="add-coteacher-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('add-coteacher')" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <div class="modal__head">
+      <span class="modal__ic" style="background:var(--primary-soft);color:var(--primary)"><?= icon('edit', 20, 'var(--primary)') ?></span>
+      <h2 class="modal__title">เพิ่มครูร่วมสอน / นิเทศ</h2>
+      <button class="modal__close" onclick="closeModal('add-coteacher')"><?= icon('x', 18) ?></button>
+    </div>
+    <div class="modal__body">
+      <p style="color:var(--sub);font-size:13.5px;margin:0 0 16px">
+        ระบุอีเมลของครูที่มีบัญชีในระบบอยู่แล้ว เพื่อเพิ่มเข้าร่วมสอนหรือนิเทศการสอนในรายวิชานี้
+      </p>
+      <div class="field" style="margin-bottom:14px">
+        <label class="field-label" style="display:block;font-size:.82rem;font-weight:600;color:var(--heading);margin-bottom:.4rem">
+          อีเมลครู <span style="color:#ef4444">*</span>
+        </label>
+        <input class="input" type="email" id="coteacher-email" placeholder="teacher@school.ac.th" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="field-label" style="display:block;font-size:.82rem;font-weight:600;color:var(--heading);margin-bottom:.4rem">บทบาท</label>
+        <select class="input" id="coteacher-role">
+          <option value="co">ครูร่วมสอน — ช่วยจัดการบทเรียน งาน และให้คะแนน</option>
+          <option value="supervisor">ครูนิเทศ — เข้าดูและช่วยจัดการการสอน</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('add-coteacher')">ยกเลิก</button>
+      <button type="button" id="add-coteacher-confirm" class="btn btn-primary" onclick="addCoteacher()">
+        <?= icon('plus', 15, '#fff') ?> เพิ่มเข้าทีมผู้สอน
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Remove co-teacher confirmation modal -->
+<div id="remove-coteacher-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('remove-coteacher')" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal__head">
+      <span class="modal__ic" style="background:var(--danger-soft,#fee2e2);color:var(--danger,#ef4444)"><?= icon('user-x', 20, 'var(--danger,#ef4444)') ?></span>
+      <h2 class="modal__title">นำครูออกจากทีมผู้สอน</h2>
+      <button class="modal__close" onclick="closeModal('remove-coteacher')"><?= icon('x', 18) ?></button>
+    </div>
+    <div class="modal__body">
+      <p style="color:var(--body);line-height:1.7;margin:0">
+        นำ <strong id="rm-coteacher-name" style="color:var(--heading)"></strong> ออกจากการร่วมสอนรายวิชานี้ใช่หรือไม่?
+      </p>
+      <p style="font-size:13px;color:var(--sub);margin:10px 0 0">ครูท่านนี้จะไม่เห็นและจัดการรายวิชานี้อีก สามารถเพิ่มกลับได้ภายหลัง</p>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('remove-coteacher')">ยกเลิก</button>
+      <button type="button" id="rm-coteacher-confirm" class="btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="doRemoveCoteacher()">
+        <?= icon('user-x', 15, '#fff') ?> ยืนยันนำออก
+      </button>
+    </div>
+  </div>
+</div>
+<script>
+const _coteacherCid = <?= $course_id ?>;
+function addCoteacher() {
+    var email = document.getElementById('coteacher-email').value.trim();
+    var role  = document.getElementById('coteacher-role').value;
+    if (!email) { showToast('กรุณากรอกอีเมล', true); return; }
+    var btn = document.getElementById('add-coteacher-confirm');
+    btn.disabled = true; btn.style.opacity = '.6';
+    var fd = new FormData();
+    fd.append('course_id', _coteacherCid);
+    fd.append('action', 'add');
+    fd.append('email', email);
+    fd.append('co_role', role);
+    fetch('api/manage_coteacher.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled = false; btn.style.opacity = '1';
+            if (res.ok) {
+                showToast(res.message || 'เพิ่มครูแล้ว');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast(res.error || 'เกิดข้อผิดพลาด', true);
+            }
+        })
+        .catch(() => { btn.disabled = false; btn.style.opacity = '1'; showToast('เกิดข้อผิดพลาด', true); });
+}
+var _rmCoteacherId = null;
+function confirmRemoveCoteacher(id, name) {
+    _rmCoteacherId = id;
+    document.getElementById('rm-coteacher-name').textContent = name;
+    openModal('remove-coteacher');
+}
+function doRemoveCoteacher() {
+    if (_rmCoteacherId === null) return;
+    var btn = document.getElementById('rm-coteacher-confirm');
+    btn.disabled = true; btn.style.opacity = '.6';
+    var fd = new FormData();
+    fd.append('course_id', _coteacherCid);
+    fd.append('action', 'remove');
+    fd.append('coteacher_id', _rmCoteacherId);
+    fetch('api/manage_coteacher.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled = false; btn.style.opacity = '1';
+            closeModal('remove-coteacher');
+            if (res.ok) {
+                showToast(res.message || 'นำออกแล้ว');
+                var row = document.getElementById('coteacher-row-' + _rmCoteacherId);
+                if (row) { row.style.opacity = '0'; row.style.transition = 'opacity .3s'; setTimeout(() => row.remove(), 300); }
+            } else {
+                showToast(res.error || 'เกิดข้อผิดพลาด', true);
+            }
+        })
+        .catch(() => { btn.disabled = false; btn.style.opacity = '1'; closeModal('remove-coteacher'); showToast('เกิดข้อผิดพลาด', true); });
+}
+</script>
+<?php endif; ?>
 
 <?php if ($is_owner && $invite_url): ?>
 <div id="invite-qr-overlay"
@@ -535,6 +795,18 @@ elseif ($tab === 'people'):
 <?php if ($is_owner): ?>
 <script>
 const _cid = <?= $course_id ?>;
+
+function showCodeFullscreen() {
+    var ov = document.getElementById('code-fs-overlay');
+    if (ov) ov.style.display = 'flex';
+}
+function hideCodeFullscreen() {
+    var ov = document.getElementById('code-fs-overlay');
+    if (ov) ov.style.display = 'none';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { hideCodeFullscreen(); if (typeof closeInviteQR === 'function') closeInviteQR(); }
+});
 
 function manageInvite(action) {
     var btn = document.getElementById(action === 'reset_code' ? 'reset-code-btn' : 'toggle-code-btn');
@@ -602,15 +874,28 @@ function inviteByEmail(e) {
         });
 }
 
+var _rmStudentId = null;
+
 function removeStudent(sid, cid, name) {
-    if (!confirm('นำ "' + name + '" ออกจากรายวิชานี้?')) return;
+    _rmStudentId = sid;
+    document.getElementById('rm-student-name').textContent = name;
+    openModal('remove-student');
+}
+
+function doRemoveStudent() {
+    var sid = _rmStudentId;
+    if (sid === null) return;
+    var btn = document.getElementById('rm-student-confirm');
+    btn.disabled = true; btn.style.opacity = '.6';
     var fd = new FormData();
-    fd.append('course_id', cid);
+    fd.append('course_id', _cid);
     fd.append('action', 'remove_student');
     fd.append('student_id', sid);
     fetch('api/manage_invite.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(res => {
+            closeModal('remove-student');
+            btn.disabled = false; btn.style.opacity = '1';
             if (res.ok) {
                 showToast(res.message || 'นำออกแล้ว');
                 var row = document.getElementById('student-row-' + sid);
@@ -618,6 +903,11 @@ function removeStudent(sid, cid, name) {
             } else {
                 showToast(res.error || 'เกิดข้อผิดพลาด', true);
             }
+        })
+        .catch(() => {
+            closeModal('remove-student');
+            btn.disabled = false; btn.style.opacity = '1';
+            showToast('เกิดข้อผิดพลาด', true);
         });
 }
 
@@ -654,12 +944,34 @@ function closeInviteQR() {
     if (overlay) overlay.style.display = 'none';
     document.body.style.overflow = '';
 }
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeInviteQR();
-});
 <?php endif; ?>
 </script>
+
+<!-- Remove student confirmation modal -->
+<div id="remove-student-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('remove-student')" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal__head">
+      <span class="modal__ic" style="background:var(--danger-soft,#fee2e2);color:var(--danger,#ef4444)"><?= icon('user-x', 20, 'var(--danger,#ef4444)') ?></span>
+      <h2 class="modal__title">นำนักเรียนออกจากรายวิชา</h2>
+      <button class="modal__close" onclick="closeModal('remove-student')"><?= icon('x', 18) ?></button>
+    </div>
+    <div class="modal__body">
+      <p style="color:var(--body);line-height:1.7;margin:0">
+        คุณต้องการนำ <strong id="rm-student-name" style="color:var(--heading)"></strong>
+        ออกจากรายวิชานี้ใช่หรือไม่?
+      </p>
+      <p style="font-size:13px;color:var(--sub);margin:10px 0 0">
+        นักเรียนจะไม่เห็นรายวิชานี้อีก แต่งานและคะแนนที่ส่งไว้แล้วจะยังคงอยู่ หากต้องการให้กลับเข้าเรียน ต้องเชิญใหม่อีกครั้ง
+      </p>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('remove-student')">ยกเลิก</button>
+      <button type="button" id="rm-student-confirm" class="btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="doRemoveStudent()">
+        <?= icon('user-x', 15, '#fff') ?> ยืนยันนำออก
+      </button>
+    </div>
+  </div>
+</div>
 <?php endif; ?>
 
 
@@ -865,6 +1177,25 @@ if ($is_owner):
     </div>
   </label>
 
+  <?php $cur_orient = ($cert['orientation'] ?? 'portrait') === 'landscape' ? 'landscape' : 'portrait'; ?>
+  <div style="margin-bottom:18px">
+    <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:10px"><?= icon('image', 15) ?> รูปแบบเกียรติบัตร</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <?php foreach (['portrait' => ['แนวตั้ง (ปกติ)', 34, 46], 'landscape' => ['แนวนอน', 46, 34]] as $okey => [$olabel, $ow, $oh]):
+            $osel = ($cur_orient === $okey); ?>
+      <label onclick="certOrientSelect(this,'<?= $okey ?>')" style="cursor:pointer">
+        <input type="radio" name="orientation" value="<?= $okey ?>" <?= $osel ? 'checked' : '' ?> style="display:none">
+        <div class="orient-opt" style="display:flex;flex-direction:column;align-items:center;gap:6px;border:2px solid <?= $osel ? 'var(--primary)' : 'var(--line-2)' ?>;border-radius:10px;padding:12px 18px;<?= $osel ? 'outline:3px solid var(--primary-soft)' : '' ?>">
+          <div style="width:<?= $ow ?>px;height:<?= $oh ?>px;border:2px solid var(--sub);border-radius:3px;background:var(--card);display:grid;place-items:center">
+            <div style="width:60%;height:2px;background:var(--sub);opacity:.5"></div>
+          </div>
+          <div style="font-size:12px;color:var(--heading);font-weight:600"><?= $olabel ?></div>
+        </div>
+      </label>
+      <?php endforeach; ?>
+    </div>
+  </div>
+
   <?php
   $cur_bg       = $cert['background_style'] ?? 'plain';
   $cur_bg_image = (string)($cert['background_image'] ?? '');
@@ -959,6 +1290,13 @@ if ($is_owner):
 </form>
 <?php modal_foot('cert-settings', 'ยกเลิก', 'บันทึก'); ?>
 <script>
+function certOrientSelect(lbl, key) {
+  var sel = 'display:flex;flex-direction:column;align-items:center;gap:6px;border:2px solid var(--primary);border-radius:10px;padding:12px 18px;outline:3px solid var(--primary-soft)';
+  var nor = 'display:flex;flex-direction:column;align-items:center;gap:6px;border:2px solid var(--line-2);border-radius:10px;padding:12px 18px';
+  document.querySelectorAll('.orient-opt').forEach(function(e){
+    e.style.cssText = (e === lbl.querySelector('.orient-opt')) ? sel : nor;
+  });
+}
 function certBgSelect(lbl, key) {
   var sel = 'border:2px solid var(--primary);border-radius:9px;cursor:pointer;overflow:hidden;outline:3px solid var(--primary-soft)';
   var nor = 'border:2px solid var(--line-2);border-radius:9px;cursor:pointer;overflow:hidden';

@@ -60,7 +60,8 @@ if (!$grade_label) {
 }
 
 $teacher  = db_row('SELECT * FROM users WHERE id = ?', [$course['teacher_id']]);
-$bg_style  = $cert['background_style'] ?? 'plain';
+$bg_style    = $cert['background_style'] ?? 'plain';
+$orientation = ($cert['orientation'] ?? 'portrait') === 'landscape' ? 'landscape' : 'portrait';
 $bg_image  = (string)($cert['background_image'] ?? '');
 // Safety: only allow paths inside uploads/
 if (!str_starts_with($bg_image, 'uploads/')) $bg_image = '';
@@ -73,9 +74,13 @@ function cert_bg_svg(string $style, string $image_path = ''): string
                      style="background:url(\'' . h($image_path) . '\') center/cover no-repeat"></div>';
     }
     $c = '#7b94be'; // pattern color — prints cleanly on white
+    // Wrap the SVG in a <div class="cert-bg"> — a non-replaced element reliably
+    // stretches to inset:0, whereas an absolutely-positioned <svg>/<img> may fail
+    // to fill an auto-height container in some browsers (top edge left uncovered).
+    $svg = '';
     switch ($style) {
         case 'circuit':
-            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            $svg = '<svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
               <defs><pattern id="cbg" width="80" height="80" patternUnits="userSpaceOnUse">
                 <path d="M0 28 L18 28 L18 52 L62 52 L62 28 L80 28 M38 0 L38 18 L62 18 M38 80 L38 62 L18 62"
                       stroke="'.$c.'" stroke-width="1.1" fill="none"/>
@@ -88,8 +93,9 @@ function cert_bg_svg(string $style, string $image_path = ''): string
               </pattern></defs>
               <rect width="100%" height="100%" fill="url(#cbg)"/>
             </svg>';
+            break;
         case 'neural':
-            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            $svg = '<svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
               <defs><pattern id="cbg" width="150" height="110" patternUnits="userSpaceOnUse">
                 <line x1="18" y1="22" x2="65" y2="48" stroke="'.$c.'" stroke-width="0.9"/>
                 <line x1="65" y1="48" x2="110" y2="18" stroke="'.$c.'" stroke-width="0.9"/>
@@ -108,16 +114,18 @@ function cert_bg_svg(string $style, string $image_path = ''): string
               </pattern></defs>
               <rect width="100%" height="100%" fill="url(#cbg)"/>
             </svg>';
+            break;
         case 'mesh':
-            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            $svg = '<svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
               <defs><pattern id="cbg" width="32" height="32" patternUnits="userSpaceOnUse">
                 <path d="M 32 0 L 0 0 0 32" fill="none" stroke="'.$c.'" stroke-width="0.55"/>
                 <circle cx="0" cy="0" r="1.2" fill="'.$c.'"/>
               </pattern></defs>
               <rect width="100%" height="100%" fill="url(#cbg)"/>
             </svg>';
+            break;
         case 'wave':
-            return '<svg class="cert-bg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            $svg = '<svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
               <defs><pattern id="cbg" width="220" height="80" patternUnits="userSpaceOnUse">
                 <path d="M0 20  Q55 3   110 20  Q165 37  220 20"  stroke="'.$c.'" stroke-width="1"   fill="none"/>
                 <path d="M0 44  Q55 27  110 44  Q165 61  220 44"  stroke="'.$c.'" stroke-width="1"   fill="none"/>
@@ -126,9 +134,12 @@ function cert_bg_svg(string $style, string $image_path = ''): string
               </pattern></defs>
               <rect width="100%" height="100%" fill="url(#cbg)"/>
             </svg>';
+            break;
         default: // plain
             return '';
     }
+    if ($svg === '') return '';
+    return '<div class="cert-bg" aria-hidden="true">' . $svg . '</div>';
 }
 $today   = date('j F Y', strtotime('+543 years', strtotime(date('Y-m-d'))));
 // Thai month names
@@ -161,6 +172,13 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
     .no-print a:hover { color: var(--heading); }
 
     .cert-page { max-width: 780px; margin: 36px auto; padding: 0 16px 60px; }
+    /* Landscape orientation: wider page and roomier horizontal box */
+    .cert-page.landscape { max-width: 1040px; }
+    .cert-page.landscape .cert-box { padding: 44px 80px; }
+    .cert-page.landscape .cert-subtitle { margin-bottom: 28px; }
+    .cert-page.landscape .cert-school { margin-bottom: 26px; }
+    .cert-page.landscape .cert-grade-badge { margin-bottom: 24px; }
+    .cert-page.landscape .cert-score { margin-bottom: 28px; }
 
     .cert-box {
       background: var(--card);
@@ -227,17 +245,41 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
 
     .cert-bg {
       position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: .38;
+      overflow: hidden;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
+    .cert-bg svg { display: block; width: 100%; height: 100%; }
     .cert-inner { position: relative; z-index: 1; }
 
     @media print {
       .no-print { display: none !important; }
-      body { background: #fff; }
-      .cert-page { margin: 0; padding: 0; max-width: 100%; }
-      .cert-box { border-color: #ccc; border-radius: 0; page-break-inside: avoid; }
+      html, body { background: #fff; margin: 0; padding: 0; }
+      .cert-page { margin: 0; padding: 0; max-width: none; width: 100%; }
+      .cert-page.landscape { max-width: none; }
+      /* Lock to exactly one A4 page: A4 height − 2×12 mm margin */
+      .cert-box {
+        border-color: #999; border-radius: 0;
+        box-sizing: border-box;
+        width: 100%;
+        height: <?= $orientation === 'landscape' ? '186mm' : '273mm' ?>;
+        overflow: hidden;
+        padding: <?= $orientation === 'landscape' ? '8mm 14mm' : '10mm 14mm' ?>;
+        display: flex; flex-direction: column; justify-content: center;
+        page-break-inside: avoid; break-inside: avoid;
+      }
+      /* Tighten spacing so all elements fit within the fixed height */
+      .cert-logo { margin-bottom: 14px; }
+      .cert-subtitle { margin-bottom: 16px; }
+      .cert-divider { margin-bottom: 12px; }
+      .cert-school { margin-bottom: 14px; }
+      .cert-desc { margin-bottom: 10px; }
+      .cert-grade-badge { margin-bottom: 12px; padding: 7px 18px; }
+      .cert-score { margin-bottom: 16px; }
+      .cert-date { margin-top: 14px; }
+      .cert-banner { margin-bottom: 20px; }
       .cert-bg { opacity: .2; }
     }
+    @page { size: A4 <?= $orientation ?>; margin: 12mm; }
   </style>
 </head>
 <body>
@@ -253,13 +295,23 @@ $date_th = $d['mday'] . ' ' . $months_th[$d['mon']] . ' ' . ($d['year'] + 543);
   </div>
 </div>
 
-<div class="cert-page">
+<div class="cert-page <?= $orientation === 'landscape' ? 'landscape' : '' ?>">
   <div class="cert-box">
 
     <?= cert_bg_svg($bg_style, $bg_image) ?>
 
     <div class="cert-inner">
+    <?php
+      // Show the decorative banner strip only for the "plain" style. For any
+      // background pattern/image, the strip would cover the top edge, so use a
+      // plain spacer instead and let the background reach the very top.
+      $has_bg = ($bg_style !== 'plain') && ($bg_style !== 'custom' || $bg_image);
+    ?>
+    <?php if (!$has_bg): ?>
     <div class="cert-banner" style="background:<?= h($course['banner'] ?: 'linear-gradient(135deg,var(--primary),var(--primary-dark,var(--primary)))') ?>"></div>
+    <?php else: ?>
+    <div style="height:40px"></div>
+    <?php endif; ?>
 
     <div class="cert-logo">
       <img src="<?= asset('assets/ovec-logo.svg') ?>" alt="ClassroomAI">

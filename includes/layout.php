@@ -56,7 +56,7 @@ function layout_start(string $page_title = 'ClassroomAI'): void
   <?php if (!empty($_SESSION['error'])): ?>
   <meta name="flash-error" content="<?= h($_SESSION['error']) ?>">
   <?php unset($_SESSION['error']); endif; ?>
-  <link rel="icon" href="<?= asset('assets/ovec-logo.svg') ?>" type="image/svg+xml">
+  <link rel="icon" href="<?= asset('assets/favicon.svg') ?>" type="image/svg+xml">
   <link rel="stylesheet" href="<?= asset('css/theme.css') ?>">
   <script>
     (function(){
@@ -134,8 +134,8 @@ function layout_start(string $page_title = 'ClassroomAI'): void
     <?php endif; ?>
 
     <div class="nav-label">อื่น ๆ</div>
-    <button class="nav-item"><?= icon('calendar', 20) ?> ปฏิทิน</button>
-    <button class="nav-item"><?= icon('settings', 20) ?> ตั้งค่า</button>
+    <a href="<?= url('calendar') ?>" class="nav-item<?= $active === 'calendar' ? ' active' : '' ?>"><?= icon('calendar', 20) ?> ปฏิทิน</a>
+    <a href="<?= url('profile') ?>" class="nav-item<?= $active === 'profile' ? ' active' : '' ?>"><?= icon('settings', 20) ?> ตั้งค่า</a>
   </nav>
 
   <div class="sidebar__foot">
@@ -354,7 +354,7 @@ function layout_start_guest(string $page_title = 'ClassroomAI'): void
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= h($page_title) ?> — ClassroomAI</title>
-  <link rel="icon" href="<?= asset('assets/ovec-logo.svg') ?>" type="image/svg+xml">
+  <link rel="icon" href="<?= asset('assets/favicon.svg') ?>" type="image/svg+xml">
   <link rel="stylesheet" href="<?= asset('css/theme.css') ?>">
   <script>
     (function(){

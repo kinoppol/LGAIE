@@ -8,21 +8,26 @@ ClassroomAI is a school LMS (Learning Management System) built with **PHP 8 + Ma
 
 - **Live URL:** `http://localhost/LGAIE/`
 - **Database:** `classroomai` on `localhost` (root, no password — XAMPP defaults in `config/db.php`)
-- **Setup:** Import `sql/schema.sql` via phpMyAdmin or `mysql -u root classroomai < sql/schema.sql`
+- **Setup:** Run `install.php` in the browser (writes `config/db.php`, imports `sql/schema.sql`, sets demo passwords to `demo1234`), or import manually via `mysql -u root classroomai < sql/schema.sql`. Delete `install.php` after install.
+- **Repair structure:** `migrate.php` (localhost-only) re-applies every `ADD COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS` and seeds defaults. Run it after pulling schema changes onto an existing DB.
 
 ## Architecture
 
 ### Request Flow
 
-`index.php` is the single front controller. It starts the session, bootstraps helpers and layout, then `require`s the matching page file based on `?page=` query param.
+`index.php` is the single front controller. It starts the session, bootstraps helpers and layout, then `require`s the matching page file based on `?page=` query param. Routing has **three tiers**, checked in this order in `index.php`:
+
+1. **Standalone pages** (`$standalone` array: `login`, `register`, `explore`, `home`, `certificate`) — render their own complete `<html>` document with no app shell. Do NOT wrap them in `layout_start()`.
+2. **Public pages** (`$public_pages`: `course`) — viewable logged-out; wrapped in the guest shell via `layout_start_guest()` / `layout_end_guest()`.
+3. **Authenticated pages** — everything else; gated by the auth guard, then wrapped in `layout_start()` / `layout_end()`. `$page_map` aliases (e.g. `todo`/`tograde` → `workqueue`) map a URL key to a different page file.
 
 ```
-Request → index.php → includes/layout.php (layout_start) → pages/*.php → layout_end()
-                                                          ↓
-                                                   POST → api/*.php → redirect back
+Request → index.php ─┬─ standalone: require pages/*.php (full HTML)        → exit
+                     ├─ public+guest: layout_start_guest → pages/*.php → layout_end_guest
+                     └─ auth: layout_start → pages/*.php → layout_end
+                                                  ↓
+                                           POST → api/*.php → redirect back
 ```
-
-Page routing lives entirely in `index.php` via a `$page_map` array. Adding a new page means creating `pages/newpage.php` and adding it to the map.
 
 API endpoints (`api/*.php`) are plain PHP POST handlers — they read `$_POST`, call DB helpers, set `$_SESSION['success']`/`$_SESSION['error']`, then redirect back. Flash messages are emitted as `<meta>` tags in the `<head>` and consumed by `js/app.js` on page load.
 
@@ -44,6 +49,13 @@ API endpoints (`api/*.php`) are plain PHP POST handlers — they read `$_POST`, 
 - `assignments` → `submissions` (one per student) → `submission_votes` + `submission_files`
 - `ai_tools` — registry of AI names/colors loaded into every page via `get_ai_tools()` (cached statically)
 - `app_settings` — key/value store for admin-set limits (`max_file_mb`, `course_materials_quota_mb`, `course_submissions_quota_mb`)
+- `course_certificates` (per-course cert config + background style/image), `course_posts` (announcements), `quiz_questions`/`quiz_choices`/`quiz_responses` — added by later features
+
+### Runtime Schema Migrations (`ensure_*_schema()`)
+
+New columns/tables are introduced as idempotent `ALTER … ADD COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS` blocks wrapped in `try/catch (PDOException)`, exposed as `ensure_*_schema()` helpers in `includes/functions.php`: `ensure_storage_schema()` (uploads + `users.avatar_path`), `ensure_certificate_schema()`, `ensure_directory_schema()` (`users.show_in_directory`, `users.bio`), `ensure_quiz_schema()`. Each guards itself with a `static $done` flag so it runs at most once per request.
+
+**Gotcha (caused a recent fatal crash):** the same migration that adds a column lives in three places — `sql/schema.sql` (both the `CREATE TABLE` and the backward-compat `ALTER` block), `migrate.php`, and an `ensure_*_schema()` helper. A fresh `schema.sql` import does NOT necessarily include a later-added column unless schema.sql was updated. **Any page/endpoint that reads a late-added column must call the matching `ensure_*_schema()` at the top** before querying, or it crashes on installs that predate the column. When you add a column, update all three locations.
 
 ### File Uploads & Storage Quotas
 
@@ -71,8 +83,8 @@ API endpoints (`api/*.php`) are plain PHP POST handlers — they read `$_POST`, 
 
 ### Adding a New Page
 
-1. Create `pages/mypage.php` (outputs content inside `.content` div — layout wraps it)
-2. Add to `$title_map` and `$page_map` in `index.php`
+1. Create `pages/mypage.php` (outputs content inside `.content` div — layout wraps it). If the page reads any late-added DB column, call the relevant `ensure_*_schema()` at the top.
+2. Add a `$title_map` entry in `index.php`. For pages that render their own full HTML, add the key to `$standalone`; for logged-out access, add to `$public_pages`; use `$page_map` only to alias one URL key to another page file.
 3. Link from sidebar in `includes/layout.php` if needed
 
 ### Adding a New API Endpoint

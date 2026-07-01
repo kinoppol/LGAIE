@@ -10,11 +10,11 @@ if (!is_teacher()) json_err('ไม่มีสิทธิ์', 403);
 $course_id = (int)($_POST['course_id'] ?? 0);
 if (!$course_id) json_err('ไม่ระบุรายวิชา');
 
-$owns = db_val('SELECT 1 FROM courses WHERE id = ? AND teacher_id = ?', [$course_id, current_user_id()]);
-if (!$owns) json_err('ไม่มีสิทธิ์แก้ไขรายวิชานี้', 403);
+if (!teaches_course($course_id)) json_err('ไม่มีสิทธิ์แก้ไขรายวิชานี้', 403);
 
-$enabled   = isset($_POST['enabled']) ? 1 : 0;
-$bg_style  = array_key_exists($_POST['background_style'] ?? '', cert_bg_styles()) ? $_POST['background_style'] : 'plain';
+$enabled     = isset($_POST['enabled']) ? 1 : 0;
+$bg_style    = array_key_exists($_POST['background_style'] ?? '', cert_bg_styles()) ? $_POST['background_style'] : 'plain';
+$orientation = ($_POST['orientation'] ?? 'portrait') === 'landscape' ? 'landscape' : 'portrait';
 
 // Grade levels
 $grades_raw = json_decode(trim($_POST['grade_json'] ?? '[]'), true);
@@ -69,11 +69,11 @@ if ($has_upload) {
 
 $json = json_encode($clean, JSON_UNESCAPED_UNICODE);
 if ($existing) {
-    db_run('UPDATE course_certificates SET enabled=?, grade_json=?, background_style=?, background_image=? WHERE course_id=?',
-        [$enabled, $json, $bg_style, $new_bg_image, $course_id]);
+    db_run('UPDATE course_certificates SET enabled=?, grade_json=?, background_style=?, background_image=?, orientation=? WHERE course_id=?',
+        [$enabled, $json, $bg_style, $new_bg_image, $orientation, $course_id]);
 } else {
-    db_run('INSERT INTO course_certificates (course_id, enabled, grade_json, background_style, background_image) VALUES (?,?,?,?,?)',
-        [$course_id, $enabled, $json, $bg_style, $new_bg_image]);
+    db_run('INSERT INTO course_certificates (course_id, enabled, grade_json, background_style, background_image, orientation) VALUES (?,?,?,?,?,?)',
+        [$course_id, $enabled, $json, $bg_style, $new_bg_image, $orientation]);
 }
 
 json_ok(['message' => 'บันทึกการตั้งค่าเกียรติบัตรเรียบร้อยแล้ว']);

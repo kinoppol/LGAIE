@@ -212,6 +212,8 @@ function get_courses_with_stats(bool $include_archived = false): array
 
     if (is_teacher()) {
         $archived_clause = $include_archived ? '' : 'AND c.is_archived = 0';
+        $co_ids   = co_taught_course_ids($uid);
+        $co_clause = $co_ids ? ('OR c.id IN (' . implode(',', $co_ids) . ')') : '';
         $sql    = "
             SELECT c.*,
                 u.avatar_class AS teacher_av,
@@ -223,7 +225,8 @@ function get_courses_with_stats(bool $include_archived = false): array
                 (SELECT COUNT(*) FROM course_enrollments  WHERE course_id = c.id AND COALESCE(status,'active') = 'active') AS student_count
             FROM courses c
             JOIN users u ON u.id = c.teacher_id
-            WHERE c.teacher_id = ? {$archived_clause}
+            WHERE (c.teacher_id = ? {$co_clause})
+                  {$archived_clause}
             ORDER BY c.id
         ";
         $params = [$uid];
@@ -273,7 +276,9 @@ function get_archived_courses(): array
 {
     $uid = current_user_id();
     if (is_teacher()) {
-        return db_rows('
+        $co_ids   = co_taught_course_ids($uid);
+        $co_clause = $co_ids ? ('OR c.id IN (' . implode(',', $co_ids) . ')') : '';
+        return db_rows("
             SELECT c.*,
                 u.avatar_class AS teacher_av,
                 u.avatar_path  AS teacher_av_path,
@@ -284,9 +289,9 @@ function get_archived_courses(): array
                 (SELECT COUNT(*) FROM course_enrollments WHERE course_id = c.id) AS student_count
             FROM courses c
             JOIN users u ON u.id = c.teacher_id
-            WHERE c.is_archived = 1 AND c.teacher_id = ?
+            WHERE c.is_archived = 1 AND (c.teacher_id = ? {$co_clause})
             ORDER BY c.archived_at DESC
-        ', [$uid]);
+        ", [$uid]);
     }
     return db_rows('
         SELECT c.*,
@@ -757,6 +762,7 @@ function ensure_certificate_schema(): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
     try { get_db()->exec("ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_style VARCHAR(32) NOT NULL DEFAULT 'plain'"); } catch (PDOException) {}
     try { get_db()->exec("ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_image VARCHAR(255) NOT NULL DEFAULT ''"); } catch (PDOException) {}
+    try { get_db()->exec("ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS orientation VARCHAR(16) NOT NULL DEFAULT 'portrait'"); } catch (PDOException) {}
 }
 
 /** Returns ordered list of certificate background styles (key => label). */
@@ -814,6 +820,62 @@ function ensure_quiz_schema(): void
         INDEX (assignment_id),
         FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+}
+
+/**
+ * Co-teachers: teachers other than the course owner who help teach or
+ * supervise. `co_role` distinguishes a teaching assistant ('co') from an
+ * observer/supervisor ('supervisor').
+ */
+function ensure_coteacher_schema(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try { get_db()->exec("CREATE TABLE IF NOT EXISTS course_teachers (
+        id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        course_id  INT UNSIGNED NOT NULL,
+        user_id    INT UNSIGNED NOT NULL,
+        co_role    ENUM('co','supervisor') NOT NULL DEFAULT 'co',
+        added_by   INT UNSIGNED NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_course_teacher (course_id, user_id),
+        INDEX (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+}
+
+/**
+ * Course IDs the user co-teaches. Safe even if course_teachers is missing
+ * (e.g. migration not yet run on the server) — returns [] on any DB error.
+ */
+function co_taught_course_ids(?int $uid = null): array
+{
+    $uid = $uid ?? current_user_id();
+    if (!$uid) return [];
+    ensure_coteacher_schema();
+    try {
+        $rows = db_rows('SELECT course_id FROM course_teachers WHERE user_id = ?', [$uid]);
+        return array_map(static fn($r) => (int) $r['course_id'], $rows);
+    } catch (PDOException) {
+        return [];
+    }
+}
+
+/** True if the user owns OR co-teaches the course (i.e. may teach/manage it). */
+function teaches_course(int $course_id, ?int $uid = null): bool
+{
+    $uid = $uid ?? current_user_id();
+    if (!$uid) return false;
+    if (db_val('SELECT 1 FROM courses WHERE id = ? AND teacher_id = ?', [$course_id, $uid])) return true;
+    return in_array($course_id, co_taught_course_ids($uid), true);
+}
+
+/** True only for the original course owner (owner-only actions). */
+function owns_course(int $course_id, ?int $uid = null): bool
+{
+    $uid = $uid ?? current_user_id();
+    if (!$uid) return false;
+    return (bool) db_val('SELECT 1 FROM courses WHERE id = ? AND teacher_id = ?', [$course_id, $uid]);
 }
 
 /** อ่าน $_FILES[$field] แบบ multiple → list ของ ['name','tmp_name','error','size'] */
@@ -954,13 +1016,16 @@ function thai_due_ts(string $due): int
 
 function count_pending_for_teacher(): int
 {
-    return (int) db_val('
+    $uid = current_user_id();
+    $co_ids   = co_taught_course_ids($uid);
+    $co_clause = $co_ids ? ('OR c.id IN (' . implode(',', $co_ids) . ')') : '';
+    return (int) db_val("
         SELECT COUNT(*) FROM submissions s
         JOIN assignments a ON a.id = s.assignment_id
         JOIN courses c     ON c.id = a.course_id
-        WHERE c.teacher_id = ? AND s.status = "submitted"
-          AND c.is_archived = 0
-    ', [current_user_id()]);
+        WHERE s.status = 'submitted' AND c.is_archived = 0
+          AND (c.teacher_id = ? {$co_clause})
+    ", [$uid]);
 }
 
 function count_pending_for_student(int $student_id): int
@@ -1017,6 +1082,9 @@ function icon(
         'target'     => '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
         'flag'       => '<path d="M5 21V4M5 4h11l-1.5 3.5L16 11H5"/>',
         'calendar'   => '<rect x="4" y="5" width="16" height="16" rx="2.5"/><path d="M4 9.5h16M8 3v4M16 3v4"/>',
+        'list'       => '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+        'user-x'     => '<path d="M14 19a5 5 0 0 0-10 0M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM17 8l4 4M21 8l-4 4"/>',
+        'maximize'   => '<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3"/>',
         'thumbs-up'  => '<path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z"/><path d="M7 11l4-7a2 2 0 0 1 2 1.5V9h5a2 2 0 0 1 2 2.3l-1 6a2 2 0 0 1-2 1.7H7"/>',
         'settings'   => '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
         'message'    => '<path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l.8-5.5A8 8 0 1 1 21 12z"/>',

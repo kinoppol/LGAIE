@@ -20,13 +20,9 @@ if (!$lesson_id || !$title || !$week) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
 
-// Verify the lesson belongs to a course owned by this teacher
-$owns = db_val('
-    SELECT 1 FROM lessons l
-    JOIN courses c ON c.id = l.course_id
-    WHERE l.id = ? AND c.teacher_id = ?
-', [$lesson_id, current_user_id()]);
-if (!$owns) json_err('ไม่มีสิทธิ์แก้ไขบทเรียนนี้', 403);
+// Verify the lesson belongs to a course this teacher teaches
+$course_id = (int)db_val('SELECT course_id FROM lessons WHERE id = ?', [$lesson_id]);
+if (!$course_id || !teaches_course($course_id)) json_err('ไม่มีสิทธิ์แก้ไขบทเรียนนี้', 403);
 
 // Auto-migrate columns
 try { get_db()->exec("ALTER TABLE lesson_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL"); } catch (PDOException) {}

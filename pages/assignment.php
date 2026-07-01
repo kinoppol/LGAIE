@@ -58,6 +58,8 @@ try {
       </span>
       <?php if (is_teacher()): ?>
       <button class="btn btn-sm btn-ghost" onclick="openModal('edit-assignment')"><?= icon('edit', 15) ?> แก้ไข</button>
+      <button class="btn btn-sm btn-ghost" style="color:var(--danger)"
+              onclick="confirmDeleteAssignment(<?= (int)$a['id'] ?>, '<?= h(addslashes($a['title'])) ?>')"><?= icon('trash', 15) ?> ลบงาน</button>
       <?php endif; ?>
     </div>
     <h1 style="font-size:24px;margin-bottom:12px"><?= h($a['title']) ?></h1>
@@ -419,6 +421,61 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
   </form>
   <?php modal_foot('edit-assignment', 'ยกเลิก', 'บันทึกการแก้ไข'); ?>
+
+  <!-- Delete assignment confirmation modal -->
+  <div id="del-assignment-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('del-assignment')" style="display:none">
+    <div class="modal" style="max-width:430px">
+      <div class="modal__head">
+        <span class="modal__ic" style="background:var(--danger-soft,#fee2e2);color:var(--danger,#ef4444)"><?= icon('trash', 20, 'var(--danger,#ef4444)') ?></span>
+        <h2 class="modal__title">ลบงานที่มอบหมาย</h2>
+        <button class="modal__close" onclick="closeModal('del-assignment')"><?= icon('x', 18) ?></button>
+      </div>
+      <div class="modal__body">
+        <p style="color:var(--body);line-height:1.7;margin:0">
+          คุณต้องการลบงาน <strong id="del-asgn-name" style="color:var(--heading)"></strong> ใช่หรือไม่?
+        </p>
+        <p style="font-size:13px;color:var(--sub);margin:10px 0 0">งานที่นักเรียนส่ง คะแนน และไฟล์แนบทั้งหมดจะถูกลบถาวร และไม่สามารถย้อนกลับได้</p>
+      </div>
+      <div class="modal__foot">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('del-assignment')">ยกเลิก</button>
+        <button type="button" id="del-asgn-confirm" class="btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="doDeleteAssignment()">
+          <?= icon('trash', 15, '#fff') ?> ยืนยันลบงาน
+        </button>
+      </div>
+    </div>
+  </div>
+  <script>
+  var _delAsgnId = null;
+  function confirmDeleteAssignment(id, title) {
+      _delAsgnId = id;
+      document.getElementById('del-asgn-name').textContent = '"' + title + '"';
+      openModal('del-assignment');
+  }
+  function doDeleteAssignment() {
+      if (_delAsgnId === null) return;
+      var btn = document.getElementById('del-asgn-confirm');
+      btn.disabled = true; btn.style.opacity = '.6';
+      var fd = new FormData();
+      fd.append('assignment_id', _delAsgnId);
+      fetch('api/delete_assignment.php', { method: 'POST', body: fd })
+          .then(r => r.json())
+          .then(res => {
+              if (res.ok) {
+                  showToast(res.message || 'ลบงานแล้ว');
+                  setTimeout(() => location.href = '<?= url('course', ['course_id' => (int)$a['course_id'], 'tab' => 'work']) ?>', 800);
+              } else {
+                  btn.disabled = false; btn.style.opacity = '1';
+                  closeModal('del-assignment');
+                  showToast(res.error || 'เกิดข้อผิดพลาด', true);
+              }
+          })
+          .catch(() => {
+              btn.disabled = false; btn.style.opacity = '1';
+              closeModal('del-assignment');
+              showToast('เกิดข้อผิดพลาด', true);
+          });
+  }
+  </script>
 
   <?php else: ?>
   <!-- ── Student submit / submitted view ──────────────────── -->

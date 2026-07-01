@@ -24,13 +24,9 @@ if (!$assignment_id || !$title || !$prompt_txt) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
 
-// Ownership check
-$owns = db_val('
-    SELECT 1 FROM assignments a
-    JOIN courses c ON c.id = a.course_id
-    WHERE a.id = ? AND c.teacher_id = ?
-', [$assignment_id, current_user_id()]);
-if (!$owns) json_err('ไม่มีสิทธิ์แก้ไขงานนี้', 403);
+// Access check — teacher must teach the course this assignment belongs to
+$course_id = (int)db_val('SELECT course_id FROM assignments WHERE id = ?', [$assignment_id]);
+if (!$course_id || !teaches_course($course_id)) json_err('ไม่มีสิทธิ์แก้ไขงานนี้', 403);
 
 // Auto-migrate columns
 try { get_db()->exec("ALTER TABLE assignment_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL"); } catch (PDOException) {}

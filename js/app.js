@@ -238,7 +238,9 @@ document.addEventListener('submit', e => {
   if (!('ajax' in form.dataset)) return;
   e.preventDefault();
 
-  const btn  = form.closest('.modal')?.querySelector('[type=submit]');
+  // The modal footer's submit button is type="button" (id ending in -submit);
+  // fall back to a real [type=submit] for forms that have one.
+  const btn  = form.closest('.modal')?.querySelector('.modal__foot [id$="-submit"], [type=submit]');
   const orig = btn?.textContent;
   if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก…'; }
 
@@ -287,7 +289,10 @@ function openGradeModal(sub) {
   if (resultWrap) resultWrap.style.display = sub.result ? '' : 'none';
   const gradeInput = document.getElementById('gf-grade');
   gradeInput.max   = sub.points;
-  gradeInput.value = sub.grade || '';
+  // Pre-fill with the existing grade, or default to full marks while waiting.
+  const hasGrade = sub.grade !== null && sub.grade !== undefined && sub.grade !== '';
+  gradeInput.value = hasGrade ? sub.grade : sub.points;
+  clampGrade(gradeInput);
   document.getElementById('gf-feedback').value   = sub.feedback || '';
   document.getElementById('gf-pts-lbl').textContent = 'คะแนน (เต็ม ' + sub.points + ')';
   document.getElementById('grade-modal-title').textContent = 'ตรวจงาน: ' + sub.name;
