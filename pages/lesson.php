@@ -34,7 +34,7 @@ $c = get_course((int)$lesson['course_id']);
       <?php endif; ?>
     </div>
     <h1 style="font-size:25px;margin-bottom:12px"><?= h($lesson['title']) ?></h1>
-    <p style="color:var(--body);font-size:15px;line-height:1.7;margin:0"><?= h($lesson['description']) ?></p>
+    <p style="color:var(--body);font-size:15px;line-height:1.7;margin:0"><?= format_instructions($lesson['description'] ?? '') ?></p>
 
     <?php if (!empty($lesson['materials'])): ?>
     <hr class="divider">
