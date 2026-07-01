@@ -345,3 +345,17 @@ function restoreCourse(courseId, btn) {
 <style>
 .field-label { display:block; font-size:.82rem; font-weight:600; color:var(--heading); margin-bottom:.4rem; }
 </style>
+<?php if (!is_teacher()): ?>
+<script>
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var join = params.get('join');
+    if (join) {
+        var inp = document.querySelector('#join-course-form [name="invite_code"]');
+        if (inp) inp.value = join.toUpperCase();
+        openModal('join-course');
+        history.replaceState(null, '', '?page=courses');
+    }
+})();
+</script>
+<?php endif; ?>

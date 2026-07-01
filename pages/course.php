@@ -354,6 +354,15 @@ elseif ($tab === 'people'):
     // Auto-migrate: ensure invite table exists
     try { get_db()->exec('CREATE TABLE IF NOT EXISTS course_invites (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, course_id INT UNSIGNED NOT NULL, invite_type ENUM("link","code","email") NOT NULL DEFAULT "code", invite_token VARCHAR(40) NULL, invite_code VARCHAR(10) NULL, invited_email VARCHAR(150) NULL, created_by INT UNSIGNED NOT NULL, expires_at DATETIME NULL, max_uses INT UNSIGNED NULL, use_count INT UNSIGNED DEFAULT 0, is_active TINYINT(1) DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE, FOREIGN KEY (created_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'); } catch (PDOException) {}
     $invite_code_row = db_row('SELECT * FROM course_invites WHERE course_id = ? AND invite_type = "code" ORDER BY id DESC LIMIT 1', [$course_id]);
+    // Build full invite URL for link + QR code
+    $invite_url = '';
+    if ($invite_code_row && $invite_code_row['is_active']) {
+        $scheme     = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+        $host       = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $dir        = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+        $invite_url = $scheme . '://' . $host . $dir . '/index.php?page=courses&join='
+                    . urlencode((string)$invite_code_row['invite_code']);
+    }
 ?>
 <div class="row wrap" style="align-items:flex-start">
   <div style="flex:1 1 340px;display:flex;flex-direction:column;gap:18px">
@@ -390,6 +399,24 @@ elseif ($tab === 'people'):
         </div>
         <div class="subtle" style="font-size:12px;margin-bottom:12px">
           ใช้แล้ว <?= (int)$invite_code_row['use_count'] ?> ครั้ง · รหัสนี้ใช้งานได้อยู่
+        </div>
+        <div style="font-size:11.5px;font-weight:600;color:var(--sub);margin-bottom:7px;letter-spacing:.03em">ลิงก์เชิญ</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <span style="flex:1;font-size:11.5px;font-family:ui-monospace,monospace;color:var(--primary);
+                       background:var(--primary-soft);border-radius:10px;padding:10px 14px;
+                       word-break:break-all;line-height:1.5">
+            <?= h($invite_url) ?>
+          </span>
+          <button class="btn btn-ghost" style="padding:10px 14px;flex-shrink:0"
+                  onclick="navigator.clipboard.writeText(<?= json_encode($invite_url) ?>).then(()=>showToast('คัดลอกลิงก์แล้ว'))"
+                  title="คัดลอกลิงก์">
+            <?= icon('copy', 18) ?>
+          </button>
+          <button class="btn btn-ghost" style="padding:10px 14px;flex-shrink:0"
+                  onclick="showInviteQR()"
+                  title="แสดง QR Code">
+            <?= icon('qr-code', 18) ?>
+          </button>
         </div>
         <?php elseif ($invite_code_row && !$invite_code_row['is_active']): ?>
         <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--line-1);border-radius:10px;margin-bottom:14px">
@@ -481,6 +508,30 @@ elseif ($tab === 'people'):
   </div>
 </div>
 
+<?php if ($is_owner && $invite_url): ?>
+<div id="invite-qr-overlay"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9000;
+            align-items:center;justify-content:center"
+     onclick="if(event.target===this)closeInviteQR()">
+  <div style="background:#fff;border-radius:20px;padding:28px 24px 20px;text-align:center;
+              max-width:340px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.3)">
+    <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:4px">ลิงก์เชิญนักเรียน</div>
+    <div id="invite-qr-url-label"
+         style="font-size:10.5px;color:#64748b;word-break:break-all;
+                font-family:ui-monospace,monospace;margin-bottom:16px;line-height:1.5"></div>
+    <div id="invite-qr-canvas" style="display:inline-block;line-height:0"></div>
+    <div style="margin-top:16px">
+      <button onclick="closeInviteQR()"
+              style="background:none;border:1.5px solid #e2e8f0;border-radius:10px;
+                     padding:8px 24px;font-size:14px;color:#475569;cursor:pointer;width:100%">
+        ปิด
+      </button>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
+<?php endif; ?>
+
 <?php if ($is_owner): ?>
 <script>
 const _cid = <?= $course_id ?>;
@@ -569,6 +620,45 @@ function removeStudent(sid, cid, name) {
             }
         });
 }
+
+<?php if ($invite_url): ?>
+var _inviteUrl = <?= json_encode($invite_url) ?>;
+var _qrGenerated = false;
+
+function showInviteQR() {
+    var overlay = document.getElementById('invite-qr-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    if (!_qrGenerated) {
+        _qrGenerated = true;
+        document.getElementById('invite-qr-url-label').textContent = _inviteUrl;
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(document.getElementById('invite-qr-canvas'), {
+                text: _inviteUrl,
+                width: 240,
+                height: 240,
+                colorDark: '#1e293b',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        } else {
+            document.getElementById('invite-qr-canvas').innerHTML =
+                '<p style="color:#94a3b8;font-size:13px;padding:20px">ไม่สามารถโหลด QR Code ได้<br><small>กรุณาเชื่อมต่ออินเทอร์เน็ต</small></p>';
+        }
+    }
+}
+
+function closeInviteQR() {
+    var overlay = document.getElementById('invite-qr-overlay');
+    if (overlay) overlay.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeInviteQR();
+});
+<?php endif; ?>
 </script>
 <?php endif; ?>
 

@@ -1034,6 +1034,7 @@ function icon(
         'database'   => '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
         'trash'      => '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13z"/><path d="M10 11v5M14 11v5"/>',
         'camera'     => '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+        'qr-code'    => '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect fill="currentColor" stroke="none" x="5" y="5" width="3" height="3" rx=".5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect fill="currentColor" stroke="none" x="16" y="5" width="3" height="3" rx=".5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect fill="currentColor" stroke="none" x="5" y="16" width="3" height="3" rx=".5"/><circle fill="currentColor" stroke="none" cx="15" cy="15" r="1.1"/><circle fill="currentColor" stroke="none" cx="19" cy="15" r="1.1"/><circle fill="currentColor" stroke="none" cx="15" cy="19" r="1.1"/><circle fill="currentColor" stroke="none" cx="19" cy="19" r="1.1"/><circle fill="currentColor" stroke="none" cx="17" cy="17" r="1.3"/>',
     ];
     $inner = $paths[$name] ?? '';
     $ca    = $cls ? " class=\"" . h($cls) . "\"" : '';
