@@ -549,7 +549,7 @@ elseif ($tab === 'people'):
             <?= h($invite_url) ?>
           </span>
           <button class="btn btn-ghost" style="padding:10px 14px;flex-shrink:0"
-                  onclick="navigator.clipboard.writeText(<?= json_encode($invite_url) ?>).then(()=>showToast('คัดลอกลิงก์แล้ว'))"
+                  onclick="navigator.clipboard.writeText(<?= h(json_encode($invite_url)) ?>).then(()=>showToast('คัดลอกลิงก์แล้ว'))"
                   title="คัดลอกลิงก์">
             <?= icon('copy', 18) ?>
           </button>
