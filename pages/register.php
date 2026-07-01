@@ -6,7 +6,7 @@ require_once __DIR__ . '/../includes/provinces.php';
 if (isset($_SESSION['user_id'])) { redirect(url('dashboard')); }
 
 $err       = '';
-$active_role = $_GET['role'] ?? 'teacher'; // pre-select tab
+$active_role = $_GET['role'] ?? 'student'; // pre-select tab
 $invite_code = $_GET['invite'] ?? '';
 
 if (!empty($_SESSION['error'])) { $err = $_SESSION['error']; unset($_SESSION['error']); }
