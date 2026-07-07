@@ -442,7 +442,7 @@ elseif ($tab === 'people'):
     }
     ensure_coteacher_schema();
     try {
-        $coteachers = db_rows('SELECT u.*, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? ORDER BY ct.created_at', [$course_id]);
+        $coteachers = db_rows('SELECT u.*, ct.id AS ct_id, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? ORDER BY ct.created_at', [$course_id]);
     } catch (PDOException) {
         $coteachers = [];
     }
@@ -471,7 +471,7 @@ elseif ($tab === 'people'):
       </div>
       <?php foreach ($coteachers as $ct): ?>
       <div class="card-pad" style="display:flex;align-items:center;gap:12px;border-top:1px solid var(--line-2)"
-           id="coteacher-row-<?= (int)$ct['id'] ?>">
+           id="coteacher-row-<?= (int)$ct['ct_id'] ?>">
         <?= avatar($ct, 46) ?>
         <div style="min-width:0;flex:1">
           <div style="font-weight:700;color:var(--heading)"><?= h($ct['name'] ?? '') ?></div>
@@ -484,7 +484,7 @@ elseif ($tab === 'people'):
         </div>
         <?php if ($is_course_owner): ?>
         <button class="btn btn-sm btn-ghost" style="color:var(--danger)" title="นำออกจากทีมผู้สอน"
-                onclick="confirmRemoveCoteacher(<?= (int)$ct['id'] ?>, '<?= h(addslashes($ct['name'])) ?>')">
+                onclick="confirmRemoveCoteacher(<?= (int)$ct['ct_id'] ?>, '<?= h(addslashes($ct['name'])) ?>')">
           <?= icon('x', 14) ?>
         </button>
         <?php endif; ?>
