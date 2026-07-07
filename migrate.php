@@ -159,6 +159,10 @@ $results[] = migrate_run($db, 'table: course_teachers',
         UNIQUE KEY uq_course_teacher (course_id, user_id),
         INDEX (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+$results[] = migrate_run($db, 'course_teachers.co_role',
+    "ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS co_role ENUM('co','supervisor') NOT NULL DEFAULT 'co'");
+$results[] = migrate_run($db, 'course_teachers.added_by',
+    "ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS added_by INT UNSIGNED NULL");
 
 // ── 7. app_settings seed ─────────────────────────────────────────────────────
 $results[] = migrate_run($db, 'app_settings seed',

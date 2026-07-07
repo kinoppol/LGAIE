@@ -832,7 +832,8 @@ function ensure_coteacher_schema(): void
     static $done = false;
     if ($done) return;
     $done = true;
-    try { get_db()->exec("CREATE TABLE IF NOT EXISTS course_teachers (
+    $db = get_db();
+    try { $db->exec("CREATE TABLE IF NOT EXISTS course_teachers (
         id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         course_id  INT UNSIGNED NOT NULL,
         user_id    INT UNSIGNED NOT NULL,
@@ -842,6 +843,9 @@ function ensure_coteacher_schema(): void
         UNIQUE KEY uq_course_teacher (course_id, user_id),
         INDEX (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+    // Backfill columns added after initial deployment
+    try { $db->exec("ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS co_role ENUM('co','supervisor') NOT NULL DEFAULT 'co'"); } catch (PDOException) {}
+    try { $db->exec("ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS added_by INT UNSIGNED NULL"); } catch (PDOException) {}
 }
 
 /**
