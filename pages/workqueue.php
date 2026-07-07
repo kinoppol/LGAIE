@@ -16,6 +16,7 @@ if (is_teacher()) {
         JOIN courses c ON c.id = a.course_id
         WHERE c.is_archived = 0
           AND (c.teacher_id = ? {$co_clause})
+        HAVING pending_count > 0
         ORDER BY a.due_date
     ", [$uid]);
 } else {
