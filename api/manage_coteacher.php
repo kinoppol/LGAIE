@@ -56,9 +56,9 @@ if ($action === 'add') {
 }
 
 if ($action === 'remove') {
-    $coteacher_id = (int)($_POST['coteacher_id'] ?? 0);
-    if (!$coteacher_id) json_err('ไม่พบรายการที่ต้องการนำออก');
-    db_run('DELETE FROM course_teachers WHERE id = ? AND course_id = ?', [$coteacher_id, $course_id]);
+    $coteacher_uid = (int)($_POST['coteacher_id'] ?? 0);
+    if (!$coteacher_uid) json_err('ไม่พบรายการที่ต้องการนำออก');
+    db_run('DELETE FROM course_teachers WHERE user_id = ? AND course_id = ?', [$coteacher_uid, $course_id]);
     json_ok(['message' => 'นำครูออกจากทีมผู้สอนแล้ว']);
 }
 
