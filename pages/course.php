@@ -443,7 +443,7 @@ elseif ($tab === 'people'):
     ensure_coteacher_schema();
     try {
         // Exclude the course owner in case a stale self-row exists in course_teachers
-        $coteachers = db_rows('SELECT u.*, ct.user_id AS ct_uid, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? AND ct.user_id <> ? ORDER BY ct.user_id', [$course_id, (int)$course['teacher_id']]);
+        $coteachers = db_rows('SELECT u.*, ct.user_id AS ct_uid, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? AND ct.user_id <> ? ORDER BY ct.user_id', [$course_id, (int)$c['teacher_id']]);
     } catch (PDOException) {
         $coteachers = [];
     }
