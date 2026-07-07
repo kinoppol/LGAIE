@@ -441,10 +441,14 @@ elseif ($tab === 'people'):
                     . urlencode((string)$invite_code_row['invite_code']);
     }
     ensure_coteacher_schema();
+    $coteacher_debug = '';
     try {
         $coteachers = db_rows('SELECT u.*, ct.id AS ct_id, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? ORDER BY ct.id', [$course_id]);
-    } catch (PDOException) {
+        $raw_ct = db_rows('SELECT * FROM course_teachers WHERE course_id = ?', [$course_id]);
+        $coteacher_debug = 'ct_rows=' . count($coteachers) . ' raw=' . count($raw_ct) . ' raw_data=' . json_encode($raw_ct);
+    } catch (PDOException $e) {
         $coteachers = [];
+        $coteacher_debug = 'ERR: ' . $e->getMessage();
     }
 ?>
 <div class="row wrap" style="align-items:flex-start">
@@ -453,6 +457,7 @@ elseif ($tab === 'people'):
     <div class="card">
       <div class="card-head">
         <?= icon('edit', 18, 'var(--primary)') ?><h3>ทีมผู้สอน</h3>
+        <?php if ($coteacher_debug): ?><small style="color:red;font-size:11px;word-break:break-all"><?= h($coteacher_debug) ?></small><?php endif; ?>
         <?php if ($is_course_owner): ?>
         <button class="btn btn-sm btn-soft" style="margin-left:auto;gap:6px;font-size:12.5px" onclick="openModal('add-coteacher')">
           <?= icon('plus', 14, 'var(--primary)') ?> เพิ่มครู
