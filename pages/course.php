@@ -442,7 +442,7 @@ elseif ($tab === 'people'):
     }
     ensure_coteacher_schema();
     try {
-        $coteachers = db_rows('SELECT u.*, ct.id AS ct_id, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? ORDER BY ct.created_at', [$course_id]);
+        $coteachers = db_rows('SELECT u.*, ct.id AS ct_id, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? ORDER BY ct.id', [$course_id]);
     } catch (PDOException) {
         $coteachers = [];
     }

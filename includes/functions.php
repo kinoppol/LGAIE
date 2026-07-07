@@ -846,6 +846,7 @@ function ensure_coteacher_schema(): void
     // Backfill columns added after initial deployment
     try { $db->exec("ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS co_role ENUM('co','supervisor') NOT NULL DEFAULT 'co'"); } catch (PDOException) {}
     try { $db->exec("ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS added_by INT UNSIGNED NULL"); } catch (PDOException) {}
+    try { $db->exec("ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"); } catch (PDOException) {}
 }
 
 /**

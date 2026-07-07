@@ -163,6 +163,8 @@ $results[] = migrate_run($db, 'course_teachers.co_role',
     "ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS co_role ENUM('co','supervisor') NOT NULL DEFAULT 'co'");
 $results[] = migrate_run($db, 'course_teachers.added_by',
     "ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS added_by INT UNSIGNED NULL");
+$results[] = migrate_run($db, 'course_teachers.created_at',
+    "ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
 
 // ── 7. app_settings seed ─────────────────────────────────────────────────────
 $results[] = migrate_run($db, 'app_settings seed',
