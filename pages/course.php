@@ -441,13 +441,11 @@ elseif ($tab === 'people'):
                     . urlencode((string)$invite_code_row['invite_code']);
     }
     ensure_coteacher_schema();
-    $coteacher_debug = '';
     try {
-        $coteachers = db_rows('SELECT u.*, ct.user_id AS ct_uid, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? ORDER BY ct.user_id', [$course_id]);
-        $coteacher_debug = '';
-    } catch (PDOException $e) {
+        // Exclude the course owner in case a stale self-row exists in course_teachers
+        $coteachers = db_rows('SELECT u.*, ct.user_id AS ct_uid, ct.co_role FROM course_teachers ct JOIN users u ON u.id = ct.user_id WHERE ct.course_id = ? AND ct.user_id <> ? ORDER BY ct.user_id', [$course_id, (int)$course['teacher_id']]);
+    } catch (PDOException) {
         $coteachers = [];
-        $coteacher_debug = 'ERR: ' . $e->getMessage();
     }
 ?>
 <div class="row wrap" style="align-items:flex-start">
