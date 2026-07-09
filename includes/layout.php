@@ -314,11 +314,30 @@ function layout_start(string $page_title = 'ClassroomAI'): void
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.7" stroke-linecap="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
         </svg>
-        ออกจากระบบ
+        <?= is_impersonating() ? 'กลับสู่ผู้ดูแลระบบ' : 'ออกจากระบบ' ?>
       </a>
     </div>
   </div>
 </header>
+
+<?php if (is_impersonating()): ?>
+<!-- Impersonation banner -->
+<div style="background:#f59e0b;color:#1a1a2e;padding:9px 20px;display:flex;align-items:center;gap:12px;
+     font-size:13.5px;flex-wrap:wrap;box-shadow:0 1px 6px rgba(0,0,0,.12)">
+  <?= icon('user', 16, '#1a1a2e') ?>
+  <span>
+    คุณกำลังใช้งานในนามของ <b><?= h($user['name'] ?? '') ?></b>
+    (<?= h($role === 'teacher' ? 'ครู' : ($role === 'admin' ? 'ผู้ดูแลระบบ' : 'นักเรียน')) ?>)
+    — สวมสิทธิ์โดย <b><?= h($_SESSION['impersonator_name'] ?? 'ผู้ดูแลระบบ') ?></b>
+  </span>
+  <a href="api/impersonate.php?action=stop"
+     style="margin-left:auto;background:#1a1a2e;color:#fff;padding:5px 14px;border-radius:7px;
+            text-decoration:none;font-weight:600;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+    กลับสู่ผู้ดูแลระบบ
+  </a>
+</div>
+<?php endif; ?>
 
 <!-- PAGE CONTENT -->
 <?php

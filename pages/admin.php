@@ -94,6 +94,16 @@ if ($tab === 'users'):
         <?= $suspended ? 'ถูกระงับ' : ($pending ? 'รอยืนยัน' : 'ใช้งานได้') ?>
       </span>
       <div style="display:flex;gap:6px;flex:0 0 auto">
+        <?php if (!$suspended): ?>
+        <form method="post" action="api/impersonate.php" style="margin:0"
+              onsubmit="return confirm('สวมสิทธิ์เข้าใช้งานในนาม \'<?= h(addslashes($u['name'])) ?>\'?\nคุณจะเห็นระบบเหมือนที่ผู้ใช้คนนี้เห็น — กด \'ออกจากระบบ\' เพื่อกลับสู่สิทธิ์ผู้ดูแล')">
+          <input type="hidden" name="action" value="start">
+          <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+          <button type="submit" class="btn btn-sm btn-ghost" title="สวมสิทธิ์ผู้ใช้นี้">
+            <?= icon('user', 14) ?> สวมสิทธิ์
+          </button>
+        </form>
+        <?php endif; ?>
         <button class="btn btn-sm btn-ghost" title="รีเซ็ตรหัสผ่าน"
                 onclick="openResetModal(<?= (int)$u['id'] ?>, '<?= h(addslashes($u['name'])) ?>')">
           <?= icon('key', 14) ?> รีเซ็ตรหัสผ่าน

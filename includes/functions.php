@@ -149,6 +149,12 @@ function is_logged_in(): bool
     return isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] > 0;
 }
 
+/** True when an admin is currently acting as (impersonating) another user. */
+function is_impersonating(): bool
+{
+    return !empty($_SESSION['impersonator_id']);
+}
+
 function require_auth(): void
 {
     if (!is_logged_in()) {
@@ -1088,6 +1094,7 @@ function icon(
         'flag'       => '<path d="M5 21V4M5 4h11l-1.5 3.5L16 11H5"/>',
         'calendar'   => '<rect x="4" y="5" width="16" height="16" rx="2.5"/><path d="M4 9.5h16M8 3v4M16 3v4"/>',
         'list'       => '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+        'user'       => '<path d="M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>',
         'user-x'     => '<path d="M14 19a5 5 0 0 0-10 0M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM17 8l4 4M21 8l-4 4"/>',
         'maximize'   => '<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3"/>',
         'thumbs-up'  => '<path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z"/><path d="M7 11l4-7a2 2 0 0 1 2 1.5V9h5a2 2 0 0 1 2 2.3l-1 6a2 2 0 0 1-2 1.7H7"/>',
