@@ -27,8 +27,11 @@ $archived    = is_teacher() ? get_archived_courses() : [];
   </div>
   <?php endif; ?>
   <?php if (!is_teacher()): ?>
+  <a href="<?= url('browse') ?>" class="btn btn-ghost" style="gap:8px;text-decoration:none">
+    <?= icon('search', 18, 'var(--primary)') ?> ค้นหารายวิชา
+  </a>
   <button class="btn btn-soft" style="gap:8px" onclick="openModal('join-course')">
-    <?= icon('plus', 18, 'var(--primary)') ?> ลงทะเบียนรายวิชา
+    <?= icon('plus', 18, 'var(--primary)') ?> ลงทะเบียนด้วยรหัส
   </button>
   <?php else: ?>
   <button class="btn btn-primary" style="gap:8px" onclick="openModal('new-course')">

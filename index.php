@@ -60,6 +60,7 @@ $title_map = [
     'profile'         => 'โปรไฟล์',
     'course_settings' => 'ตั้งค่ารายวิชา',
     'explore'         => 'ค้นหารายวิชา',
+    'browse'          => 'ค้นหารายวิชา',
     'admin'           => 'ผู้ดูแลระบบ',
 ];
 $title = $title_map[$page] ?? 'ClassroomAI';

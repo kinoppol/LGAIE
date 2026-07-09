@@ -119,6 +119,12 @@ function layout_start(string $page_title = 'ClassroomAI'): void
         <?php endif; ?>
     </a>
 
+    <?php if (!is_teacher()): ?>
+    <a href="<?= url('browse') ?>" class="nav-item<?= $active === 'browse' ? ' active' : '' ?>">
+        <?= icon('search', 20) ?> ค้นหารายวิชา
+    </a>
+    <?php endif; ?>
+
     <div class="nav-label">รายวิชาของฉัน</div>
     <?php
     $cur_course = isset($_GET['course_id']) ? (int)$_GET['course_id'] : 0;
