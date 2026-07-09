@@ -165,10 +165,6 @@ function layout_start(string $page_title = 'ClassroomAI'): void
 
 <!-- TOPBAR -->
 <header class="topbar">
-  <div class="searchbox">
-    <?= icon('search', 18) ?>
-    <input type="text" placeholder="ค้นหารายวิชา งาน หรือ prompt…">
-  </div>
   <div class="topbar__spacer"></div>
 
   <!-- Theme toggle -->
