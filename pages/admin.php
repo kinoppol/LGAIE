@@ -95,14 +95,10 @@ if ($tab === 'users'):
       </span>
       <div style="display:flex;gap:6px;flex:0 0 auto">
         <?php if (!$suspended): ?>
-        <form method="post" action="api/impersonate.php" style="margin:0"
-              onsubmit="return confirm('สวมสิทธิ์เข้าใช้งานในนาม \'<?= h(addslashes($u['name'])) ?>\'?\nคุณจะเห็นระบบเหมือนที่ผู้ใช้คนนี้เห็น — กด \'ออกจากระบบ\' เพื่อกลับสู่สิทธิ์ผู้ดูแล')">
-          <input type="hidden" name="action" value="start">
-          <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
-          <button type="submit" class="btn btn-sm btn-ghost" title="สวมสิทธิ์ผู้ใช้นี้">
-            <?= icon('user', 14) ?> สวมสิทธิ์
-          </button>
-        </form>
+        <button class="btn btn-sm btn-ghost" title="สวมสิทธิ์ผู้ใช้นี้"
+                onclick="openImpersonateModal(<?= (int)$u['id'] ?>, '<?= h(addslashes($u['name'])) ?>', '<?= $u['role'] === 'teacher' ? 'ครู' : 'นักเรียน' ?>')">
+          <?= icon('user', 14) ?> สวมสิทธิ์
+        </button>
         <?php endif; ?>
         <button class="btn btn-sm btn-ghost" title="รีเซ็ตรหัสผ่าน"
                 onclick="openResetModal(<?= (int)$u['id'] ?>, '<?= h(addslashes($u['name'])) ?>')">
@@ -118,6 +114,40 @@ if ($tab === 'users'):
     <?php if (empty($users)): ?>
     <p class="subtle" style="font-size:13.5px;padding:18px 12px">ไม่พบผู้ใช้</p>
     <?php endif; ?>
+  </div>
+</div>
+
+<!-- Impersonate confirmation modal -->
+<div class="modal-overlay" id="impersonate-overlay" style="display:none" onclick="closeModalOnBg(event,'impersonate')">
+  <div class="modal" style="max-width:440px">
+    <div class="modal__head">
+      <span style="width:38px;height:38px;border-radius:10px;background:#fef3c7;color:#d97706;display:grid;place-items:center;flex:0 0 auto">
+        <?= icon('user', 20, '#d97706') ?>
+      </span>
+      <h3>สวมสิทธิ์ผู้ใช้</h3>
+      <button type="button" class="x-btn" onclick="closeModal('impersonate')"><?= icon('x', 18) ?></button>
+    </div>
+    <div class="modal__body">
+      <p style="font-size:14.5px;color:var(--body);line-height:1.7;margin:0">
+        เข้าใช้งานระบบในนามของ
+        <b id="imp-name" style="color:var(--heading)"></b>
+        (<span id="imp-role"></span>) ใช่หรือไม่?
+      </p>
+      <div style="margin-top:12px;padding:11px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:9px;font-size:13px;color:#92400e;line-height:1.6">
+        <?= icon('user', 14, '#92400e') ?> คุณจะเห็นและใช้งานระบบเหมือนที่ผู้ใช้คนนี้เห็นทุกอย่าง
+        — กด <b>"กลับสู่ผู้ดูแลระบบ"</b> ที่แถบด้านบน หรือ "ออกจากระบบ" เพื่อคืนสิทธิ์ผู้ดูแล
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('impersonate')">ยกเลิก</button>
+      <form method="post" action="api/impersonate.php" style="margin:0">
+        <input type="hidden" name="action" value="start">
+        <input type="hidden" name="user_id" id="imp-user-id">
+        <button type="submit" class="btn" style="background:#d97706;color:#fff;border-color:#d97706">
+          <?= icon('user', 16, '#fff') ?> ยืนยันสวมสิทธิ์
+        </button>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -146,6 +176,13 @@ if ($tab === 'users'):
 <?php modal_foot('reset-pw', 'ปิด', 'รีเซ็ตรหัสผ่าน'); ?>
 
 <script>
+function openImpersonateModal(id, name, role) {
+  document.getElementById('imp-user-id').value = id;
+  document.getElementById('imp-name').textContent = name;
+  document.getElementById('imp-role').textContent = role;
+  openModal('impersonate');
+}
+
 function genPassword() {
   var chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
   var out = '';
