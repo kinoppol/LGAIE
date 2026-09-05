@@ -11,7 +11,10 @@ $user_id = (int)($_POST['user_id'] ?? 0);
 
 $target = db_row('SELECT * FROM users WHERE id = ?', [$user_id]);
 if (!$target) json_err('ไม่พบผู้ใช้');
-if ($target['role'] === 'admin') json_err('ไม่สามารถจัดการบัญชีผู้ดูแลระบบด้วยกันได้', 403);
+// จัดการบัญชีผู้ดูแลระบบด้วยกันไม่ได้ ยกเว้นคำสั่ง demote_admin (ถอดสิทธิ์กลับเป็นครู)
+if ($target['role'] === 'admin' && $action !== 'demote_admin') {
+    json_err('ไม่สามารถจัดการบัญชีผู้ดูแลระบบด้วยกันได้', 403);
+}
 
 switch ($action) {
     case 'reset_password':
@@ -25,6 +28,18 @@ switch ($action) {
         if (!in_array($status, ['active', 'suspended'], true)) json_err('สถานะไม่ถูกต้อง');
         db_run('UPDATE users SET status = ? WHERE id = ?', [$status, $user_id]);
         json_ok(['message' => ($status === 'suspended' ? 'ระงับบัญชี ' : 'เปิดใช้งานบัญชี ') . $target['name'] . ' แล้ว']);
+
+    case 'promote_admin':
+        // แต่งตั้งได้เฉพาะบัญชีครูเท่านั้น (นักเรียนไม่สามารถเป็นผู้ดูแลระบบได้)
+        if ($target['role'] !== 'teacher') json_err('แต่งตั้งเป็นผู้ดูแลระบบได้เฉพาะบัญชีครูเท่านั้น');
+        db_run("UPDATE users SET role = 'admin' WHERE id = ?", [$user_id]);
+        json_ok(['message' => 'แต่งตั้ง ' . $target['name'] . ' เป็นผู้ดูแลระบบแล้ว']);
+
+    case 'demote_admin':
+        if ($target['role'] !== 'admin') json_err('บัญชีนี้ไม่ใช่ผู้ดูแลระบบ');
+        if ($user_id === current_user_id()) json_err('ไม่สามารถถอดสิทธิ์ผู้ดูแลระบบของตัวเองได้ — ให้ผู้ดูแลระบบท่านอื่นดำเนินการแทน');
+        db_run("UPDATE users SET role = 'teacher' WHERE id = ?", [$user_id]);
+        json_ok(['message' => 'ถอดสิทธิ์ผู้ดูแลระบบของ ' . $target['name'] . ' แล้ว (กลับเป็นบัญชีครู)']);
 
     default:
         json_err('ไม่รู้จักคำสั่งนี้');

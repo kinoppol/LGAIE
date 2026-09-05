@@ -25,9 +25,10 @@ $sub_quota_mb = (int)get_setting('course_submissions_quota_mb', '1024');
 <div class="tabs" style="margin:18px 0 22px">
   <?php
   $tabs = [
-      ['users',   'users',    'จัดการผู้ใช้'],
-      ['storage', 'database', 'พื้นที่จัดเก็บไฟล์'],
-      ['ai',      'sparkle',  'รายชื่อ AI'],
+      ['users',     'users',    'จัดการผู้ใช้'],
+      ['storage',   'database', 'พื้นที่จัดเก็บไฟล์'],
+      ['ai',        'sparkle',  'รายชื่อ AI'],
+      ['migration', 'refresh',  'Migration'],
   ];
   foreach ($tabs as [$tid, $tic, $tlbl]):
   ?>
@@ -43,23 +44,31 @@ $sub_quota_mb = (int)get_setting('course_submissions_quota_mb', '1024');
 // ════════════════════════════════════════════════════════════════
 if ($tab === 'users'):
     $role_filter = $_GET['role'] ?? 'all';
-    $where  = "role != 'admin'";
-    $params = [];
-    if (in_array($role_filter, ['teacher', 'student'], true)) {
-        $where   .= ' AND role = ?';
-        $params[] = $role_filter;
+    if ($role_filter === 'admin') {
+        // แท็บผู้ดูแลระบบ — ดูรายชื่อ admin ทั้งหมด (รวมตัวเอง) เพื่อถอดสิทธิ์ได้
+        $where  = "role = 'admin'";
+        $params = [];
+    } else {
+        $where  = "role != 'admin'";
+        $params = [];
+        if (in_array($role_filter, ['teacher', 'student'], true)) {
+            $where   .= ' AND role = ?';
+            $params[] = $role_filter;
+        }
     }
     $users         = db_rows("SELECT * FROM users WHERE {$where} ORDER BY role, id", $params);
     $teacher_count = (int)db_val("SELECT COUNT(*) FROM users WHERE role = 'teacher'");
     $student_count = (int)db_val("SELECT COUNT(*) FROM users WHERE role = 'student'");
+    $admin_count   = (int)db_val("SELECT COUNT(*) FROM users WHERE role = 'admin'");
 ?>
 
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
   <?php
   $filters = [
-      ['all',     'ทั้งหมด',  $teacher_count + $student_count],
-      ['teacher', 'ครู',      $teacher_count],
-      ['student', 'นักเรียน', $student_count],
+      ['all',     'ทั้งหมด',        $teacher_count + $student_count],
+      ['teacher', 'ครู',            $teacher_count],
+      ['student', 'นักเรียน',       $student_count],
+      ['admin',   'ผู้ดูแลระบบ',    $admin_count],
   ];
   foreach ($filters as [$fid, $flbl, $fcnt]):
       $on = $role_filter === $fid;
@@ -87,17 +96,36 @@ if ($tab === 'users'):
           <?= h($u['email'] ?? '—') ?><?= !empty($u['school']) ? ' · ' . h($u['school']) : '' ?>
         </div>
       </div>
-      <span class="badge <?= $u['role'] === 'teacher' ? 'blue' : 'gray' ?>" style="font-size:11px;flex:0 0 auto">
-        <?= $u['role'] === 'teacher' ? 'ครู' : 'นักเรียน' ?>
+      <span class="badge <?= $u['role'] === 'teacher' ? 'blue' : 'gray' ?>"
+            style="font-size:11px;flex:0 0 auto<?= $u['role'] === 'admin' ? ';background:#ede9fe;color:#6d28d9' : '' ?>">
+        <?= $u['role'] === 'admin' ? 'ผู้ดูแลระบบ' : ($u['role'] === 'teacher' ? 'ครู' : 'นักเรียน') ?>
       </span>
+      <?php if ($u['role'] !== 'admin'): ?>
       <span class="badge <?= $suspended ? 'orange' : ($pending ? 'gray' : 'green') ?>" style="font-size:11px;flex:0 0 auto">
         <?= $suspended ? 'ถูกระงับ' : ($pending ? 'รอยืนยัน' : 'ใช้งานได้') ?>
       </span>
+      <?php endif; ?>
       <div style="display:flex;gap:6px;flex:0 0 auto">
+        <?php if ($u['role'] === 'admin'): ?>
+        <?php if ((int)$u['id'] === current_user_id()): ?>
+        <span class="subtle" style="font-size:12px">(บัญชีของคุณ)</span>
+        <?php else: ?>
+        <button class="btn btn-sm btn-ghost" style="color:var(--danger)" title="ถอดสิทธิ์ผู้ดูแลระบบ กลับเป็นบัญชีครู"
+                onclick="demoteAdmin(<?= (int)$u['id'] ?>, '<?= h(addslashes($u['name'])) ?>')">
+          <?= icon('user-x', 14) ?> ถอดสิทธิ์ผู้ดูแลระบบ
+        </button>
+        <?php endif; ?>
+        <?php else: ?>
         <?php if (!$suspended): ?>
         <button class="btn btn-sm btn-ghost" title="สวมสิทธิ์ผู้ใช้นี้"
                 onclick="openImpersonateModal(<?= (int)$u['id'] ?>, '<?= h(addslashes($u['name'])) ?>', '<?= $u['role'] === 'teacher' ? 'ครู' : 'นักเรียน' ?>')">
           <?= icon('user', 14) ?> สวมสิทธิ์
+        </button>
+        <?php endif; ?>
+        <?php if ($u['role'] === 'teacher'): ?>
+        <button class="btn btn-sm btn-ghost" style="color:var(--primary)" title="แต่งตั้งเป็นผู้ดูแลระบบ"
+                onclick="promoteAdmin(<?= (int)$u['id'] ?>, '<?= h(addslashes($u['name'])) ?>')">
+          <?= icon('shield', 14) ?> แต่งตั้งเป็นผู้ดูแลระบบ
         </button>
         <?php endif; ?>
         <button class="btn btn-sm btn-ghost" title="รีเซ็ตรหัสผ่าน"
@@ -108,6 +136,7 @@ if ($tab === 'users'):
                 onclick="toggleUserStatus(<?= (int)$u['id'] ?>, '<?= h(addslashes($u['name'])) ?>', '<?= $suspended ? 'active' : 'suspended' ?>')">
           <?= $suspended ? icon('check-circle', 14) . ' เปิดใช้งาน' : icon('lock', 14) . ' ระงับบัญชี' ?>
         </button>
+        <?php endif; // role === 'admin' ?>
       </div>
     </div>
     <?php endforeach; ?>
@@ -232,6 +261,34 @@ function toggleUserStatus(id, name, newStatus) {
   fd.append('action', 'set_status');
   fd.append('user_id', id);
   fd.append('status', newStatus);
+  fetch('api/admin_users.php', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) { showToast(res.message); setTimeout(() => location.reload(), 700); }
+      else showToast(res.error || 'เกิดข้อผิดพลาด', true);
+    })
+    .catch(() => showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', true));
+}
+
+function promoteAdmin(id, name) {
+  if (!confirm('แต่งตั้ง "' + name + '" เป็นผู้ดูแลระบบ?\nผู้ใช้นี้จะมีสิทธิ์เข้าถึงหน้าผู้ดูแลระบบและจัดการบัญชีอื่นได้ทันที')) return;
+  var fd = new FormData();
+  fd.append('action', 'promote_admin');
+  fd.append('user_id', id);
+  fetch('api/admin_users.php', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) { showToast(res.message); setTimeout(() => location.reload(), 700); }
+      else showToast(res.error || 'เกิดข้อผิดพลาด', true);
+    })
+    .catch(() => showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', true));
+}
+
+function demoteAdmin(id, name) {
+  if (!confirm('ถอดสิทธิ์ผู้ดูแลระบบของ "' + name + '"? บัญชีนี้จะกลับเป็นครูตามเดิม')) return;
+  var fd = new FormData();
+  fd.append('action', 'demote_admin');
+  fd.append('user_id', id);
   fetch('api/admin_users.php', { method: 'POST', body: fd })
     .then(r => r.json())
     .then(res => {
@@ -620,5 +677,65 @@ function deleteAi(id, name) {
     .catch(() => showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', true));
 }
 </script>
+
+<?php
+// ════════════════════════════════════════════════════════════════
+// MIGRATION tab — ตรวจสอบและซ่อมโครงสร้างฐานข้อมูลจากในระบบ (ไม่ต้องเปิด migrate.php เอง)
+// ════════════════════════════════════════════════════════════════
+elseif ($tab === 'migration'):
+    $ran     = $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['run_migration'] ?? '') === '1';
+    $results = $ran ? run_all_migrations() : [];
+    if ($ran) {
+        $ok_count   = count(array_filter($results, fn($r) => $r['status'] === 'ok'));
+        $skip_count = count(array_filter($results, fn($r) => $r['status'] === 'skip'));
+        $err_count  = count(array_filter($results, fn($r) => $r['status'] === 'error'));
+    }
+?>
+
+<div class="card" style="margin-bottom:20px">
+  <div class="card-head"><?= icon('refresh', 18, 'var(--primary)') ?><h3>ปรับโครงสร้างฐานข้อมูล</h3></div>
+  <div class="card-pad" style="padding-top:12px">
+    <p style="font-size:13.5px;color:var(--body);line-height:1.7;margin:0 0 14px">
+      ตรวจสอบและเพิ่มตาราง/คอลัมน์ที่ขาดหายไปให้ตรงกับเวอร์ชันล่าสุดของระบบ
+      — ใช้เมื่ออัปเดตโค้ดแล้วพบว่าบางฟีเจอร์ใช้งานไม่ได้เพราะฐานข้อมูลเดิมยังไม่มีคอลัมน์ใหม่
+      ปลอดภัย รันซ้ำได้กี่ครั้งก็ได้ ไม่ลบหรือแก้ไขข้อมูลเดิมที่มีอยู่
+    </p>
+    <form method="post" action="<?= url('admin', ['tab' => 'migration']) ?>" style="margin:0">
+      <input type="hidden" name="run_migration" value="1">
+      <button type="submit" class="btn btn-primary">
+        <?= icon('refresh', 16, '#fff') ?> เริ่มการ Migration
+      </button>
+    </form>
+  </div>
+</div>
+
+<?php if ($ran): ?>
+<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+  <span class="badge green" style="font-size:11px">✓ <?= $ok_count ?> สำเร็จ</span>
+  <span class="badge gray" style="font-size:11px">~ <?= $skip_count ?> ข้าม (มีอยู่แล้ว)</span>
+  <?php if ($err_count): ?><span class="badge orange" style="font-size:11px">✗ <?= $err_count ?> ผิดพลาด</span><?php endif; ?>
+</div>
+<div class="card">
+  <div style="padding:6px 10px;overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:520px">
+      <tr style="border-bottom:1px solid var(--line-2)">
+        <th style="text-align:left;padding:8px 10px;color:var(--sub);font-size:11px;font-weight:700">รายการ</th>
+        <th style="text-align:left;padding:8px 10px;color:var(--sub);font-size:11px;font-weight:700">สถานะ</th>
+        <th style="text-align:left;padding:8px 10px;color:var(--sub);font-size:11px;font-weight:700">รายละเอียด</th>
+      </tr>
+      <?php foreach ($results as $r):
+          $color = match ($r['status']) { 'ok' => '#059669', 'skip' => '#ca8a04', default => 'var(--danger)' };
+          $label = match ($r['status']) { 'ok' => '✓ สำเร็จ', 'skip' => '~ ข้าม', default => '✗ ผิดพลาด' };
+      ?>
+      <tr style="border-bottom:1px solid var(--line-1)">
+        <td style="padding:8px 10px"><code style="font-size:12px"><?= h($r['label']) ?></code></td>
+        <td style="padding:8px 10px;font-weight:600;color:<?= $color ?>"><?= $label ?></td>
+        <td style="padding:8px 10px;color:var(--sub);font-size:12px"><?= h($r['msg']) ?></td>
+      </tr>
+      <?php endforeach; ?>
+    </table>
+  </div>
+</div>
+<?php endif; ?>
 
 <?php endif; ?>

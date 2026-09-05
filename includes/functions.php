@@ -880,6 +880,179 @@ function ensure_coteacher_schema(): void
 }
 
 /**
+ * รันการปรับโครงสร้างฐานข้อมูลทั้งหมด (ADD COLUMN IF NOT EXISTS / CREATE TABLE IF NOT EXISTS)
+ * ปลอดภัย — รันซ้ำได้ ไม่ลบข้อมูลเดิม ใช้ร่วมกันทั้งจาก migrate.php (localhost) และ
+ * แท็บ "Migration" ในหน้าผู้ดูแลระบบ (pages/admin.php) — แก้ที่นี่ที่เดียว ไม่ต้องแก้สองที่
+ *
+ * @return array<int, array{label:string, status:string, msg:string}>
+ */
+function run_all_migrations(): array
+{
+    $db      = get_db();
+    $results = [];
+    $run     = function (string $label, string $sql) use ($db, &$results): void {
+        try {
+            $db->exec($sql);
+            $results[] = ['label' => $label, 'status' => 'ok', 'msg' => 'สำเร็จ'];
+        } catch (PDOException $e) {
+            $results[] = ['label' => $label, 'status' => 'skip', 'msg' => $e->getMessage()];
+        }
+    };
+
+    // ── 1. คอลัมน์ใน users ที่เพิ่มภายหลัง ─────────────────────────────────
+    $run('users.email',
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(150) NULL AFTER initials");
+    $run('users.password_hash',
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NOT NULL DEFAULT '' AFTER email");
+    $run('users.phone',
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20) NULL");
+    $run('users.school',
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS school VARCHAR(200) NULL");
+    $run('users.province',
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS province VARCHAR(100) NULL");
+    $run('users.status',
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS status ENUM('active','pending','suspended') NOT NULL DEFAULT 'active'");
+    $run('users.avatar_path',
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_path VARCHAR(255) NULL");
+    $run('users.show_in_directory',
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS show_in_directory TINYINT(1) NOT NULL DEFAULT 0");
+    $run('users.bio',
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(255) NOT NULL DEFAULT ''");
+    $run('users.uq_email', "CREATE UNIQUE INDEX IF NOT EXISTS uq_email ON users (email)");
+
+    // ── 2. คอลัมน์ใน courses ─────────────────────────────────────────────────
+    $run('courses.is_public',
+        "ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_public TINYINT(1) DEFAULT 0");
+    $run('courses.is_template',
+        "ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_template TINYINT(1) DEFAULT 0");
+    $run('courses.template_id',
+        "ALTER TABLE courses ADD COLUMN IF NOT EXISTS template_id INT UNSIGNED NULL");
+    $run('courses.template_secret',
+        "ALTER TABLE courses ADD COLUMN IF NOT EXISTS template_secret CHAR(12) NULL");
+    $run('courses.is_archived',
+        "ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_archived TINYINT(1) DEFAULT 0");
+    $run('courses.archived_at',
+        "ALTER TABLE courses ADD COLUMN IF NOT EXISTS archived_at DATETIME NULL");
+    $run('courses.materials_quota_mb',
+        "ALTER TABLE courses ADD COLUMN IF NOT EXISTS materials_quota_mb INT UNSIGNED NULL");
+    $run('courses.submissions_quota_mb',
+        "ALTER TABLE courses ADD COLUMN IF NOT EXISTS submissions_quota_mb INT UNSIGNED NULL");
+
+    // ── 3. คอลัมน์ใน lesson_materials ───────────────────────────────────────
+    $run('lesson_materials.file_path',
+        "ALTER TABLE lesson_materials ADD COLUMN IF NOT EXISTS file_path VARCHAR(255) NULL");
+    $run('lesson_materials.file_size',
+        "ALTER TABLE lesson_materials ADD COLUMN IF NOT EXISTS file_size INT UNSIGNED NOT NULL DEFAULT 0");
+    $run('lesson_materials.uploaded_at',
+        "ALTER TABLE lesson_materials ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+
+    // ── 4. คอลัมน์ใน course_enrollments ─────────────────────────────────────
+    $run('course_enrollments.join_type',
+        "ALTER TABLE course_enrollments ADD COLUMN IF NOT EXISTS join_type ENUM('direct','invite_link','invite_code','invite_email','self','template') DEFAULT 'direct'");
+    $run('course_enrollments.joined_at',
+        "ALTER TABLE course_enrollments ADD COLUMN IF NOT EXISTS joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+
+    // ── 5. คอลัมน์ example_file ใน prompts ──────────────────────────────────
+    $run('lesson_prompts.ai_id nullable',
+        "ALTER TABLE lesson_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL");
+    $run('assignment_prompts.ai_id nullable',
+        "ALTER TABLE assignment_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL");
+    $run('lesson_prompts.example_file',
+        "ALTER TABLE lesson_prompts ADD COLUMN IF NOT EXISTS example_file VARCHAR(255) NULL");
+    $run('lesson_prompts.example_file_name',
+        "ALTER TABLE lesson_prompts ADD COLUMN IF NOT EXISTS example_file_name VARCHAR(255) NULL");
+    $run('assignment_prompts.example_file',
+        "ALTER TABLE assignment_prompts ADD COLUMN IF NOT EXISTS example_file VARCHAR(255) NULL");
+    $run('assignment_prompts.example_file_name',
+        "ALTER TABLE assignment_prompts ADD COLUMN IF NOT EXISTS example_file_name VARCHAR(255) NULL");
+
+    // ── 6. ตารางใหม่ ──────────────────────────────────────────────────────────
+    $run('table: submission_files',
+        "CREATE TABLE IF NOT EXISTS submission_files (
+            id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            submission_id INT UNSIGNED NOT NULL,
+            name          VARCHAR(255) NOT NULL,
+            file_path     VARCHAR(255) NOT NULL,
+            file_type     VARCHAR(10)  NOT NULL,
+            file_size     INT UNSIGNED NOT NULL DEFAULT 0,
+            uploaded_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $run('table: app_settings',
+        "CREATE TABLE IF NOT EXISTS app_settings (
+            setting_key   VARCHAR(50)  PRIMARY KEY,
+            setting_value VARCHAR(255) NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $run('table: course_posts',
+        "CREATE TABLE IF NOT EXISTS course_posts (
+            id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            course_id   INT UNSIGNED NOT NULL,
+            teacher_id  INT UNSIGNED NOT NULL,
+            body        TEXT         NOT NULL,
+            prompt_text TEXT         NULL,
+            ai_id       VARCHAR(20)  NULL,
+            created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_course (course_id),
+            FOREIGN KEY (course_id)  REFERENCES courses(id) ON DELETE CASCADE,
+            FOREIGN KEY (teacher_id) REFERENCES users(id)   ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $run('table: course_certificates',
+        "CREATE TABLE IF NOT EXISTS course_certificates (
+            id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            course_id        INT UNSIGNED NOT NULL UNIQUE,
+            enabled          TINYINT(1)   NOT NULL DEFAULT 0,
+            grade_json       TEXT         NOT NULL DEFAULT '[]',
+            background_style VARCHAR(32)  NOT NULL DEFAULT 'plain',
+            background_image VARCHAR(255) NOT NULL DEFAULT '',
+            FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $run('course_certificates.background_style',
+        "ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_style VARCHAR(32) NOT NULL DEFAULT 'plain'");
+    $run('course_certificates.background_image',
+        "ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS background_image VARCHAR(255) NOT NULL DEFAULT ''");
+    $run('course_certificates.orientation',
+        "ALTER TABLE course_certificates ADD COLUMN IF NOT EXISTS orientation VARCHAR(16) NOT NULL DEFAULT 'portrait'");
+
+    $run('table: course_teachers',
+        "CREATE TABLE IF NOT EXISTS course_teachers (
+            id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            course_id  INT UNSIGNED NOT NULL,
+            user_id    INT UNSIGNED NOT NULL,
+            co_role    ENUM('co','supervisor') NOT NULL DEFAULT 'co',
+            added_by   INT UNSIGNED NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_course_teacher (course_id, user_id),
+            INDEX (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $run('course_teachers.co_role',
+        "ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS co_role ENUM('co','supervisor') NOT NULL DEFAULT 'co'");
+    $run('course_teachers.added_by',
+        "ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS added_by INT UNSIGNED NULL");
+    $run('course_teachers.created_at',
+        "ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+
+    // ── 7. app_settings seed ─────────────────────────────────────────────────
+    $run('app_settings seed',
+        "INSERT IGNORE INTO app_settings (setting_key, setting_value) VALUES
+         ('max_file_mb','10'),
+         ('course_materials_quota_mb','1024'),
+         ('course_submissions_quota_mb','1024')");
+
+    // ── 8. สร้างโฟลเดอร์ uploads ─────────────────────────────────────────────
+    try {
+        ensure_all_upload_dirs();
+        $results[] = ['label' => 'upload dirs', 'status' => 'ok', 'msg' => 'สร้าง/ตรวจสอบโฟลเดอร์ uploads/ แล้ว'];
+    } catch (Throwable $e) {
+        $results[] = ['label' => 'upload dirs', 'status' => 'error', 'msg' => $e->getMessage()];
+    }
+
+    return $results;
+}
+
+/**
  * Course IDs the user co-teaches. Safe even if course_teachers is missing
  * (e.g. migration not yet run on the server) — returns [] on any DB error.
  */

@@ -81,8 +81,9 @@ function layout_start(string $page_title = 'ClassroomAI'): void
     <?php
     $cur_tab = $_GET['tab'] ?? 'users';
     $nav_admin = [
-        ['users',   'users',    'จัดการผู้ใช้'],
-        ['storage', 'database', 'พื้นที่จัดเก็บไฟล์'],
+        ['users',     'users',    'จัดการผู้ใช้'],
+        ['storage',   'database', 'พื้นที่จัดเก็บไฟล์'],
+        ['migration', 'refresh',  'Migration'],
     ];
     foreach ($nav_admin as [$tb, $ic, $lbl]):
         $act = ($active === 'admin' && $cur_tab === $tb) ? ' active' : '';
