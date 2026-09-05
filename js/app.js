@@ -706,3 +706,67 @@ window.addLinkRow = function(containerId, url, label) {
     '<button type="button" onclick="this.closest(\'.link-row\').remove()" style="flex:0 0 32px;height:32px;border:none;border-radius:8px;background:var(--danger-soft,#fee2e2);color:var(--danger,#dc2626);cursor:pointer;font-size:18px;line-height:1;display:grid;place-items:center">×</button>';
   c.appendChild(row);
 };
+
+// ── Lesson list: drag-and-drop reorder ───────────────────────────────
+(function initLessonReorder() {
+  const list = document.getElementById('lesson-list');
+  if (!list) return;
+
+  let dragRow = null;
+
+  function rowOf(el) { return el ? el.closest('.lesson-row') : null; }
+
+  list.addEventListener('dragstart', e => {
+    const handle = e.target.closest('.lesson-drag-handle');
+    if (!handle) { e.preventDefault(); return; }
+    dragRow = rowOf(handle);
+    if (!dragRow) { e.preventDefault(); return; }
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', dragRow.dataset.lessonId || ''); } catch (err) {}
+    setTimeout(() => { dragRow.style.opacity = '.35'; }, 0);
+  });
+
+  list.addEventListener('dragend', () => {
+    if (dragRow) dragRow.style.opacity = '';
+    list.querySelectorAll('.lesson-row').forEach(r => { r.style.borderTop = ''; r.style.borderBottom = ''; });
+    dragRow = null;
+  });
+
+  list.addEventListener('dragover', e => {
+    if (!dragRow) return;
+    const row = rowOf(e.target);
+    if (!row || row === dragRow) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect   = row.getBoundingClientRect();
+    const before = (e.clientY - rect.top) < rect.height / 2;
+    list.querySelectorAll('.lesson-row').forEach(r => { if (r !== row) { r.style.borderTop = ''; r.style.borderBottom = ''; } });
+    row.style.borderTop    = before ? '2px solid var(--primary)' : '';
+    row.style.borderBottom = before ? '' : '2px solid var(--primary)';
+  });
+
+  list.addEventListener('drop', e => {
+    if (!dragRow) return;
+    const row = rowOf(e.target);
+    row?.style && (row.style.borderTop = '', row.style.borderBottom = '');
+    if (!row || row === dragRow) return;
+    e.preventDefault();
+    const rect   = row.getBoundingClientRect();
+    const before = (e.clientY - rect.top) < rect.height / 2;
+    row.insertAdjacentElement(before ? 'beforebegin' : 'afterend', dragRow);
+    saveLessonOrder();
+  });
+
+  function saveLessonOrder() {
+    const ids = Array.from(list.querySelectorAll('.lesson-row')).map(r => r.dataset.lessonId);
+    fetch('api/reorder_lessons.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'course_id=' + encodeURIComponent(list.dataset.courseId) +
+            '&' + ids.map(id => 'order[]=' + encodeURIComponent(id)).join('&')
+    })
+      .then(r => r.json())
+      .then(res => { if (!res.ok) showToast(res.error || 'จัดลำดับไม่สำเร็จ', true); })
+      .catch(() => showToast('จัดลำดับไม่สำเร็จ — ตรวจสอบการเชื่อมต่อ', true));
+  }
+})();

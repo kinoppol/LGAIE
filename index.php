@@ -2,9 +2,15 @@
 declare(strict_types=1);
 session_start();
 
+require_once __DIR__ . '/includes/install_guard.php';
+install_guard();
+
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/layout.php';
+
+// ── ตรวจว่าฐานข้อมูลติดตั้งแล้วจริง (ตารางหลักครบ) ─────────────
+install_guard_db();
 
 $page = $_GET['page'] ?? (is_logged_in() ? 'dashboard' : 'home');
 

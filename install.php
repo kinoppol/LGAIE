@@ -175,9 +175,19 @@ if ($step === 'install') {
 }
 
 // ── Check current DB status ───────────────────────────────────
+// $server_ok  → เชื่อมต่อ MariaDB ด้วย host/user/pass ได้ (ฐานข้อมูลยังไม่จำเป็นต้องมีอยู่)
+// $db_ok      → เชื่อมต่อสำเร็จ "และ" ฐานข้อมูลที่ระบุมีอยู่แล้ว (เช่น เคยติดตั้งไปแล้ว)
+// ปุ่มติดตั้งต้องใช้ $server_ok เท่านั้น ไม่ใช่ $db_ok — เพราะขั้นตอนติดตั้งเป็นตัว
+// สร้างฐานข้อมูลเอง (CREATE DATABASE IF NOT EXISTS) หากรอให้ $db_ok เป็นจริงก่อน
+// ปุ่มจะกดไม่ได้เลยในการติดตั้งครั้งแรก (ฐานข้อมูลยังไม่ถูกสร้าง)
+$server_ok  = false;
 $db_ok      = false;
 $tables     = [];
 $row_counts = [];
+try {
+    try_connect($cfg['host'], $cfg['user'], $cfg['pass'], $cfg['charset']);
+    $server_ok = true;
+} catch (PDOException) {}
 try {
     $check = new PDO(
         "mysql:host={$cfg['host']};dbname={$cfg['name']};charset={$cfg['charset']}",
@@ -404,7 +414,7 @@ $cfg_writable = is_writable(CONFIG_FILE)
       ติดตั้งฐานข้อมูล
     </h2>
 
-    <?php if (!$db_ok): ?>
+    <?php if (!$server_ok): ?>
     <div class="warn-box">
       <svg class="icon-sm" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
       <span>กรุณาตั้งค่าการเชื่อมต่อฐานข้อมูลและบันทึกก่อน แล้วจึงกดติดตั้ง</span>
@@ -438,13 +448,13 @@ $cfg_writable = is_writable(CONFIG_FILE)
     <div class="action-row">
       <form method="post">
         <input type="hidden" name="step" value="install">
-        <button type="submit" class="btn <?= $db_ok ? (count($tables) > 0 ? 'btn-ghost' : 'btn-primary') : 'btn-ghost' ?>"
-                style="gap:8px" <?= !$db_ok ? 'disabled title="ต้องเชื่อมต่อฐานข้อมูลก่อน"' : '' ?>>
-          <?php if (count($tables) > 0): ?>
+        <button type="submit" class="btn <?= $server_ok ? (count($tables) > 0 ? 'btn-ghost' : 'btn-primary') : 'btn-ghost' ?>"
+                style="gap:8px" <?= !$server_ok ? 'disabled title="ต้องเชื่อมต่อฐานข้อมูลก่อน"' : '' ?>>
+          <?php if ($db_ok && count($tables) > 0): ?>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           ติดตั้งซ้ำ / Re-seed
           <?php else: ?>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="<?= $db_ok ? '#fff' : 'currentColor' ?>" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="<?= $server_ok ? '#fff' : 'currentColor' ?>" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
           ติดตั้งฐานข้อมูล
           <?php endif; ?>
         </button>

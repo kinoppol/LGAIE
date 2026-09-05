@@ -343,6 +343,30 @@ function get_lesson_with_prompt(int $id): array|false
 }
 
 /**
+ * รายชื่อ "สัปดาห์/หน่วย" ที่เคยใช้ในรายวิชานี้แล้ว (ไม่ซ้ำ) เรียงตามลำดับที่ปรากฏครั้งแรก
+ * ใช้กับ week_label_datalist() เพื่อให้ครูเลือกของเดิม หรือพิมพ์ชื่อใหม่ก็ได้
+ */
+function get_lesson_week_labels(int $course_id): array
+{
+    $rows = db_rows(
+        'SELECT week_label FROM lessons WHERE course_id = ?
+         GROUP BY week_label ORDER BY MIN(sort_order), MIN(id)',
+        [$course_id]
+    );
+    return array_column($rows, 'week_label');
+}
+
+/** พิมพ์ <datalist> ของ "สัปดาห์/หน่วย" — ใช้คู่กับ <input list="{$id}"> */
+function week_label_datalist(string $id, array $labels): void
+{
+    echo '<datalist id="' . h($id) . '">';
+    foreach ($labels as $lbl) {
+        echo '<option value="' . h($lbl) . '">';
+    }
+    echo '</datalist>';
+}
+
+/**
  * แสดงข้อความคำสั่งงาน: รักษาการขึ้นบรรทัดใหม่และเปลี่ยน URL เป็นลิงก์คลิกได้
  * ปลอดภัยจาก XSS — escape ทุกส่วนก่อนส่งออก
  */
@@ -1115,6 +1139,7 @@ function icon(
         'trash'      => '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13z"/><path d="M10 11v5M14 11v5"/>',
         'camera'     => '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
         'qr-code'    => '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect fill="currentColor" stroke="none" x="5" y="5" width="3" height="3" rx=".5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect fill="currentColor" stroke="none" x="16" y="5" width="3" height="3" rx=".5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect fill="currentColor" stroke="none" x="5" y="16" width="3" height="3" rx=".5"/><circle fill="currentColor" stroke="none" cx="15" cy="15" r="1.1"/><circle fill="currentColor" stroke="none" cx="19" cy="15" r="1.1"/><circle fill="currentColor" stroke="none" cx="15" cy="19" r="1.1"/><circle fill="currentColor" stroke="none" cx="19" cy="19" r="1.1"/><circle fill="currentColor" stroke="none" cx="17" cy="17" r="1.3"/>',
+        'grip'       => '<circle fill="currentColor" stroke="none" cx="9" cy="6" r="1.4"/><circle fill="currentColor" stroke="none" cx="15" cy="6" r="1.4"/><circle fill="currentColor" stroke="none" cx="9" cy="12" r="1.4"/><circle fill="currentColor" stroke="none" cx="15" cy="12" r="1.4"/><circle fill="currentColor" stroke="none" cx="9" cy="18" r="1.4"/><circle fill="currentColor" stroke="none" cx="15" cy="18" r="1.4"/>',
     ];
     $inner = $paths[$name] ?? '';
     $ca    = $cls ? " class=\"" . h($cls) . "\"" : '';

@@ -272,12 +272,23 @@ elseif ($tab === 'lessons'): ?>
   <p><?= (!$guest_mode && is_teacher()) ? 'เริ่มเพิ่มบทเรียนแรกพร้อม Prompt AI ที่แนะนำ' : 'ครูยังไม่เพิ่มเนื้อหา' ?></p>
 </div>
 <?php endif; ?>
+<?php
+// ครูเท่านั้นที่ลากจัดลำดับได้ และต้องมีเนื้อหามากกว่า 1 รายการ
+$can_reorder_lessons = !$guest_mode && is_teacher() && count($lessons) > 1;
+?>
+<div id="lesson-list" data-course-id="<?= $course_id ?>">
 <?php foreach ($lessons as $l):
     $lesson_href = $guest_mode
         ? 'index.php?page=login&redirect=' . urlencode('index.php?page=lesson&lesson_id=' . $l['id'])
         : url('lesson', ['lesson_id' => $l['id']]);
 ?>
-<a href="<?= $lesson_href ?>" class="lrow" style="align-items:flex-start;padding:18px 20px;text-decoration:none<?= $guest_mode ? ';opacity:.85' : '' ?>">
+<a href="<?= $lesson_href ?>" class="lrow lesson-row" data-lesson-id="<?= $l['id'] ?>"
+   style="align-items:flex-start;padding:18px 20px;text-decoration:none<?= $guest_mode ? ';opacity:.85' : '' ?>">
+  <?php if ($can_reorder_lessons): ?>
+  <span class="lesson-drag-handle" draggable="true" title="ลากเพื่อจัดลำดับ"
+        style="cursor:grab;color:var(--faint);flex:0 0 auto;margin-top:2px"
+        onclick="event.preventDefault();event.stopPropagation()"><?= icon('grip', 18) ?></span>
+  <?php endif; ?>
   <span class="lr-ic" style="background:var(--primary-soft);color:var(--primary)"><?= icon('book', 20) ?></span>
   <div style="min-width:0;flex:1">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
@@ -305,6 +316,7 @@ elseif ($tab === 'lessons'): ?>
   <?= icon($guest_mode ? 'lock' : 'chevron-right', 18, 'var(--faint)') ?>
 </a>
 <?php endforeach; ?>
+</div>
 
 <?php
 
@@ -1417,7 +1429,8 @@ if (!$guest_mode && is_teacher()):
   </div>
   <div class="field">
     <label>สัปดาห์/หน่วย <span style="color:var(--danger)">*</span></label>
-    <input class="input" name="week_label" placeholder="เช่น สัปดาห์ที่ 1" required>
+    <input class="input" name="week_label" list="week-label-options" placeholder="เลือกจากรายการ หรือพิมพ์ชื่อใหม่ เช่น สัปดาห์ที่ 1" required autocomplete="off">
+    <?php week_label_datalist('week-label-options', get_lesson_week_labels((int)$course_id)); ?>
   </div>
   <div class="field">
     <label>คำอธิบายเนื้อหา</label>
