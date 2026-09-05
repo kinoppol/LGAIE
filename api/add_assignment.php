@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/functions.php';
 if (!is_teacher()) json_err('Forbidden', 403);
 
 $title      = trim($_POST['title'] ?? '');
+$week_label = trim($_POST['week_label'] ?? '');
 $type       = trim($_POST['assignment_type'] ?? 'งาน');
 $due        = trim($_POST['due_date'] ?? '');
 $due_time   = trim($_POST['due_time'] ?? '');
@@ -56,6 +57,7 @@ if ($ts) {
 try { get_db()->exec("ALTER TABLE assignment_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file VARCHAR(255) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file_name VARCHAR(255) NULL"); } catch (PDOException) {}
+try { get_db()->exec("ALTER TABLE assignments ADD COLUMN IF NOT EXISTS week_label VARCHAR(50) NULL AFTER title"); } catch (PDOException) {}
 ensure_quiz_schema();
 
 $example_file = $example_file_name = null;
@@ -67,8 +69,8 @@ $db = get_db();
 $db->beginTransaction();
 try {
     $assignment_id = db_run(
-        'INSERT INTO assignments (course_id, title, assignment_type, due_date, due_short, points, instructions, allow_improve) VALUES (?,?,?,?,?,?,?,?)',
-        [$course_id, $title, $type, $due_display, $due_short, $points, $instr, $allow]
+        'INSERT INTO assignments (course_id, title, week_label, assignment_type, due_date, due_short, points, instructions, allow_improve) VALUES (?,?,?,?,?,?,?,?,?)',
+        [$course_id, $title, $week_label ?: null, $type, $due_display, $due_short, $points, $instr, $allow]
     );
     if ($prompt_txt !== '') {
         db_run(

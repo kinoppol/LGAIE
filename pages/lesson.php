@@ -80,7 +80,7 @@ $c = get_course((int)$lesson['course_id']);
   <div class="field">
     <label>สัปดาห์/หน่วย <span style="color:var(--danger)">*</span></label>
     <input class="input" name="week_label" value="<?= h($lesson['week_label']) ?>" list="week-label-options" required autocomplete="off">
-    <?php week_label_datalist('week-label-options', get_lesson_week_labels((int)$c['id'])); ?>
+    <?php week_label_datalist('week-label-options', get_course_week_labels((int)$c['id'])); ?>
   </div>
   <div class="field">
     <label>คำอธิบายเนื้อหา</label>

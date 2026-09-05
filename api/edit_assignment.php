@@ -8,6 +8,7 @@ if (!is_teacher()) json_err('ไม่มีสิทธิ์', 403);
 
 $assignment_id = (int)($_POST['assignment_id'] ?? 0);
 $title      = trim($_POST['title']           ?? '');
+$week_label = trim($_POST['week_label']      ?? '');
 $type       = trim($_POST['assignment_type'] ?? 'งาน');
 $due        = trim($_POST['due_date']        ?? '');
 $due_time   = trim($_POST['due_time']        ?? '');
@@ -32,6 +33,7 @@ if (!$course_id || !teaches_course($course_id)) json_err('ไม่มีสิ�
 try { get_db()->exec("ALTER TABLE assignment_prompts MODIFY COLUMN ai_id VARCHAR(20) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file VARCHAR(255) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file_name VARCHAR(255) NULL"); } catch (PDOException) {}
+try { get_db()->exec("ALTER TABLE assignments ADD COLUMN IF NOT EXISTS week_label VARCHAR(50) NULL AFTER title"); } catch (PDOException) {}
 ensure_quiz_schema();
 
 $existing_file      = db_val('SELECT example_file      FROM assignment_prompts WHERE assignment_id = ?', [$assignment_id]) ?: null;
@@ -58,13 +60,13 @@ try {
         $due_display = "{$d} {$th_months[$m]} {$y} เวลา {$time_str} น.";
         $due_short   = "{$d} {$th_months[$m]}";
         db_run(
-            'UPDATE assignments SET title=?, assignment_type=?, due_date=?, due_short=?, points=?, instructions=?, allow_improve=? WHERE id=?',
-            [$title, $type, $due_display, $due_short, $points, $instr, $allow, $assignment_id]
+            'UPDATE assignments SET title=?, week_label=?, assignment_type=?, due_date=?, due_short=?, points=?, instructions=?, allow_improve=? WHERE id=?',
+            [$title, $week_label ?: null, $type, $due_display, $due_short, $points, $instr, $allow, $assignment_id]
         );
     } else {
         db_run(
-            'UPDATE assignments SET title=?, assignment_type=?, points=?, instructions=?, allow_improve=? WHERE id=?',
-            [$title, $type, $points, $instr, $allow, $assignment_id]
+            'UPDATE assignments SET title=?, week_label=?, assignment_type=?, points=?, instructions=?, allow_improve=? WHERE id=?',
+            [$title, $week_label ?: null, $type, $points, $instr, $allow, $assignment_id]
         );
     }
 

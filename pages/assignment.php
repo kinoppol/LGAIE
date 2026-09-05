@@ -38,7 +38,7 @@ try {
 <div style="max-width:<?= is_teacher() ? '1100px' : '900px' ?>">
   <div class="breadcrumb">
     <a href="<?= url('courses') ?>">รายวิชา</a><?= icon('chevron-right', 14) ?>
-    <a href="<?= url('course', ['course_id' => $c['id'], 'tab' => 'work']) ?>"><?= h($c['name'] ?? '') ?></a>
+    <a href="<?= url('course', ['course_id' => $c['id'], 'tab' => 'lessons']) ?>"><?= h($c['name'] ?? '') ?></a>
     <?= icon('chevron-right', 14) ?>
     <span style="color:var(--body);font-weight:600">งาน</span>
   </div>
@@ -324,6 +324,11 @@ document.addEventListener('DOMContentLoaded', function() {
       <label>ชื่องาน <span style="color:var(--danger)">*</span></label>
       <input class="input" name="title" value="<?= h($a['title']) ?>" required>
     </div>
+    <div class="field">
+      <label>สัปดาห์/หน่วย <span class="subtle" style="font-weight:400">(ไม่บังคับ — จัดกลุ่มร่วมกับเนื้อหาบทเรียนของหน่วยเดียวกัน)</span></label>
+      <input class="input" name="week_label" value="<?= h($a['week_label'] ?? '') ?>" list="week-label-options" autocomplete="off">
+      <?php week_label_datalist('week-label-options', get_course_week_labels((int)$a['course_id'])); ?>
+    </div>
     <div class="row" style="gap:14px">
       <div class="field" style="flex:1">
         <label>ประเภทงาน</label>
@@ -462,7 +467,7 @@ document.addEventListener('DOMContentLoaded', function() {
           .then(res => {
               if (res.ok) {
                   showToast(res.message || 'ลบงานแล้ว');
-                  setTimeout(() => location.href = '<?= url('course', ['course_id' => (int)$a['course_id'], 'tab' => 'work']) ?>', 800);
+                  setTimeout(() => location.href = '<?= url('course', ['course_id' => (int)$a['course_id'], 'tab' => 'lessons']) ?>', 800);
               } else {
                   btn.disabled = false; btn.style.opacity = '1';
                   closeModal('del-assignment');

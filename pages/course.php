@@ -90,11 +90,10 @@ $is_owner        = !$guest_mode && is_teacher() && teaches_course($course_id);
   <div class="tabs" style="margin:0;padding:0 16px;border-top:none">
     <?php
     $tabs = $guest_mode ? [
-        ['lessons', 'book', 'เนื้อหาบทเรียน', count($lessons)],
+        ['lessons', 'book', 'เนื้อหาบทเรียน', count($lessons) + count($works)],
     ] : [
         ['stream',  'stream',    'ฟีดประกาศ',      null],
-        ['lessons', 'book',      'เนื้อหาบทเรียน', count($lessons)],
-        ['work',    'clipboard', 'งาน / การบ้าน',  count($works)],
+        ['lessons', 'book',      'เนื้อหาบทเรียน', count($lessons) + count($works)],
         ['people',  'users',     'สมาชิก',          (int)$c['student_count']],
         ['scores',  'trophy',    'คะแนน',           null],
     ];
@@ -243,14 +242,19 @@ if ($tab === 'stream'): ?>
 
 <?php
 
-// ── LESSONS tab ────────────────────────────────────────────────
+// ── LESSONS tab (รวมงาน/การบ้าน เข้ากลุ่มเดียวกับหน่วยการเรียน) ──
 elseif ($tab === 'lessons'): ?>
-<div style="display:flex;align-items:center;margin-bottom:18px">
+<div style="display:flex;align-items:center;margin-bottom:18px;gap:10px;flex-wrap:wrap">
   <h2 style="font-size:19px">เนื้อหาบทเรียน</h2>
   <?php if (!$guest_mode && is_teacher()): ?>
-  <button class="btn btn-primary" style="margin-left:auto" onclick="openModal('add-lesson')">
-    <?= icon('plus', 18, '#fff') ?> เพิ่มเนื้อหา + Prompt
-  </button>
+  <div style="display:flex;gap:8px;margin-left:auto">
+    <button class="btn btn-ghost" onclick="openModal('add-assignment')">
+      <?= icon('plus', 18) ?> เพิ่มงาน + Prompt
+    </button>
+    <button class="btn btn-primary" onclick="openModal('add-lesson')">
+      <?= icon('plus', 18, '#fff') ?> เพิ่มเนื้อหา + Prompt
+    </button>
+  </div>
   <?php endif; ?>
 </div>
 
@@ -265,34 +269,72 @@ elseif ($tab === 'lessons'): ?>
 </div>
 <?php endif; ?>
 
-<?php if (empty($lessons)): ?>
+<?php if (empty($lessons) && empty($works)): ?>
 <div class="empty">
   <div class="e-ic"><?= icon('book', 30) ?></div>
   <h3>ยังไม่มีเนื้อหา</h3>
   <p><?= (!$guest_mode && is_teacher()) ? 'เริ่มเพิ่มบทเรียนแรกพร้อม Prompt AI ที่แนะนำ' : 'ครูยังไม่เพิ่มเนื้อหา' ?></p>
 </div>
 <?php endif; ?>
+
 <?php
-// ครูเท่านั้นที่ลากจัดลำดับได้ และต้องมีเนื้อหามากกว่า 1 รายการ
+// ── จัดกลุ่มเนื้อหา (บทเรียน + งาน) ตาม "สัปดาห์/หน่วย" เดียวกัน ─────
+// key ว่าง/ไม่ระบุ → รวมไว้ในกลุ่ม "ไม่ได้ระบุหน่วย" เสมอเรียงไว้ล่างสุด
+$NO_WEEK = "\0__no_week__";
+$content_groups = []; // key => ['label'=>, 'order'=>float, 'lessons'=>[], 'works'=>[]]
+
+foreach ($lessons as $l) {
+    $wl  = trim((string)$l['week_label']);
+    $key = $wl !== '' ? $wl : $NO_WEEK;
+    if (!isset($content_groups[$key])) {
+        $content_groups[$key] = ['label' => $wl !== '' ? $wl : 'ไม่ได้ระบุหน่วย', 'order' => (float)$l['sort_order'], 'lessons' => [], 'works' => []];
+    } else {
+        $content_groups[$key]['order'] = min($content_groups[$key]['order'], (float)$l['sort_order']);
+    }
+    $content_groups[$key]['lessons'][] = $l;
+}
+$next_order = 0;
+foreach ($content_groups as $g) { $next_order = max($next_order, $g['order'] + 1); }
+foreach ($works as $w) {
+    $wl  = trim((string)($w['week_label'] ?? ''));
+    $key = $wl !== '' ? $wl : $NO_WEEK;
+    if (!isset($content_groups[$key])) {
+        $content_groups[$key] = ['label' => $wl !== '' ? $wl : 'ไม่ได้ระบุหน่วย', 'order' => $next_order++, 'lessons' => [], 'works' => []];
+    }
+    $content_groups[$key]['works'][] = $w;
+}
+if (isset($content_groups[$NO_WEEK])) {
+    $content_groups[$NO_WEEK]['order'] = PHP_FLOAT_MAX; // กลุ่ม "ไม่ได้ระบุหน่วย" อยู่ล่างสุดเสมอ
+}
+uasort($content_groups, fn($a, $b) => $a['order'] <=> $b['order']);
+
+// ครูเท่านั้นที่ลากจัดลำดับบทเรียนได้ (ภายในหน่วยเดียวกัน) และต้องมีมากกว่า 1 รายการ
 $can_reorder_lessons = !$guest_mode && is_teacher() && count($lessons) > 1;
 ?>
+
 <div id="lesson-list" data-course-id="<?= $course_id ?>">
-<?php foreach ($lessons as $l):
+<?php foreach ($content_groups as $group): ?>
+<div style="display:flex;align-items:center;gap:12px;margin:26px 0 10px">
+  <span class="badge gray" style="font-size:12px;flex:0 0 auto"><?= h($group['label']) ?></span>
+  <div style="flex:1;height:1px;background:var(--line-2)"></div>
+</div>
+
+<?php foreach ($group['lessons'] as $l):
     $lesson_href = $guest_mode
         ? 'index.php?page=login&redirect=' . urlencode('index.php?page=lesson&lesson_id=' . $l['id'])
         : url('lesson', ['lesson_id' => $l['id']]);
 ?>
-<a href="<?= $lesson_href ?>" class="lrow lesson-row" data-lesson-id="<?= $l['id'] ?>"
+<a href="<?= $lesson_href ?>" class="lrow lesson-row" data-lesson-id="<?= $l['id'] ?>" data-week-label="<?= h($l['week_label']) ?>"
    style="align-items:flex-start;padding:18px 20px;text-decoration:none<?= $guest_mode ? ';opacity:.85' : '' ?>">
   <?php if ($can_reorder_lessons): ?>
-  <span class="lesson-drag-handle" draggable="true" title="ลากเพื่อจัดลำดับ"
+  <span class="lesson-drag-handle" draggable="true" title="ลากเพื่อจัดลำดับ (เฉพาะภายในหน่วยเดียวกัน)"
         style="cursor:grab;color:var(--faint);flex:0 0 auto;margin-top:2px"
         onclick="event.preventDefault();event.stopPropagation()"><?= icon('grip', 18) ?></span>
   <?php endif; ?>
   <span class="lr-ic" style="background:var(--primary-soft);color:var(--primary)"><?= icon('book', 20) ?></span>
   <div style="min-width:0;flex:1">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
-      <span class="badge gray" style="font-size:11px"><?= h($l['week_label']) ?></span>
+      <span class="badge orange" style="font-size:11px"><?= icon('book', 11) ?> เนื้อหาบทเรียน</span>
       <?php if (!empty($l['has_prompt'])): ?>
       <span class="chip" style="font-size:11.5px;padding:3px 9px"><?= icon('sparkle', 13, 'var(--primary)') ?> Prompt AI</span>
       <?php endif; ?>
@@ -316,21 +358,8 @@ $can_reorder_lessons = !$guest_mode && is_teacher() && count($lessons) > 1;
   <?= icon($guest_mode ? 'lock' : 'chevron-right', 18, 'var(--faint)') ?>
 </a>
 <?php endforeach; ?>
-</div>
 
-<?php
-
-// ── WORK tab ───────────────────────────────────────────────────
-elseif ($tab === 'work'): ?>
-<div style="display:flex;align-items:center;margin-bottom:18px">
-  <h2 style="font-size:19px">งาน / การบ้าน</h2>
-  <?php if (is_teacher()): ?>
-  <button class="btn btn-primary" style="margin-left:auto" onclick="openModal('add-assignment')">
-    <?= icon('plus', 18, '#fff') ?> เพิ่มงาน + Prompt
-  </button>
-  <?php endif; ?>
-</div>
-<?php foreach ($works as $w): ?>
+<?php foreach ($group['works'] as $w): ?>
 <a href="<?= url('assignment', ['assignment_id' => $w['id']]) ?>" class="lrow" style="align-items:flex-start;padding:18px 20px;text-decoration:none">
   <span class="lr-ic" style="background:var(--warn-soft);color:#c76a13"><?= icon('clipboard', 20) ?></span>
   <div style="min-width:0;flex:1">
@@ -364,6 +393,8 @@ elseif ($tab === 'work'): ?>
   </div>
 </a>
 <?php endforeach; ?>
+<?php endforeach; // end $content_groups ?>
+</div>
 
 <?php if (is_teacher()): ?>
 <!-- Delete assignment confirmation modal -->
@@ -1429,8 +1460,8 @@ if (!$guest_mode && is_teacher()):
   </div>
   <div class="field">
     <label>สัปดาห์/หน่วย <span style="color:var(--danger)">*</span></label>
-    <input class="input" name="week_label" list="week-label-options" placeholder="เลือกจากรายการ หรือพิมพ์ชื่อใหม่ เช่น สัปดาห์ที่ 1" required autocomplete="off">
-    <?php week_label_datalist('week-label-options', get_lesson_week_labels((int)$course_id)); ?>
+    <input class="input" name="week_label" list="week-label-options-lesson" placeholder="เลือกจากรายการ หรือพิมพ์ชื่อใหม่ เช่น สัปดาห์ที่ 1" required autocomplete="off">
+    <?php week_label_datalist('week-label-options-lesson', get_course_week_labels((int)$course_id)); ?>
   </div>
   <div class="field">
     <label>คำอธิบายเนื้อหา</label>
@@ -1504,6 +1535,11 @@ if (!$guest_mode && is_teacher()):
   <div class="field">
     <label>ชื่องาน / การบ้าน <span style="color:var(--danger)">*</span></label>
     <input class="input" name="title" placeholder="เช่น ออกแบบอัลกอริทึมแก้ปัญหาในชีวิตประจำวัน" required>
+  </div>
+  <div class="field">
+    <label>สัปดาห์/หน่วย <span class="subtle" style="font-weight:400">(ไม่บังคับ — จัดกลุ่มร่วมกับเนื้อหาบทเรียนของหน่วยเดียวกัน)</span></label>
+    <input class="input" name="week_label" list="week-label-options-assignment" placeholder="เลือกจากรายการ หรือพิมพ์ชื่อใหม่ เช่น สัปดาห์ที่ 1" autocomplete="off">
+    <?php week_label_datalist('week-label-options-assignment', get_course_week_labels((int)$course_id)); ?>
   </div>
   <div class="row" style="gap:14px">
     <div class="field" style="flex:1">

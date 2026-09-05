@@ -732,10 +732,15 @@ window.addLinkRow = function(containerId, url, label) {
     dragRow = null;
   });
 
+  // เนื้อหาจัดกลุ่มตาม "สัปดาห์/หน่วย" — ลากสลับได้เฉพาะภายในหน่วยเดียวกันเท่านั้น
+  // (ลำดับ (sort_order) ไม่เกี่ยวกับหน่วยที่สังกัด ถ้าปล่อยข้ามหน่วยได้ รายการจะ
+  // เด้งกลับหน่วยเดิมทันทีที่รีเฟรชหน้า เพราะการจัดกลุ่มอ้างอิงจาก week_label เท่านั้น)
+  function sameGroup(a, b) { return a.dataset.weekLabel === b.dataset.weekLabel; }
+
   list.addEventListener('dragover', e => {
     if (!dragRow) return;
     const row = rowOf(e.target);
-    if (!row || row === dragRow) return;
+    if (!row || row === dragRow || !sameGroup(row, dragRow)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     const rect   = row.getBoundingClientRect();
@@ -749,7 +754,7 @@ window.addLinkRow = function(containerId, url, label) {
     if (!dragRow) return;
     const row = rowOf(e.target);
     row?.style && (row.style.borderTop = '', row.style.borderBottom = '');
-    if (!row || row === dragRow) return;
+    if (!row || row === dragRow || !sameGroup(row, dragRow)) return;
     e.preventDefault();
     const rect   = row.getBoundingClientRect();
     const before = (e.clientY - rect.top) < rect.height / 2;

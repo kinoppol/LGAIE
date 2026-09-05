@@ -343,17 +343,34 @@ function get_lesson_with_prompt(int $id): array|false
 }
 
 /**
- * รายชื่อ "สัปดาห์/หน่วย" ที่เคยใช้ในรายวิชานี้แล้ว (ไม่ซ้ำ) เรียงตามลำดับที่ปรากฏครั้งแรก
- * ใช้กับ week_label_datalist() เพื่อให้ครูเลือกของเดิม หรือพิมพ์ชื่อใหม่ก็ได้
+ * รายชื่อ "สัปดาห์/หน่วย" ที่เคยใช้ในรายวิชานี้แล้ว (ไม่ซ้ำ) — รวมทั้งจากบทเรียนและ
+ * งาน/การบ้าน เพราะทั้งสองใช้ week_label กลุ่มเดียวกันในแท็บ "เนื้อหาบทเรียน"
+ * เรียงตามลำดับที่ปรากฏครั้งแรกในบทเรียนก่อน ใช้กับ week_label_datalist()
+ * เพื่อให้ครูเลือกของเดิม หรือพิมพ์ชื่อใหม่ก็ได้
  */
-function get_lesson_week_labels(int $course_id): array
+function get_course_week_labels(int $course_id): array
 {
     $rows = db_rows(
         'SELECT week_label FROM lessons WHERE course_id = ?
          GROUP BY week_label ORDER BY MIN(sort_order), MIN(id)',
         [$course_id]
     );
-    return array_column($rows, 'week_label');
+    $labels = array_column($rows, 'week_label');
+
+    try {
+        $work_rows = db_rows(
+            "SELECT week_label FROM assignments WHERE course_id = ? AND week_label IS NOT NULL AND week_label != ''
+             GROUP BY week_label ORDER BY MIN(id)",
+            [$course_id]
+        );
+        foreach (array_column($work_rows, 'week_label') as $wl) {
+            if (!in_array($wl, $labels, true)) $labels[] = $wl;
+        }
+    } catch (PDOException) {
+        // ยังไม่ได้ migrate คอลัมน์ assignments.week_label — ใช้เฉพาะของบทเรียนไปก่อน
+    }
+
+    return $labels;
 }
 
 /** พิมพ์ <datalist> ของ "สัปดาห์/หน่วย" — ใช้คู่กับ <input list="{$id}"> */
@@ -965,6 +982,8 @@ function run_all_migrations(): array
         "ALTER TABLE assignment_prompts ADD COLUMN IF NOT EXISTS example_file VARCHAR(255) NULL");
     $run('assignment_prompts.example_file_name',
         "ALTER TABLE assignment_prompts ADD COLUMN IF NOT EXISTS example_file_name VARCHAR(255) NULL");
+    $run('assignments.week_label',
+        "ALTER TABLE assignments ADD COLUMN IF NOT EXISTS week_label VARCHAR(50) NULL AFTER title");
 
     // ── 6. ตารางใหม่ ──────────────────────────────────────────────────────────
     $run('table: submission_files',

@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   course_id       INT UNSIGNED NOT NULL,
   title           VARCHAR(300) NOT NULL,
+  week_label      VARCHAR(50)  NULL COMMENT 'หน่วยการเรียนที่งานนี้สังกัด (จัดกลุ่มร่วมกับ lessons.week_label ในแท็บเนื้อหาบทเรียน)',
   assignment_type VARCHAR(20)  DEFAULT 'งาน',
   due_date        VARCHAR(50)  NOT NULL,
   due_short       VARCHAR(20)  NOT NULL,
@@ -287,6 +288,9 @@ ALTER TABLE lesson_prompts     ADD COLUMN IF NOT EXISTS example_file      VARCHA
 ALTER TABLE lesson_prompts     ADD COLUMN IF NOT EXISTS example_file_name VARCHAR(255) NULL;
 ALTER TABLE assignment_prompts ADD COLUMN IF NOT EXISTS example_file      VARCHAR(255) NULL;
 ALTER TABLE assignment_prompts ADD COLUMN IF NOT EXISTS example_file_name VARCHAR(255) NULL;
+
+-- รวมแท็บ "งาน/การบ้าน" เข้ากับ "เนื้อหาบทเรียน": จัดกลุ่มงานตามหน่วยเดียวกับบทเรียน
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS week_label VARCHAR(50) NULL AFTER title;
 
 
 -- ============================================================
