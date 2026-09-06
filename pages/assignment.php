@@ -499,201 +499,6 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
   </div>
 
-  <?php
-  // ── Edit assignment modal ──────────────────────────────────
-  $ep = $a['prompt'];
-  modal_start('edit-assignment', 'แก้ไขงาน', 'clipboard', true, true);
-  ?>
-  <form method="post" action="api/edit_assignment.php" data-ajax enctype="multipart/form-data">
-    <input type="hidden" name="assignment_id" value="<?= $assignment_id ?>">
-    <div class="field">
-      <label>ชื่องาน <span style="color:var(--danger)">*</span></label>
-      <input class="input" name="title" value="<?= h($a['title']) ?>" required>
-    </div>
-    <div class="field">
-      <label>สัปดาห์/หน่วย <span class="subtle" style="font-weight:400">(ไม่บังคับ — จัดกลุ่มร่วมกับเนื้อหาบทเรียนของหน่วยเดียวกัน)</span></label>
-      <input class="input" name="week_label" value="<?= h($a['week_label'] ?? '') ?>" list="week-label-options" autocomplete="off">
-      <?php week_label_datalist('week-label-options', get_course_week_labels((int)$a['course_id'])); ?>
-    </div>
-    <div class="row" style="gap:14px">
-      <div class="field" style="flex:1">
-        <label>ประเภทงาน</label>
-        <?php
-        $type_options = ['งาน', 'การบ้าน', 'โครงงาน', 'แบบทดสอบ', 'แบบทดสอบก่อนเรียน', 'แบบทดสอบหลังเรียน', 'ข้อสอบปลายภาค'];
-        if (!in_array($a['assignment_type'], $type_options, true)) $type_options[] = $a['assignment_type'];
-        ?>
-        <select class="input" name="assignment_type" id="ea-type-sel" onchange="easToggle(this.value)">
-          <?php foreach ($type_options as $t): ?>
-          <option value="<?= h($t) ?>" <?= $a['assignment_type'] === $t ? 'selected' : '' ?>><?= h($t) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="field" id="ea-points-wrap" style="flex:0 0 110px;<?= $is_quiz ? 'display:none' : '' ?>">
-        <label>คะแนนเต็ม</label>
-        <input class="input" type="number" name="points" min="1" value="<?= $a['points'] ?>">
-        <?php if ($is_quiz): ?>
-        <div class="hint">คำนวณจากผลรวมคะแนนคำถามอัตโนมัติ</div>
-        <?php endif; ?>
-      </div>
-    </div>
-    <div class="field">
-      <label>คำอธิบาย / คำสั่งงาน</label>
-      <textarea class="textarea" name="instructions"><?= h($a['instructions']) ?></textarea>
-    </div>
-    <?php
-      $_due_ts   = thai_due_ts($a['due_date']);
-      $_due_iso  = $_due_ts ? date('Y-m-d', $_due_ts) : '';
-      $_due_time = $_due_ts ? date('H:i',   $_due_ts) : '';
-    ?>
-    <div class="row" style="gap:14px">
-      <div class="field" style="flex:1;margin-bottom:0">
-        <label>วันกำหนดส่ง</label>
-        <input class="input" type="date" name="due_date" value="<?= $_due_iso ?>">
-      </div>
-      <div class="field" style="flex:0 0 130px;margin-bottom:0">
-        <label>เวลา</label>
-        <input class="input" type="time" name="due_time" value="<?= $_due_time ?>">
-      </div>
-    </div>
-    <div class="field">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-        <input type="checkbox" name="allow_improve" value="1" <?= $a['allow_improve'] ? 'checked' : '' ?>
-               style="width:16px;height:16px;accent-color:var(--primary)">
-        <span>อนุญาตให้นักเรียนส่ง prompt ที่ดีกว่า</span>
-      </label>
-    </div>
-    <div id="ea-prompt-wrap" style="display:<?= $is_quiz ? 'none' : 'block' ?>">
-    <div class="ai-tint-box" style="padding:16px 16px 6px;margin-top:6px">
-      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
-        <span style="width:32px;height:32px;border-radius:9px;background:var(--card);color:var(--primary);display:grid;place-items:center"><?= icon('sparkle', 18) ?></span>
-        <div>
-          <div style="font-weight:700;color:var(--heading);font-size:14.5px">Prompt AI ที่แนะนำ</div>
-          <div class="subtle" style="font-size:12px">ระบุ prompt และ AI ที่คุณทดลองแล้วได้ผลลัพธ์น่าพอใจ</div>
-        </div>
-      </div>
-      <div class="field">
-        <label>ข้อความ Prompt <span style="color:var(--danger)">*</span></label>
-        <textarea class="textarea" name="prompt_text" id="ea-prompt-txt" style="font-family:ui-monospace,monospace;font-size:13px" <?= $is_quiz ? '' : 'required' ?>><?= h($ep['prompt_text'] ?? '') ?></textarea>
-      </div>
-      <div class="row" style="gap:14px">
-        <div class="field" style="flex:1">
-          <label>AI ที่ทดลองใช้แล้ว</label>
-          <?= ai_select('ai_id', $ep['ai_id'] ?? '') ?>
-        </div>
-        <div class="field" style="flex:1">
-          <label>ระดับความพอใจ</label>
-          <?= star_input((int)($ep['rating'] ?? 4), 'rating') ?>
-        </div>
-      </div>
-      <div class="field">
-        <label>ผลลัพธ์ตัวอย่าง <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
-        <textarea class="textarea" name="example_text" style="min-height:70px"><?= h($ep['example_text'] ?? '') ?></textarea>
-        <?php example_file_input($ep['example_file'] ?? null, $ep['example_file_name'] ?? null) ?>
-      </div>
-      <div class="field">
-        <label>หมายเหตุ/คำแนะนำ <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
-        <textarea class="textarea" name="note_text" style="min-height:60px"><?= h($ep['note_text'] ?? '') ?></textarea>
-      </div>
-    </div>
-    </div>
-    <?php if ($is_quiz): ?>
-    <div class="note-box" style="font-size:13px">
-      <?= icon('info', 14, 'var(--sub)') ?> งานประเภทแบบทดสอบไม่ต้องระบุ Prompt AI — จัดการคำถามได้จากหน้ารายละเอียดงานนี้
-    </div>
-    <?php endif; ?>
-    <script>
-    function easToggle(type) {
-      var quizTypes = ['แบบทดสอบ', 'แบบทดสอบก่อนเรียน', 'แบบทดสอบหลังเรียน', 'ข้อสอบปลายภาค'];
-      var isQuiz = quizTypes.indexOf(type) !== -1;
-      var wrap     = document.getElementById('ea-prompt-wrap');
-      var txt      = document.getElementById('ea-prompt-txt');
-      var ptsWrap  = document.getElementById('ea-points-wrap');
-      if (wrap)    wrap.style.display    = isQuiz ? 'none' : 'block';
-      if (txt)     txt.required          = !isQuiz;
-      if (ptsWrap) ptsWrap.style.display = isQuiz ? 'none' : 'block';
-    }
-    </script>
-
-    <!-- ── ลิงก์สื่อการสอน ──────────────────────── -->
-    <div style="margin-top:12px;padding:14px 15px;border:1px solid var(--line-2);border-radius:10px">
-      <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:10px;display:flex;align-items:center;gap:7px">
-        <?= icon('link', 15) ?> ลิงก์สื่อการสอน <span class="subtle" style="font-weight:400;font-size:12px">(ไม่บังคับ)</span>
-      </div>
-      <div id="edit-asgn-links-container">
-        <?php foreach ($a['links'] as $lnk): ?>
-        <div class="link-row" style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
-          <input class="input" name="link_url[]" type="url" placeholder="https://..."
-                 value="<?= h($lnk['url']) ?>" style="flex:2;min-width:0">
-          <input class="input" name="link_label[]" placeholder="ชื่อลิงก์ (ไม่บังคับ)"
-                 value="<?= h($lnk['label']) ?>" style="flex:1;min-width:0">
-          <button type="button" onclick="this.closest('.link-row').remove()"
-                  style="flex:0 0 32px;height:32px;border:none;border-radius:8px;background:var(--danger-soft,#fee2e2);color:var(--danger,#dc2626);cursor:pointer;font-size:18px;line-height:1;display:grid;place-items:center">×</button>
-        </div>
-        <?php endforeach; ?>
-      </div>
-      <button type="button" onclick="addLinkRow('edit-asgn-links-container')"
-              class="btn btn-sm btn-ghost" style="margin-top:2px">
-        <?= icon('plus', 14) ?> เพิ่มลิงก์
-      </button>
-    </div>
-  </form>
-  <?php modal_foot('edit-assignment', 'ยกเลิก', 'บันทึกการแก้ไข'); ?>
-
-  <!-- Delete assignment confirmation modal -->
-  <div id="del-assignment-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('del-assignment')" style="display:none">
-    <div class="modal" style="max-width:430px">
-      <div class="modal__head">
-        <span class="modal__ic" style="background:var(--danger-soft,#fee2e2);color:var(--danger,#ef4444)"><?= icon('trash', 20, 'var(--danger,#ef4444)') ?></span>
-        <h2 class="modal__title">ลบงานที่มอบหมาย</h2>
-        <button class="modal__close" onclick="closeModal('del-assignment')"><?= icon('x', 18) ?></button>
-      </div>
-      <div class="modal__body">
-        <p style="color:var(--body);line-height:1.7;margin:0">
-          คุณต้องการลบงาน <strong id="del-asgn-name" style="color:var(--heading)"></strong> ใช่หรือไม่?
-        </p>
-        <p style="font-size:13px;color:var(--sub);margin:10px 0 0">งานที่นักเรียนส่ง คะแนน และไฟล์แนบทั้งหมดจะถูกลบถาวร และไม่สามารถย้อนกลับได้</p>
-      </div>
-      <div class="modal__foot">
-        <button type="button" class="btn btn-ghost" onclick="closeModal('del-assignment')">ยกเลิก</button>
-        <button type="button" id="del-asgn-confirm" class="btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="doDeleteAssignment()">
-          <?= icon('trash', 15, '#fff') ?> ยืนยันลบงาน
-        </button>
-      </div>
-    </div>
-  </div>
-  <script>
-  var _delAsgnId = null;
-  function confirmDeleteAssignment(id, title) {
-      _delAsgnId = id;
-      document.getElementById('del-asgn-name').textContent = '"' + title + '"';
-      openModal('del-assignment');
-  }
-  function doDeleteAssignment() {
-      if (_delAsgnId === null) return;
-      var btn = document.getElementById('del-asgn-confirm');
-      btn.disabled = true; btn.style.opacity = '.6';
-      var fd = new FormData();
-      fd.append('assignment_id', _delAsgnId);
-      fetch('api/delete_assignment.php', { method: 'POST', body: fd })
-          .then(r => r.json())
-          .then(res => {
-              if (res.ok) {
-                  showToast(res.message || 'ลบงานแล้ว');
-                  setTimeout(() => location.href = '<?= url('course', ['course_id' => (int)$a['course_id'], 'tab' => 'lessons']) ?>', 800);
-              } else {
-                  btn.disabled = false; btn.style.opacity = '1';
-                  closeModal('del-assignment');
-                  showToast(res.error || 'เกิดข้อผิดพลาด', true);
-              }
-          })
-          .catch(() => {
-              btn.disabled = false; btn.style.opacity = '1';
-              closeModal('del-assignment');
-              showToast('เกิดข้อผิดพลาด', true);
-          });
-  }
-  </script>
-
   <?php else: ?>
   <!-- ── Student submit / submitted view ──────────────────── -->
   <?php if ($my_sub): ?>
@@ -1018,6 +823,203 @@ document.addEventListener('DOMContentLoaded', function() {
   <?php endif; // is_teacher ?>
 
   <?php endif; // is_quiz ?>
+
+  <!-- แก้ไข/ลบงาน — ใช้ได้ทั้งงานทั่วไปและแบบทดสอบ (ปุ่มอยู่ใน header ด้านบนเสมอ) -->
+  <?php
+  // ── Edit assignment modal ──────────────────────────────────
+  $ep = $a['prompt'];
+  modal_start('edit-assignment', 'แก้ไขงาน', 'clipboard', true, true);
+  ?>
+  <form method="post" action="api/edit_assignment.php" data-ajax enctype="multipart/form-data">
+    <input type="hidden" name="assignment_id" value="<?= $assignment_id ?>">
+    <div class="field">
+      <label>ชื่องาน <span style="color:var(--danger)">*</span></label>
+      <input class="input" name="title" value="<?= h($a['title']) ?>" required>
+    </div>
+    <div class="field">
+      <label>สัปดาห์/หน่วย <span class="subtle" style="font-weight:400">(ไม่บังคับ — จัดกลุ่มร่วมกับเนื้อหาบทเรียนของหน่วยเดียวกัน)</span></label>
+      <input class="input" name="week_label" value="<?= h($a['week_label'] ?? '') ?>" list="week-label-options" autocomplete="off">
+      <?php week_label_datalist('week-label-options', get_course_week_labels((int)$a['course_id'])); ?>
+    </div>
+    <div class="row" style="gap:14px">
+      <div class="field" style="flex:1">
+        <label>ประเภทงาน</label>
+        <?php
+        $type_options = ['งาน', 'การบ้าน', 'โครงงาน', 'แบบทดสอบ', 'แบบทดสอบก่อนเรียน', 'แบบทดสอบหลังเรียน', 'ข้อสอบปลายภาค'];
+        if (!in_array($a['assignment_type'], $type_options, true)) $type_options[] = $a['assignment_type'];
+        ?>
+        <select class="input" name="assignment_type" id="ea-type-sel" onchange="easToggle(this.value)">
+          <?php foreach ($type_options as $t): ?>
+          <option value="<?= h($t) ?>" <?= $a['assignment_type'] === $t ? 'selected' : '' ?>><?= h($t) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="field" id="ea-points-wrap" style="flex:0 0 110px;<?= $is_quiz ? 'display:none' : '' ?>">
+        <label>คะแนนเต็ม</label>
+        <input class="input" type="number" name="points" min="1" value="<?= $a['points'] ?>">
+        <?php if ($is_quiz): ?>
+        <div class="hint">คำนวณจากผลรวมคะแนนคำถามอัตโนมัติ</div>
+        <?php endif; ?>
+      </div>
+    </div>
+    <div class="field">
+      <label>คำอธิบาย / คำสั่งงาน</label>
+      <textarea class="textarea" name="instructions"><?= h($a['instructions']) ?></textarea>
+    </div>
+    <?php
+      $_due_ts   = thai_due_ts($a['due_date']);
+      $_due_iso  = $_due_ts ? date('Y-m-d', $_due_ts) : '';
+      $_due_time = $_due_ts ? date('H:i',   $_due_ts) : '';
+    ?>
+    <div class="row" style="gap:14px">
+      <div class="field" style="flex:1;margin-bottom:0">
+        <label>วันกำหนดส่ง</label>
+        <input class="input" type="date" name="due_date" value="<?= $_due_iso ?>">
+      </div>
+      <div class="field" style="flex:0 0 130px;margin-bottom:0">
+        <label>เวลา</label>
+        <input class="input" type="time" name="due_time" value="<?= $_due_time ?>">
+      </div>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" name="allow_improve" value="1" <?= $a['allow_improve'] ? 'checked' : '' ?>
+               style="width:16px;height:16px;accent-color:var(--primary)">
+        <span>อนุญาตให้นักเรียนส่ง prompt ที่ดีกว่า</span>
+      </label>
+    </div>
+    <div id="ea-prompt-wrap" style="display:<?= $is_quiz ? 'none' : 'block' ?>">
+    <div class="ai-tint-box" style="padding:16px 16px 6px;margin-top:6px">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
+        <span style="width:32px;height:32px;border-radius:9px;background:var(--card);color:var(--primary);display:grid;place-items:center"><?= icon('sparkle', 18) ?></span>
+        <div>
+          <div style="font-weight:700;color:var(--heading);font-size:14.5px">Prompt AI ที่แนะนำ</div>
+          <div class="subtle" style="font-size:12px">ระบุ prompt และ AI ที่คุณทดลองแล้วได้ผลลัพธ์น่าพอใจ</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>ข้อความ Prompt <span style="color:var(--danger)">*</span></label>
+        <textarea class="textarea" name="prompt_text" id="ea-prompt-txt" style="font-family:ui-monospace,monospace;font-size:13px" <?= $is_quiz ? '' : 'required' ?>><?= h($ep['prompt_text'] ?? '') ?></textarea>
+      </div>
+      <div class="row" style="gap:14px">
+        <div class="field" style="flex:1">
+          <label>AI ที่ทดลองใช้แล้ว</label>
+          <?= ai_select('ai_id', $ep['ai_id'] ?? '') ?>
+        </div>
+        <div class="field" style="flex:1">
+          <label>ระดับความพอใจ</label>
+          <?= star_input((int)($ep['rating'] ?? 4), 'rating') ?>
+        </div>
+      </div>
+      <div class="field">
+        <label>ผลลัพธ์ตัวอย่าง <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
+        <textarea class="textarea" name="example_text" style="min-height:70px"><?= h($ep['example_text'] ?? '') ?></textarea>
+        <?php example_file_input($ep['example_file'] ?? null, $ep['example_file_name'] ?? null) ?>
+      </div>
+      <div class="field">
+        <label>หมายเหตุ/คำแนะนำ <span class="subtle" style="font-weight:400">(ไม่บังคับ)</span></label>
+        <textarea class="textarea" name="note_text" style="min-height:60px"><?= h($ep['note_text'] ?? '') ?></textarea>
+      </div>
+    </div>
+    </div>
+    <?php if ($is_quiz): ?>
+    <div class="note-box" style="font-size:13px">
+      <?= icon('info', 14, 'var(--sub)') ?> งานประเภทแบบทดสอบไม่ต้องระบุ Prompt AI — จัดการคำถามได้จากหน้ารายละเอียดงานนี้
+    </div>
+    <?php endif; ?>
+    <script>
+    function easToggle(type) {
+      var quizTypes = ['แบบทดสอบ', 'แบบทดสอบก่อนเรียน', 'แบบทดสอบหลังเรียน', 'ข้อสอบปลายภาค'];
+      var isQuiz = quizTypes.indexOf(type) !== -1;
+      var wrap     = document.getElementById('ea-prompt-wrap');
+      var txt      = document.getElementById('ea-prompt-txt');
+      var ptsWrap  = document.getElementById('ea-points-wrap');
+      if (wrap)    wrap.style.display    = isQuiz ? 'none' : 'block';
+      if (txt)     txt.required          = !isQuiz;
+      if (ptsWrap) ptsWrap.style.display = isQuiz ? 'none' : 'block';
+    }
+    </script>
+
+    <!-- ── ลิงก์สื่อการสอน ──────────────────────── -->
+    <div style="margin-top:12px;padding:14px 15px;border:1px solid var(--line-2);border-radius:10px">
+      <div style="font-size:13px;font-weight:700;color:var(--heading);margin-bottom:10px;display:flex;align-items:center;gap:7px">
+        <?= icon('link', 15) ?> ลิงก์สื่อการสอน <span class="subtle" style="font-weight:400;font-size:12px">(ไม่บังคับ)</span>
+      </div>
+      <div id="edit-asgn-links-container">
+        <?php foreach ($a['links'] as $lnk): ?>
+        <div class="link-row" style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+          <input class="input" name="link_url[]" type="url" placeholder="https://..."
+                 value="<?= h($lnk['url']) ?>" style="flex:2;min-width:0">
+          <input class="input" name="link_label[]" placeholder="ชื่อลิงก์ (ไม่บังคับ)"
+                 value="<?= h($lnk['label']) ?>" style="flex:1;min-width:0">
+          <button type="button" onclick="this.closest('.link-row').remove()"
+                  style="flex:0 0 32px;height:32px;border:none;border-radius:8px;background:var(--danger-soft,#fee2e2);color:var(--danger,#dc2626);cursor:pointer;font-size:18px;line-height:1;display:grid;place-items:center">×</button>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <button type="button" onclick="addLinkRow('edit-asgn-links-container')"
+              class="btn btn-sm btn-ghost" style="margin-top:2px">
+        <?= icon('plus', 14) ?> เพิ่มลิงก์
+      </button>
+    </div>
+  </form>
+  <?php modal_foot('edit-assignment', 'ยกเลิก', 'บันทึกการแก้ไข'); ?>
+
+  <!-- Delete assignment confirmation modal -->
+  <div id="del-assignment-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal('del-assignment')" style="display:none">
+    <div class="modal" style="max-width:430px">
+      <div class="modal__head">
+        <span class="modal__ic" style="background:var(--danger-soft,#fee2e2);color:var(--danger,#ef4444)"><?= icon('trash', 20, 'var(--danger,#ef4444)') ?></span>
+        <h2 class="modal__title">ลบงานที่มอบหมาย</h2>
+        <button class="modal__close" onclick="closeModal('del-assignment')"><?= icon('x', 18) ?></button>
+      </div>
+      <div class="modal__body">
+        <p style="color:var(--body);line-height:1.7;margin:0">
+          คุณต้องการลบงาน <strong id="del-asgn-name" style="color:var(--heading)"></strong> ใช่หรือไม่?
+        </p>
+        <p style="font-size:13px;color:var(--sub);margin:10px 0 0">งานที่นักเรียนส่ง คะแนน และไฟล์แนบทั้งหมดจะถูกลบถาวร และไม่สามารถย้อนกลับได้</p>
+      </div>
+      <div class="modal__foot">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('del-assignment')">ยกเลิก</button>
+        <button type="button" id="del-asgn-confirm" class="btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="doDeleteAssignment()">
+          <?= icon('trash', 15, '#fff') ?> ยืนยันลบงาน
+        </button>
+      </div>
+    </div>
+  </div>
+  <script>
+  var _delAsgnId = null;
+  function confirmDeleteAssignment(id, title) {
+      _delAsgnId = id;
+      document.getElementById('del-asgn-name').textContent = '"' + title + '"';
+      openModal('del-assignment');
+  }
+  function doDeleteAssignment() {
+      if (_delAsgnId === null) return;
+      var btn = document.getElementById('del-asgn-confirm');
+      btn.disabled = true; btn.style.opacity = '.6';
+      var fd = new FormData();
+      fd.append('assignment_id', _delAsgnId);
+      fetch('api/delete_assignment.php', { method: 'POST', body: fd })
+          .then(r => r.json())
+          .then(res => {
+              if (res.ok) {
+                  showToast(res.message || 'ลบงานแล้ว');
+                  setTimeout(() => location.href = '<?= url('course', ['course_id' => (int)$a['course_id'], 'tab' => 'lessons']) ?>', 800);
+              } else {
+                  btn.disabled = false; btn.style.opacity = '1';
+                  closeModal('del-assignment');
+                  showToast(res.error || 'เกิดข้อผิดพลาด', true);
+              }
+          })
+          .catch(() => {
+              btn.disabled = false; btn.style.opacity = '1';
+              closeModal('del-assignment');
+              showToast('เกิดข้อผิดพลาด', true);
+          });
+  }
+  </script>
+
 </div>
 
 <script>
