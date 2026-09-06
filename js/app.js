@@ -642,6 +642,87 @@ if (searchInput) {
     render();
   };
 
+  // ── นำเข้าคำถามจากไฟล์ Aiken Format ───────────────────────────
+  // รูปแบบ:
+  //   ข้อความคำถาม
+  //   A) ตัวเลือก 1
+  //   B) ตัวเลือก 2
+  //   C) ตัวเลือก 3
+  //   D) ตัวเลือก 4
+  //   ANSWER: B
+  // แต่ละข้อคั่นด้วยบรรทัดว่างอย่างน้อย 1 บรรทัด — รับเฉพาะข้อที่มีตัวเลือกครบ 4 ข้อพอดี
+  function parseAiken(text) {
+    const blocks = text.replace(/\r\n/g, '\n').split(/\n\s*\n/);
+    const questions = [];
+    const skipped = [];
+
+    blocks.forEach(block => {
+      const lines = block.split('\n').map(l => l.trim()).filter(l => l !== '');
+      if (!lines.length) return;
+
+      const qLines = [];
+      const choices = [];
+      let answerLetter = null;
+
+      lines.forEach(line => {
+        const ansMatch = line.match(/^ANSWER\s*:\s*([A-Za-z])/i);
+        const optMatch = line.match(/^([A-Za-z])[\.\)]\s*(.+)$/);
+        if (ansMatch) {
+          answerLetter = ansMatch[1].toUpperCase();
+        } else if (optMatch) {
+          choices.push({ letter: optMatch[1].toUpperCase(), text: optMatch[2].trim() });
+        } else if (choices.length === 0) {
+          qLines.push(line);
+        }
+      });
+
+      const qtext = qLines.join(' ').trim();
+      const label = qtext ? (qtext.length > 40 ? qtext.slice(0, 40) + '…' : qtext) : '(ไม่มีข้อความคำถาม)';
+
+      if (!qtext || !answerLetter || choices.length === 0) {
+        skipped.push(label + ' — รูปแบบไม่ถูกต้อง');
+        return;
+      }
+      if (choices.length !== 4) {
+        skipped.push(label + ' — มี ' + choices.length + ' ตัวเลือก (ต้องมี 4 ตัวเลือกพอดี)');
+        return;
+      }
+      const correctIdx = choices.findIndex(c => c.letter === answerLetter);
+      if (correctIdx === -1) {
+        skipped.push(label + ' — ไม่พบตัวเลือกที่ตรงกับเฉลย ' + answerLetter);
+        return;
+      }
+      questions.push({
+        text: qtext, type: 'MCQ', points: 1,
+        choices: choices.map(c => c.text), correct: correctIdx
+      });
+    });
+
+    return { questions, skipped };
+  }
+
+  window.qbImportAiken = function(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const { questions, skipped } = parseAiken(String(e.target.result || ''));
+      if (questions.length) {
+        qs.push(...questions);
+        render();
+      }
+      let msg = questions.length
+        ? 'นำเข้าคำถามสำเร็จ ' + questions.length + ' ข้อ'
+        : 'ไม่พบคำถามที่นำเข้าได้';
+      if (skipped.length) msg += ' (ข้าม ' + skipped.length + ' ข้อ — ดู console สำหรับรายละเอียด)';
+      showToast(msg, questions.length === 0);
+      if (skipped.length) console.warn('Aiken import — ข้ามรายการต่อไปนี้:', skipped);
+    };
+    reader.onerror = () => showToast('อ่านไฟล์ไม่สำเร็จ', true);
+    reader.readAsText(file, 'UTF-8');
+    input.value = '';
+  };
+
   // init on page load
   document.addEventListener('DOMContentLoaded', () => {
     const sel = document.getElementById('asgn-type-sel');

@@ -1625,10 +1625,21 @@ if (!$guest_mode && is_teacher()):
   </div>
   <!-- ── Quiz Builder (แสดงเฉพาะ แบบทดสอบ) ──────────────────────── -->
   <div id="asgn-quiz-section" style="display:none;margin-top:10px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px">
       <div style="font-size:14px;font-weight:700;color:var(--heading);display:flex;align-items:center;gap:7px">
         <?= icon('clipboard', 16) ?> รายการคำถาม <span id="qb-count" style="color:var(--sub);font-weight:400">(0)</span>
       </div>
+      <div>
+        <button type="button" onclick="document.getElementById('qb-aiken-file').click()"
+                class="btn btn-sm btn-ghost" style="gap:6px">
+          <?= icon('upload', 14) ?> นำเข้าจากไฟล์ (Aiken)
+        </button>
+        <input type="file" id="qb-aiken-file" accept=".txt,text/plain" hidden onchange="qbImportAiken(this)">
+      </div>
+    </div>
+    <div style="font-size:12.5px;color:var(--muted);margin:0 0 10px;line-height:1.6">
+      รองรับไฟล์ข้อความรูปแบบ Aiken — แต่ละข้อขึ้นต้นด้วยคำถาม ตามด้วยตัวเลือก 4 บรรทัด (A) B) C) D)) และปิดท้ายด้วย <code>ANSWER: X</code>
+      คั่นแต่ละข้อด้วยบรรทัดว่าง — รองรับเฉพาะข้อที่มีตัวเลือกครบ 4 ข้อพอดี
     </div>
 
     <!-- รายการคำถาม -->
