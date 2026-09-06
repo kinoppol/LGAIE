@@ -746,28 +746,29 @@ window.addLinkRow = function(containerId, url, label) {
   c.appendChild(row);
 };
 
-// ── Lesson list: drag-and-drop reorder ───────────────────────────────
-(function initLessonReorder() {
+// ── Content list: drag-and-drop reorder (บทเรียน + งาน/แบบทดสอบ ผสมกัน) ──
+(function initContentReorder() {
   const list = document.getElementById('lesson-list');
   if (!list) return;
 
   let dragRow = null;
 
-  function rowOf(el) { return el ? el.closest('.lesson-row') : null; }
+  function rowOf(el) { return el ? el.closest('.content-row') : null; }
+  function rowToken(row) { return row.dataset.contentType + ':' + row.dataset.contentId; }
 
   list.addEventListener('dragstart', e => {
-    const handle = e.target.closest('.lesson-drag-handle');
+    const handle = e.target.closest('.content-drag-handle');
     if (!handle) { e.preventDefault(); return; }
     dragRow = rowOf(handle);
     if (!dragRow) { e.preventDefault(); return; }
     e.dataTransfer.effectAllowed = 'move';
-    try { e.dataTransfer.setData('text/plain', dragRow.dataset.lessonId || ''); } catch (err) {}
+    try { e.dataTransfer.setData('text/plain', rowToken(dragRow)); } catch (err) {}
     setTimeout(() => { dragRow.style.opacity = '.35'; }, 0);
   });
 
   list.addEventListener('dragend', () => {
     if (dragRow) dragRow.style.opacity = '';
-    list.querySelectorAll('.lesson-row').forEach(r => { r.style.borderTop = ''; r.style.borderBottom = ''; });
+    list.querySelectorAll('.content-row').forEach(r => { r.style.borderTop = ''; r.style.borderBottom = ''; });
     dragRow = null;
   });
 
@@ -784,7 +785,7 @@ window.addLinkRow = function(containerId, url, label) {
     e.dataTransfer.dropEffect = 'move';
     const rect   = row.getBoundingClientRect();
     const before = (e.clientY - rect.top) < rect.height / 2;
-    list.querySelectorAll('.lesson-row').forEach(r => { if (r !== row) { r.style.borderTop = ''; r.style.borderBottom = ''; } });
+    list.querySelectorAll('.content-row').forEach(r => { if (r !== row) { r.style.borderTop = ''; r.style.borderBottom = ''; } });
     row.style.borderTop    = before ? '2px solid var(--primary)' : '';
     row.style.borderBottom = before ? '' : '2px solid var(--primary)';
   });
@@ -798,16 +799,16 @@ window.addLinkRow = function(containerId, url, label) {
     const rect   = row.getBoundingClientRect();
     const before = (e.clientY - rect.top) < rect.height / 2;
     row.insertAdjacentElement(before ? 'beforebegin' : 'afterend', dragRow);
-    saveLessonOrder();
+    saveContentOrder();
   });
 
-  function saveLessonOrder() {
-    const ids = Array.from(list.querySelectorAll('.lesson-row')).map(r => r.dataset.lessonId);
-    fetch('api/reorder_lessons.php', {
+  function saveContentOrder() {
+    const tokens = Array.from(list.querySelectorAll('.content-row')).map(rowToken);
+    fetch('api/reorder_content.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'course_id=' + encodeURIComponent(list.dataset.courseId) +
-            '&' + ids.map(id => 'order[]=' + encodeURIComponent(id)).join('&')
+            '&' + tokens.map(t => 'order[]=' + encodeURIComponent(t)).join('&')
     })
       .then(r => r.json())
       .then(res => { if (!res.ok) showToast(res.error || 'จัดลำดับไม่สำเร็จ', true); })

@@ -64,6 +64,7 @@ try { get_db()->exec("ALTER TABLE assignment_prompts MODIFY COLUMN ai_id VARCHAR
 try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file VARCHAR(255) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file_name VARCHAR(255) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE assignments ADD COLUMN IF NOT EXISTS week_label VARCHAR(50) NULL AFTER title"); } catch (PDOException) {}
+try { get_db()->exec("ALTER TABLE assignments ADD COLUMN IF NOT EXISTS sort_order INT UNSIGNED NOT NULL DEFAULT 0 AFTER allow_improve"); } catch (PDOException) {}
 ensure_quiz_schema();
 
 $example_file = $example_file_name = null;
@@ -71,12 +72,14 @@ if ($prompt_txt !== '') {
     ['path' => $example_file, 'name' => $example_file_name] = upload_example_file();
 }
 
+$sort = next_content_sort_order($course_id);
+
 $db = get_db();
 $db->beginTransaction();
 try {
     $assignment_id = db_run(
-        'INSERT INTO assignments (course_id, title, week_label, assignment_type, due_date, due_short, points, instructions, allow_improve) VALUES (?,?,?,?,?,?,?,?,?)',
-        [$course_id, $title, $week_label ?: null, $type, $due_display, $due_short, $points, $instr, $allow]
+        'INSERT INTO assignments (course_id, title, week_label, assignment_type, due_date, due_short, points, instructions, allow_improve, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)',
+        [$course_id, $title, $week_label ?: null, $type, $due_display, $due_short, $points, $instr, $allow, $sort]
     );
     if ($prompt_txt !== '') {
         db_run(

@@ -41,7 +41,7 @@ $db = get_db();
 $db->beginTransaction();
 $saved_paths = [];
 try {
-    $sort = (int)db_val('SELECT COALESCE(MAX(sort_order),0)+1 FROM lessons WHERE course_id = ?', [$course_id]);
+    $sort = next_content_sort_order($course_id);
     $lesson_id = db_run(
         'INSERT INTO lessons (course_id, title, week_label, description, sort_order) VALUES (?,?,?,?,?)',
         [$course_id, $title, $week, $desc, $sort]

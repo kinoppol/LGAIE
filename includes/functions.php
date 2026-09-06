@@ -373,6 +373,27 @@ function get_course_week_labels(int $course_id): array
     return $labels;
 }
 
+/**
+ * ค่า sort_order ถัดไปสำหรับเนื้อหาใหม่ (บทเรียนหรืองาน) ในรายวิชานี้ — ใช้ scale
+ * เดียวกันระหว่าง lessons.sort_order กับ assignments.sort_order เพื่อให้ลาก
+ * จัดลำดับข้ามชนิดกันได้ในแท็บ "เนื้อหาบทเรียน" (เทียบค่าตัวเลขข้ามตารางได้ตรง ๆ)
+ */
+function next_content_sort_order(int $course_id): int
+{
+    try {
+        return (int) db_val(
+            "SELECT COALESCE(MAX(so), 0) + 1 FROM (
+                SELECT sort_order so FROM lessons    WHERE course_id = ?
+                UNION ALL
+                SELECT sort_order so FROM assignments WHERE course_id = ?
+             ) x", [$course_id, $course_id]
+        );
+    } catch (PDOException) {
+        // ยังไม่ได้ migrate คอลัมน์ assignments.sort_order — ใช้เฉพาะของบทเรียนไปก่อน
+        return (int) db_val('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM lessons WHERE course_id = ?', [$course_id]);
+    }
+}
+
 /** พิมพ์ <datalist> ของ "สัปดาห์/หน่วย" — ใช้คู่กับ <input list="{$id}"> */
 function week_label_datalist(string $id, array $labels): void
 {
@@ -1029,6 +1050,8 @@ function run_all_migrations(): array
         "ALTER TABLE assignment_prompts ADD COLUMN IF NOT EXISTS example_file_name VARCHAR(255) NULL");
     $run('assignments.week_label',
         "ALTER TABLE assignments ADD COLUMN IF NOT EXISTS week_label VARCHAR(50) NULL AFTER title");
+    $run('assignments.sort_order',
+        "ALTER TABLE assignments ADD COLUMN IF NOT EXISTS sort_order INT UNSIGNED NOT NULL DEFAULT 0 AFTER allow_improve");
 
     // ── 6. ตารางใหม่ ──────────────────────────────────────────────────────────
     $run('table: submission_files',
@@ -1128,6 +1151,35 @@ function run_all_migrations(): array
         $results[] = ['label' => 'upload dirs', 'status' => 'ok', 'msg' => 'สร้าง/ตรวจสอบโฟลเดอร์ uploads/ แล้ว'];
     } catch (Throwable $e) {
         $results[] = ['label' => 'upload dirs', 'status' => 'error', 'msg' => $e->getMessage()];
+    }
+
+    // ── 9. เติมค่า assignments.sort_order ให้งานเก่าที่ยังเป็น 0 ทั้งหมด (ครั้งเดียว) ──
+    // จำเป็นสำหรับการลากจัดลำดับข้ามชนิด (บทเรียน/งาน) ในหน่วยเดียวกัน — ถ้าปล่อยให้
+    // งานเก่าทุกตัวมีค่า 0 ซ้ำกันหมด การสลับลำดับจะไม่มีผลใด ๆ (ค่าเท่ากันหมด)
+    try {
+        $courses_with_unset = db_rows(
+            'SELECT DISTINCT course_id FROM assignments WHERE sort_order = 0'
+        );
+        $backfilled = 0;
+        foreach ($courses_with_unset as $row) {
+            $cid = (int)$row['course_id'];
+            $next = (int)db_val(
+                "SELECT COALESCE(MAX(so), 0) + 1 FROM (
+                    SELECT sort_order so FROM lessons    WHERE course_id = ?
+                    UNION ALL
+                    SELECT sort_order so FROM assignments WHERE course_id = ?
+                 ) x", [$cid, $cid]
+            );
+            $ids = db_rows('SELECT id FROM assignments WHERE course_id = ? AND sort_order = 0 ORDER BY id', [$cid]);
+            foreach ($ids as $r) {
+                db_run('UPDATE assignments SET sort_order = ? WHERE id = ?', [$next++, (int)$r['id']]);
+                $backfilled++;
+            }
+        }
+        $results[] = ['label' => 'assignments.sort_order backfill', 'status' => 'ok',
+                       'msg' => $backfilled ? "กำหนดลำดับให้งานเก่า {$backfilled} รายการแล้ว" : 'ไม่มีงานที่ต้องเติมค่า'];
+    } catch (Throwable $e) {
+        $results[] = ['label' => 'assignments.sort_order backfill', 'status' => 'error', 'msg' => $e->getMessage()];
     }
 
     return $results;

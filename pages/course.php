@@ -329,35 +329,42 @@ elseif ($tab === 'lessons'): ?>
 // ── จัดกลุ่มเนื้อหา (บทเรียน + งาน) ตาม "สัปดาห์/หน่วย" เดียวกัน ─────
 // key ว่าง/ไม่ระบุ → รวมไว้ในกลุ่ม "ไม่ได้ระบุหน่วย" เสมอเรียงไว้ล่างสุด
 $NO_WEEK = "\0__no_week__";
-$content_groups = []; // key => ['label'=>, 'order'=>float, 'lessons'=>[], 'works'=>[]]
+$content_groups = []; // key => ['label'=>, 'order'=>float, 'items'=>[ ['type'=>'lesson'|'work','sort_order'=>,'data'=>] ]]
 
 foreach ($lessons as $l) {
-    $wl  = trim((string)$l['week_label']);
-    $key = $wl !== '' ? $wl : $NO_WEEK;
+    $wl   = trim((string)$l['week_label']);
+    $key  = $wl !== '' ? $wl : $NO_WEEK;
+    $item = ['type' => 'lesson', 'sort_order' => (float)$l['sort_order'], 'data' => $l];
     if (!isset($content_groups[$key])) {
-        $content_groups[$key] = ['label' => $wl !== '' ? $wl : 'ไม่ได้ระบุหน่วย', 'order' => (float)$l['sort_order'], 'lessons' => [], 'works' => []];
+        $content_groups[$key] = ['label' => $wl !== '' ? $wl : 'ไม่ได้ระบุหน่วย', 'order' => $item['sort_order'], 'items' => []];
     } else {
-        $content_groups[$key]['order'] = min($content_groups[$key]['order'], (float)$l['sort_order']);
+        $content_groups[$key]['order'] = min($content_groups[$key]['order'], $item['sort_order']);
     }
-    $content_groups[$key]['lessons'][] = $l;
+    $content_groups[$key]['items'][] = $item;
 }
-$next_order = 0;
-foreach ($content_groups as $g) { $next_order = max($next_order, $g['order'] + 1); }
 foreach ($works as $w) {
-    $wl  = trim((string)($w['week_label'] ?? ''));
-    $key = $wl !== '' ? $wl : $NO_WEEK;
+    $wl   = trim((string)($w['week_label'] ?? ''));
+    $key  = $wl !== '' ? $wl : $NO_WEEK;
+    $item = ['type' => 'work', 'sort_order' => (float)($w['sort_order'] ?? 0), 'data' => $w];
     if (!isset($content_groups[$key])) {
-        $content_groups[$key] = ['label' => $wl !== '' ? $wl : 'ไม่ได้ระบุหน่วย', 'order' => $next_order++, 'lessons' => [], 'works' => []];
+        $content_groups[$key] = ['label' => $wl !== '' ? $wl : 'ไม่ได้ระบุหน่วย', 'order' => $item['sort_order'], 'items' => []];
+    } else {
+        $content_groups[$key]['order'] = min($content_groups[$key]['order'], $item['sort_order']);
     }
-    $content_groups[$key]['works'][] = $w;
+    $content_groups[$key]['items'][] = $item;
 }
 if (isset($content_groups[$NO_WEEK])) {
     $content_groups[$NO_WEEK]['order'] = PHP_FLOAT_MAX; // กลุ่ม "ไม่ได้ระบุหน่วย" อยู่ล่างสุดเสมอ
 }
 uasort($content_groups, fn($a, $b) => $a['order'] <=> $b['order']);
+foreach ($content_groups as $gkey => $g) {
+    usort($content_groups[$gkey]['items'], function ($a, $b) {
+        return $a['sort_order'] <=> $b['sort_order'] ?: ($a['data']['id'] <=> $b['data']['id']);
+    });
+}
 
-// ครูเท่านั้นที่ลากจัดลำดับบทเรียนได้ (ภายในหน่วยเดียวกัน) และต้องมีมากกว่า 1 รายการ
-$can_reorder_lessons = !$guest_mode && is_teacher() && count($lessons) > 1;
+// ครูเท่านั้นที่ลากจัดลำดับได้ (ภายในหน่วยเดียวกัน ข้ามชนิดกันได้) และต้องมีเนื้อหามากกว่า 1 รายการ
+$can_reorder_content = !$guest_mode && is_teacher() && (count($lessons) + count($works)) > 1;
 ?>
 
 <div id="lesson-list" data-course-id="<?= $course_id ?>">
@@ -367,15 +374,17 @@ $can_reorder_lessons = !$guest_mode && is_teacher() && count($lessons) > 1;
   <div style="flex:1;height:1px;background:var(--line-2)"></div>
 </div>
 
-<?php foreach ($group['lessons'] as $l):
-    $lesson_href = $guest_mode
-        ? 'index.php?page=login&redirect=' . urlencode('index.php?page=lesson&lesson_id=' . $l['id'])
-        : url('lesson', ['lesson_id' => $l['id']]);
+<?php foreach ($group['items'] as $item):
+    if ($item['type'] === 'lesson'):
+        $l = $item['data'];
+        $lesson_href = $guest_mode
+            ? 'index.php?page=login&redirect=' . urlencode('index.php?page=lesson&lesson_id=' . $l['id'])
+            : url('lesson', ['lesson_id' => $l['id']]);
 ?>
-<a href="<?= $lesson_href ?>" class="lrow lesson-row" data-lesson-id="<?= $l['id'] ?>" data-week-label="<?= h($l['week_label']) ?>"
+<a href="<?= $lesson_href ?>" class="lrow content-row" data-content-type="lesson" data-content-id="<?= $l['id'] ?>" data-week-label="<?= h($l['week_label']) ?>"
    style="align-items:flex-start;padding:18px 20px;text-decoration:none<?= $guest_mode ? ';opacity:.85' : '' ?>">
-  <?php if ($can_reorder_lessons): ?>
-  <span class="lesson-drag-handle" draggable="true" title="ลากเพื่อจัดลำดับ (เฉพาะภายในหน่วยเดียวกัน)"
+  <?php if ($can_reorder_content): ?>
+  <span class="content-drag-handle" draggable="true" title="ลากเพื่อจัดลำดับ (เฉพาะภายในหน่วยเดียวกัน)"
         style="cursor:grab;color:var(--faint);flex:0 0 auto;margin-top:2px"
         onclick="event.preventDefault();event.stopPropagation()"><?= icon('grip', 18) ?></span>
   <?php endif; ?>
@@ -405,10 +414,17 @@ $can_reorder_lessons = !$guest_mode && is_teacher() && count($lessons) > 1;
   </div>
   <?= icon($guest_mode ? 'lock' : 'chevron-right', 18, 'var(--faint)') ?>
 </a>
-<?php endforeach; ?>
-
-<?php foreach ($group['works'] as $w): ?>
-<a href="<?= url('assignment', ['assignment_id' => $w['id']]) ?>" class="lrow" style="align-items:flex-start;padding:18px 20px;text-decoration:none">
+<?php
+    else: // $item['type'] === 'work'
+        $w = $item['data'];
+?>
+<a href="<?= url('assignment', ['assignment_id' => $w['id']]) ?>" class="lrow content-row" data-content-type="work" data-content-id="<?= $w['id'] ?>" data-week-label="<?= h($w['week_label'] ?? '') ?>"
+   style="align-items:flex-start;padding:18px 20px;text-decoration:none">
+  <?php if ($can_reorder_content): ?>
+  <span class="content-drag-handle" draggable="true" title="ลากเพื่อจัดลำดับ (เฉพาะภายในหน่วยเดียวกัน)"
+        style="cursor:grab;color:var(--faint);flex:0 0 auto;margin-top:2px"
+        onclick="event.preventDefault();event.stopPropagation()"><?= icon('grip', 18) ?></span>
+  <?php endif; ?>
   <span class="lr-ic" style="background:var(--warn-soft);color:#c76a13"><?= icon('clipboard', 20) ?></span>
   <div style="min-width:0;flex:1">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
@@ -444,7 +460,8 @@ $can_reorder_lessons = !$guest_mode && is_teacher() && count($lessons) > 1;
     <?php endif; ?>
   </div>
 </a>
-<?php endforeach; ?>
+<?php endif; ?>
+<?php endforeach; // end group items ?>
 <?php endforeach; // end $content_groups ?>
 </div>
 

@@ -143,6 +143,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   status          VARCHAR(20)  DEFAULT 'open',
   instructions    TEXT         NOT NULL,
   allow_improve   TINYINT(1)   DEFAULT 1,
+  sort_order      INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'ลำดับการแสดงผลภายในหน่วย ใช้ scale เดียวกับ lessons.sort_order เพื่อสลับลำดับข้ามชนิดกันได้',
   created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -341,6 +342,9 @@ ALTER TABLE assignment_prompts ADD COLUMN IF NOT EXISTS example_file_name VARCHA
 
 -- รวมแท็บ "งาน/การบ้าน" เข้ากับ "เนื้อหาบทเรียน": จัดกลุ่มงานตามหน่วยเดียวกับบทเรียน
 ALTER TABLE assignments ADD COLUMN IF NOT EXISTS week_label VARCHAR(50) NULL AFTER title;
+
+-- ลากจัดลำดับเนื้อหาข้ามชนิด (บทเรียน/งาน/แบบทดสอบ) ภายในหน่วยเดียวกันได้
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS sort_order INT UNSIGNED NOT NULL DEFAULT 0 AFTER allow_improve;
 
 
 -- ============================================================
