@@ -27,15 +27,21 @@ if ($questions_json !== '' && $questions_json !== '[]') {
     $questions = json_decode($questions_json, true) ?: [];
 }
 
+$is_quiz = is_quiz_assignment_type($type);
+
 if (!$title || !$due || !$course_id) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
 if (!teaches_course($course_id)) json_err('ไม่มีสิทธิ์เพิ่มงานในรายวิชานี้', 403);
-if ($type === 'แบบทดสอบ' && empty($questions)) {
+if ($is_quiz && empty($questions)) {
     json_err('แบบทดสอบต้องมีคำถามอย่างน้อย 1 ข้อ');
 }
-if ($type !== 'แบบทดสอบ' && !$prompt_txt) {
+if (!$is_quiz && !$prompt_txt) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
+}
+// คะแนนเต็มของแบบทดสอบ = ผลรวมคะแนนของทุกคำถาม (ไม่ใช้ช่อง "คะแนนเต็ม" ที่กรอกแยก)
+if ($is_quiz) {
+    $points = max(1, array_sum(array_map(fn($q) => max(1, (int)($q['points'] ?? 1)), $questions)));
 }
 
 // Convert ISO date (YYYY-MM-DD CE) → Thai display strings
@@ -78,20 +84,19 @@ try {
             [$assignment_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null]
         );
     }
-    foreach ($questions as $i => $q) {
-        $qtext = trim($q['text'] ?? '');
-        $qtype = in_array($q['type'] ?? '', ['MCQ','truefalse']) ? $q['type'] : 'MCQ';
-        $qpts  = max(1, (int)($q['points'] ?? 1));
-        if (!$qtext) continue;
+    $q_sort = 0;
+    foreach ($questions as $q) {
+        $qtext   = trim($q['text'] ?? '');
+        $qpts    = max(1, (int)($q['points'] ?? 1));
+        $choices = array_map(fn($ct) => trim((string)$ct), $q['choices'] ?? []);
+        $correct = (int)($q['correct'] ?? 0);
+        // เลือกตอบต้องมีครบ 4 ตัวเลือก และมีคำตอบที่ถูกต้องระบุไว้ 1 ข้อ — ข้ามคำถามที่ไม่ครบเงื่อนไข
+        if (!$qtext || count(array_filter($choices)) < 4 || !isset($choices[$correct]) || $choices[$correct] === '') continue;
         $qid = db_run(
             'INSERT INTO quiz_questions (assignment_id, question_text, question_type, points, sort_order) VALUES (?,?,?,?,?)',
-            [$assignment_id, $qtext, $qtype, $qpts, $i]
+            [$assignment_id, $qtext, 'MCQ', $qpts, $q_sort++]
         );
-        $choices = $q['choices'] ?? [];
-        $correct = (int)($q['correct'] ?? 0);
-        foreach ($choices as $ci => $ct) {
-            $ct = trim((string)$ct);
-            if ($ct === '' && $qtype === 'MCQ') continue;
+        foreach (array_slice($choices, 0, 4) as $ci => $ct) {
             db_run(
                 'INSERT INTO quiz_choices (question_id, choice_text, is_correct, sort_order) VALUES (?,?,?,?)',
                 [$qid, $ct, ($ci === $correct) ? 1 : 0, $ci]

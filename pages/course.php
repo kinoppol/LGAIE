@@ -247,14 +247,62 @@ elseif ($tab === 'lessons'): ?>
 <div style="display:flex;align-items:center;margin-bottom:18px;gap:10px;flex-wrap:wrap">
   <h2 style="font-size:19px">เนื้อหาบทเรียน</h2>
   <?php if (!$guest_mode && is_teacher()): ?>
-  <div style="display:flex;gap:8px;margin-left:auto">
-    <button class="btn btn-ghost" onclick="openModal('add-assignment')">
-      <?= icon('plus', 18) ?> เพิ่มงาน + Prompt
+  <div style="position:relative;margin-left:auto">
+    <button class="btn btn-primary" onclick="toggleAddContentMenu()">
+      <?= icon('plus', 18, '#fff') ?> เพิ่ม <?= icon('chevron-down', 15, '#fff') ?>
     </button>
-    <button class="btn btn-primary" onclick="openModal('add-lesson')">
-      <?= icon('plus', 18, '#fff') ?> เพิ่มเนื้อหา + Prompt
-    </button>
+    <div id="add-content-menu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:200;
+      background:var(--card);border:1px solid var(--line-2);border-radius:12px;padding:.4rem;min-width:210px;
+      box-shadow:0 8px 28px rgba(0,0,0,.13)">
+      <a href="javascript:void(0)" onclick="openAddContentModal('lesson')"
+         style="display:flex;align-items:center;gap:9px;padding:.55rem .85rem;border-radius:8px;
+                text-decoration:none;font-size:.875rem;color:var(--text);font-weight:500;transition:background .12s"
+         onmouseenter="this.style.background='var(--primary-soft)'" onmouseleave="this.style.background=''">
+        <?= icon('book', 16, 'var(--primary)') ?> เนื้อหาบทเรียน
+      </a>
+      <a href="javascript:void(0)" onclick="openAddContentModal('work')"
+         style="display:flex;align-items:center;gap:9px;padding:.55rem .85rem;border-radius:8px;
+                text-decoration:none;font-size:.875rem;color:var(--text);font-weight:500;transition:background .12s"
+         onmouseenter="this.style.background='var(--primary-soft)'" onmouseleave="this.style.background=''">
+        <?= icon('clipboard', 16, '#c76a13') ?> งาน / การบ้าน
+      </a>
+      <a href="javascript:void(0)" onclick="openAddContentModal('quiz')"
+         style="display:flex;align-items:center;gap:9px;padding:.55rem .85rem;border-radius:8px;
+                text-decoration:none;font-size:.875rem;color:var(--text);font-weight:500;transition:background .12s"
+         onmouseenter="this.style.background='var(--primary-soft)'" onmouseleave="this.style.background=''">
+        <?= icon('check-circle', 16, 'var(--accent)') ?> แบบทดสอบ (ก่อนเรียน/หลังเรียน/ปลายภาค)
+      </a>
+    </div>
   </div>
+  <script>
+  function toggleAddContentMenu() {
+    var d = document.getElementById('add-content-menu');
+    if (d) d.style.display = d.style.display === 'block' ? 'none' : 'block';
+  }
+  document.addEventListener('click', function (e) {
+    var d = document.getElementById('add-content-menu');
+    if (d && d.style.display === 'block' && !e.target.closest('#add-content-menu') && !e.target.closest('[onclick="toggleAddContentMenu()"]')) {
+      d.style.display = 'none';
+    }
+  });
+  function openAddContentModal(kind) {
+    var menu = document.getElementById('add-content-menu');
+    if (menu) menu.style.display = 'none';
+    if (kind === 'lesson') { openModal('add-lesson'); return; }
+    var sel   = document.getElementById('asgn-type-sel');
+    var title = document.getElementById('add-assignment-title');
+    if (kind === 'work') {
+      if (sel)   sel.value = 'งาน';
+      if (title) title.textContent = 'เพิ่มงาน / การบ้าน + Prompt AI';
+      qbToggleSections('งาน');
+    } else if (kind === 'quiz') {
+      if (sel)   sel.value = 'แบบทดสอบก่อนเรียน';
+      if (title) title.textContent = 'เพิ่มแบบทดสอบ (เลือกตอบ 4 ตัวเลือก)';
+      qbToggleSections('แบบทดสอบก่อนเรียน');
+    }
+    openModal('add-assignment');
+  }
+  </script>
   <?php endif; ?>
 </div>
 
@@ -365,8 +413,12 @@ $can_reorder_lessons = !$guest_mode && is_teacher() && count($lessons) > 1;
   <div style="min-width:0;flex:1">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
       <span class="badge orange" style="font-size:11px"><?= h($w['assignment_type']) ?></span>
+      <?php if (is_quiz_assignment_type($w['assignment_type'])): ?>
+      <span class="chip" style="font-size:11.5px;padding:3px 9px"><?= icon('check-circle', 13, 'var(--accent)') ?> เลือกตอบ 4 ตัวเลือก</span>
+      <?php elseif (!empty($w['prompt_text'])): ?>
       <span class="chip" style="font-size:11.5px;padding:3px 9px"><?= icon('sparkle', 13, 'var(--primary)') ?> Prompt AI</span>
-      <?php if ($w['allow_improve']): ?>
+      <?php endif; ?>
+      <?php if ($w['allow_improve'] && !is_quiz_assignment_type($w['assignment_type'])): ?>
       <span class="badge blue" style="font-size:11px">ปรับ prompt ได้</span>
       <?php endif; ?>
     </div>
@@ -1549,7 +1601,9 @@ if (!$guest_mode && is_teacher()):
         <option value="งาน">งาน</option>
         <option value="การบ้าน">การบ้าน</option>
         <option value="โครงงาน">โครงงาน</option>
-        <option value="แบบทดสอบ">แบบทดสอบ</option>
+        <option value="แบบทดสอบก่อนเรียน">แบบทดสอบก่อนเรียน</option>
+        <option value="แบบทดสอบหลังเรียน">แบบทดสอบหลังเรียน</option>
+        <option value="ข้อสอบปลายภาค">ข้อสอบปลายภาค</option>
       </select>
     </div>
     <div class="field" style="flex:1">
@@ -1560,7 +1614,7 @@ if (!$guest_mode && is_teacher()):
       <label>เวลา <span style="color:var(--sub);font-weight:400;font-size:11.5px">(ถ้าไม่ระบุ = 23:59)</span></label>
       <input class="input" type="time" name="due_time" placeholder="23:59">
     </div>
-    <div class="field" style="flex:0 0 120px">
+    <div class="field" style="flex:0 0 120px" id="asgn-points-wrap">
       <label>คะแนนเต็ม</label>
       <input class="input" type="number" name="points" value="10" min="1">
     </div>
@@ -1588,13 +1642,10 @@ if (!$guest_mode && is_teacher()):
         <label style="font-size:12.5px">ข้อคำถาม <span style="color:var(--danger)">*</span></label>
         <textarea id="qb-text" class="textarea" rows="2" placeholder="พิมพ์ข้อคำถาม..." style="font-size:13.5px;min-height:60px"></textarea>
       </div>
-      <div style="display:flex;gap:10px;margin-bottom:10px">
+      <div style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-end">
         <div class="field" style="flex:1;margin-bottom:0">
-          <label style="font-size:12.5px">ประเภท</label>
-          <select id="qb-type" class="select" style="font-size:13px" onchange="qbTypeChange()">
-            <option value="MCQ">เลือกตอบ (MCQ)</option>
-            <option value="truefalse">ถูก / ผิด</option>
-          </select>
+          <label style="font-size:12.5px">รูปแบบคำถาม</label>
+          <div style="font-size:13px;color:var(--body);padding:8px 0">เลือกตอบ 4 ตัวเลือก</div>
         </div>
         <div class="field" style="flex:0 0 90px;margin-bottom:0">
           <label style="font-size:12.5px">คะแนน</label>
@@ -1602,30 +1653,10 @@ if (!$guest_mode && is_teacher()):
         </div>
       </div>
 
-      <!-- MCQ choices -->
+      <!-- ตัวเลือก (คงที่ 4 ข้อ) -->
       <div id="qb-mcq-wrap">
-        <div style="font-size:12px;font-weight:600;color:var(--sub);margin-bottom:7px">ตัวเลือก <span style="font-weight:400">(เลือกข้อที่ถูกต้อง)</span></div>
+        <div style="font-size:12px;font-weight:600;color:var(--sub);margin-bottom:7px">ตัวเลือกทั้ง 4 ข้อ <span style="font-weight:400">(เลือกข้อที่ถูกต้อง)</span></div>
         <div id="qb-choices"></div>
-        <button type="button" onclick="qbAddChoice()"
-                style="display:flex;align-items:center;gap:5px;background:none;border:1px dashed var(--line-2);
-                       border-radius:7px;padding:5px 12px;font-size:12.5px;color:var(--sub);cursor:pointer;margin-top:4px">
-          + เพิ่มตัวเลือก
-        </button>
-      </div>
-
-      <!-- True/False -->
-      <div id="qb-tf-wrap" style="display:none">
-        <div style="font-size:12px;font-weight:600;color:var(--sub);margin-bottom:8px">เฉลย</div>
-        <div style="display:flex;gap:20px">
-          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13.5px">
-            <input type="radio" id="qb-tf-true" name="qb-tf" value="true" checked
-                   style="width:16px;height:16px;accent-color:var(--primary)"> ถูก
-          </label>
-          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13.5px">
-            <input type="radio" id="qb-tf-false" name="qb-tf" value="false"
-                   style="width:16px;height:16px;accent-color:var(--danger)"> ผิด
-          </label>
-        </div>
       </div>
 
       <div style="display:flex;gap:8px;margin-top:14px">

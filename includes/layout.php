@@ -451,7 +451,7 @@ function modal_start(string $id, string $title, string $icon_name = '', bool $wi
             <?= icon($icon_name, 20) ?>
           </span>
           <?php endif; ?>
-          <h3><?= h($title) ?></h3>
+          <h3 id="<?= h($id) ?>-title"><?= h($title) ?></h3>
           <button type="button" class="x-btn" onclick="closeModal('<?= h($id) ?>')"><?= icon('x', 18) ?></button>
         </div>
         <div class="modal__body">

@@ -867,6 +867,51 @@ function ensure_quiz_schema(): void
         INDEX (assignment_id),
         FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+    // คำตอบที่นักเรียนแต่ละคนทำแบบทดสอบไว้ (1 แถวต่อ 1 คำถามที่ตอบ)
+    try { $db->exec("CREATE TABLE IF NOT EXISTS quiz_responses (
+        id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        assignment_id INT UNSIGNED NOT NULL,
+        student_id    INT UNSIGNED NOT NULL,
+        question_id   INT UNSIGNED NOT NULL,
+        choice_id     INT UNSIGNED NULL,
+        is_correct    TINYINT(1) NOT NULL DEFAULT 0,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_response (assignment_id, student_id, question_id),
+        INDEX (student_id),
+        FOREIGN KEY (assignment_id) REFERENCES assignments(id)   ON DELETE CASCADE,
+        FOREIGN KEY (student_id)    REFERENCES users(id)         ON DELETE CASCADE,
+        FOREIGN KEY (question_id)   REFERENCES quiz_questions(id) ON DELETE CASCADE,
+        FOREIGN KEY (choice_id)     REFERENCES quiz_choices(id)   ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (PDOException) {}
+}
+
+/**
+ * ประเภทงานที่ถือเป็น "แบบทดสอบ" (มีคำถามแบบเลือกตอบผูกอยู่ผ่าน quiz_questions
+ * แทนที่การส่ง prompt/ไฟล์แบบงานทั่วไป) — ใช้ก่อนเรียน/หลังเรียน/ปลายภาค
+ */
+function is_quiz_assignment_type(string $type): bool
+{
+    return in_array($type, ['แบบทดสอบ', 'แบบทดสอบก่อนเรียน', 'แบบทดสอบหลังเรียน', 'ข้อสอบปลายภาค'], true);
+}
+
+/** คำถาม + ตัวเลือกทั้งหมดของแบบทดสอบหนึ่งชุด เรียงตามลำดับที่สร้าง */
+function get_quiz_questions(int $assignment_id): array
+{
+    ensure_quiz_schema();
+    $questions = db_rows('SELECT * FROM quiz_questions WHERE assignment_id = ? ORDER BY sort_order, id', [$assignment_id]);
+    foreach ($questions as &$q) {
+        $q['choices'] = db_rows('SELECT * FROM quiz_choices WHERE question_id = ? ORDER BY sort_order, id', [$q['id']]);
+    }
+    unset($q);
+    return $questions;
+}
+
+/** คำตอบที่นักเรียนคนหนึ่งเคยทำไว้ในแบบทดสอบนี้ — คืนเป็น question_id => แถว quiz_responses */
+function get_quiz_responses(int $assignment_id, int $student_id): array
+{
+    ensure_quiz_schema();
+    $rows = db_rows('SELECT * FROM quiz_responses WHERE assignment_id = ? AND student_id = ?', [$assignment_id, $student_id]);
+    return array_column($rows, null, 'question_id');
 }
 
 /**
@@ -1052,6 +1097,23 @@ function run_all_migrations(): array
         "ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS added_by INT UNSIGNED NULL");
     $run('course_teachers.created_at',
         "ALTER TABLE course_teachers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+
+    $run('table: quiz_responses',
+        "CREATE TABLE IF NOT EXISTS quiz_responses (
+            id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            assignment_id INT UNSIGNED NOT NULL,
+            student_id    INT UNSIGNED NOT NULL,
+            question_id   INT UNSIGNED NOT NULL,
+            choice_id     INT UNSIGNED NULL,
+            is_correct    TINYINT(1) NOT NULL DEFAULT 0,
+            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_response (assignment_id, student_id, question_id),
+            INDEX (student_id),
+            FOREIGN KEY (assignment_id) REFERENCES assignments(id)   ON DELETE CASCADE,
+            FOREIGN KEY (student_id)    REFERENCES users(id)         ON DELETE CASCADE,
+            FOREIGN KEY (question_id)   REFERENCES quiz_questions(id) ON DELETE CASCADE,
+            FOREIGN KEY (choice_id)     REFERENCES quiz_choices(id)   ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
     // ── 7. app_settings seed ─────────────────────────────────────────────────
     $run('app_settings seed',
@@ -1298,6 +1360,7 @@ function icon(
         'arrow-right'=> '<path d="M5 12h14M13 6l6 6-6 6"/>',
         'arrow-left' => '<path d="M19 12H5M11 18l-6-6 6-6"/>',
         'chevron-right'=> '<path d="M9 6l6 6-6 6"/>',
+        'chevron-down' => '<path d="M6 9l6 6 6-6"/>',
         'file'       => '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
         'download'   => '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>',
         'upload'     => '<path d="M12 21V9M7 14l5-5 5 5"/><path d="M5 3h14"/>',

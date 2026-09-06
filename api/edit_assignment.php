@@ -21,7 +21,9 @@ $example    = trim($_POST['example_text']    ?? '');
 $note       = trim($_POST['note_text']       ?? '');
 $allow      = isset($_POST['allow_improve'])  ? 1 : 0;
 
-if (!$assignment_id || !$title || !$prompt_txt) {
+$is_quiz = is_quiz_assignment_type($type);
+
+if (!$assignment_id || !$title || (!$is_quiz && !$prompt_txt)) {
     json_err('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
 }
 
@@ -35,6 +37,14 @@ try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file VAR
 try { get_db()->exec("ALTER TABLE assignment_prompts ADD COLUMN example_file_name VARCHAR(255) NULL"); } catch (PDOException) {}
 try { get_db()->exec("ALTER TABLE assignments ADD COLUMN IF NOT EXISTS week_label VARCHAR(50) NULL AFTER title"); } catch (PDOException) {}
 ensure_quiz_schema();
+
+// คะแนนเต็มของแบบทดสอบมาจากผลรวมคะแนนคำถามเสมอ (แก้ไขคำถามยังไม่รองรับในฟอร์มนี้
+// จึงคำนวณจากคำถามที่มีอยู่แล้ว — ไม่ใช้ช่อง "คะแนนเต็ม" ที่ส่งมาจากฟอร์ม)
+if ($is_quiz) {
+    $points = max(1, (int)db_val(
+        'SELECT COALESCE(SUM(points), 0) FROM quiz_questions WHERE assignment_id = ?', [$assignment_id]
+    ));
+}
 
 $existing_file      = db_val('SELECT example_file      FROM assignment_prompts WHERE assignment_id = ?', [$assignment_id]) ?: null;
 $existing_file_name = db_val('SELECT example_file_name FROM assignment_prompts WHERE assignment_id = ?', [$assignment_id]) ?: null;
@@ -70,17 +80,20 @@ try {
         );
     }
 
-    $has_prompt = db_val('SELECT 1 FROM assignment_prompts WHERE assignment_id = ?', [$assignment_id]);
-    if ($has_prompt) {
-        db_run(
-            'UPDATE assignment_prompts SET prompt_text=?, ai_id=?, rating=?, example_text=?, example_file=?, example_file_name=?, note_text=? WHERE assignment_id=?',
-            [$prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null, $assignment_id]
-        );
-    } else {
-        db_run(
-            'INSERT INTO assignment_prompts (assignment_id, prompt_text, ai_id, rating, example_text, example_file, example_file_name, note_text) VALUES (?,?,?,?,?,?,?,?)',
-            [$assignment_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null]
-        );
+    // แบบทดสอบไม่บังคับมี Prompt AI — ข้ามการบันทึกถ้าไม่ได้กรอกมา
+    if (!($is_quiz && $prompt_txt === '')) {
+        $has_prompt = db_val('SELECT 1 FROM assignment_prompts WHERE assignment_id = ?', [$assignment_id]);
+        if ($has_prompt) {
+            db_run(
+                'UPDATE assignment_prompts SET prompt_text=?, ai_id=?, rating=?, example_text=?, example_file=?, example_file_name=?, note_text=? WHERE assignment_id=?',
+                [$prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null, $assignment_id]
+            );
+        } else {
+            db_run(
+                'INSERT INTO assignment_prompts (assignment_id, prompt_text, ai_id, rating, example_text, example_file, example_file_name, note_text) VALUES (?,?,?,?,?,?,?,?)',
+                [$assignment_id, $prompt_txt, $ai_id ?: null, $rating, $example ?: null, $example_file, $example_file_name, $note ?: null]
+            );
+        }
     }
 
     db_run('DELETE FROM assignment_links WHERE assignment_id = ?', [$assignment_id]);

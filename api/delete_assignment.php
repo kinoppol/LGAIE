@@ -34,7 +34,9 @@ $db = get_db();
 $db->beginTransaction();
 try {
     // Tables without an ON DELETE CASCADE foreign key — clear defensively.
-    foreach (['assignment_links', 'quiz_questions'] as $t) {
+    // (quiz_responses ก่อน quiz_questions เพราะ quiz_responses อ้าง question_id
+    // ของ quiz_questions ด้วย — ถ้า FK cascade ไม่ทำงาน การลบผิดลำดับจะพังได้)
+    foreach (['assignment_links', 'quiz_responses', 'quiz_questions'] as $t) {
         try { db_run("DELETE FROM {$t} WHERE assignment_id = ?", [$assignment_id]); }
         catch (PDOException) {}
     }

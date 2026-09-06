@@ -160,6 +160,56 @@ CREATE TABLE IF NOT EXISTS assignment_prompts (
   FOREIGN KEY (ai_id)         REFERENCES ai_tools(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- -------- Assignment Links (ลิงก์สื่อการสอนแนบท้ายงาน) --------
+CREATE TABLE IF NOT EXISTS assignment_links (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  assignment_id INT UNSIGNED NOT NULL,
+  url           VARCHAR(2048) NOT NULL,
+  label         VARCHAR(255)  NOT NULL DEFAULT '',
+  sort_order    INT UNSIGNED  NOT NULL DEFAULT 0,
+  INDEX (assignment_id),
+  FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- -------- Quiz Questions (แบบทดสอบก่อนเรียน/หลังเรียน/ปลายภาค — เลือกตอบ 4 ตัวเลือก) --------
+CREATE TABLE IF NOT EXISTS quiz_questions (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  assignment_id INT UNSIGNED NOT NULL,
+  question_text TEXT NOT NULL,
+  question_type ENUM('MCQ','truefalse') NOT NULL DEFAULT 'MCQ',
+  points        INT UNSIGNED NOT NULL DEFAULT 1,
+  sort_order    INT UNSIGNED NOT NULL DEFAULT 0,
+  INDEX (assignment_id),
+  FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- -------- Quiz Choices --------
+CREATE TABLE IF NOT EXISTS quiz_choices (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  question_id INT UNSIGNED NOT NULL,
+  choice_text TEXT NOT NULL,
+  is_correct  TINYINT(1) NOT NULL DEFAULT 0,
+  sort_order  INT UNSIGNED NOT NULL DEFAULT 0,
+  FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- -------- Quiz Responses (คำตอบของนักเรียนแต่ละคน — ใช้ตรวจให้คะแนนอัตโนมัติ) --------
+CREATE TABLE IF NOT EXISTS quiz_responses (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  assignment_id INT UNSIGNED NOT NULL,
+  student_id    INT UNSIGNED NOT NULL,
+  question_id   INT UNSIGNED NOT NULL,
+  choice_id     INT UNSIGNED NULL,
+  is_correct    TINYINT(1) NOT NULL DEFAULT 0,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_response (assignment_id, student_id, question_id),
+  INDEX (student_id),
+  FOREIGN KEY (assignment_id) REFERENCES assignments(id)    ON DELETE CASCADE,
+  FOREIGN KEY (student_id)    REFERENCES users(id)          ON DELETE CASCADE,
+  FOREIGN KEY (question_id)   REFERENCES quiz_questions(id) ON DELETE CASCADE,
+  FOREIGN KEY (choice_id)     REFERENCES quiz_choices(id)   ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- -------- Submissions --------
 CREATE TABLE IF NOT EXISTS submissions (
   id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

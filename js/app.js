@@ -464,11 +464,14 @@ if (searchInput) {
   });
 }
 
-// ── Quiz Builder ──────────────────────────────────────────────
+// ── Quiz Builder — เลือกตอบ (MCQ) แบบ 4 ตัวเลือกคงที่ ───────────
 ;(function () {
-  let qs = [];        // [{text, type, points, choices:[], correct:0}]
+  let qs = [];        // [{text, type:'MCQ', points, choices:[4 strings], correct:0-3}]
   let editIdx = -1;   // -1 = add new
   let dragSrc = -1;
+
+  // ประเภทงานที่ถือเป็นแบบทดสอบ — ต้องตรงกับ is_quiz_assignment_type() ฝั่ง PHP
+  const QUIZ_TYPES = ['แบบทดสอบ', 'แบบทดสอบก่อนเรียน', 'แบบทดสอบหลังเรียน', 'ข้อสอบปลายภาค'];
 
   // ── helpers ─────────────────────────────────────────────────
   function esc(s) {
@@ -482,15 +485,24 @@ if (searchInput) {
     if (f) f.value = JSON.stringify(qs);
   }
 
+  // เติม/ตัดให้เหลือ 4 ตัวเลือกเสมอ
+  function pad4(choices) {
+    const c = (choices || []).slice(0, 4);
+    while (c.length < 4) c.push('');
+    return c;
+  }
+
   // ── toggle prompt / quiz sections based on assignment type ──
   window.qbToggleSections = function(type) {
     const quiz   = document.getElementById('asgn-quiz-section');
     const prompt = document.getElementById('asgn-prompt-section');
     const pTxt   = document.getElementById('asgn-prompt-txt');
-    const isQuiz = type === 'แบบทดสอบ';
-    if (quiz)   quiz.style.display   = isQuiz ? 'block' : 'none';
-    if (prompt) prompt.style.display = isQuiz ? 'none'  : 'block';
-    if (pTxt)   pTxt.required        = !isQuiz;
+    const ptsWrap = document.getElementById('asgn-points-wrap');
+    const isQuiz = QUIZ_TYPES.indexOf(type) !== -1;
+    if (quiz)    quiz.style.display    = isQuiz ? 'block' : 'none';
+    if (prompt)  prompt.style.display  = isQuiz ? 'none'  : 'block';
+    if (pTxt)    pTxt.required         = !isQuiz;
+    if (ptsWrap) ptsWrap.style.display = isQuiz ? 'none'  : 'block';
   };
 
   // ── render question list ────────────────────────────────────
@@ -504,7 +516,7 @@ if (searchInput) {
       list.innerHTML = '<p style="color:var(--muted);font-size:12.5px;text-align:center;padding:10px 0 14px">ยังไม่มีคำถาม — กดปุ่มด้านล่างเพื่อเพิ่ม</p>';
     } else {
       list.innerHTML = qs.map((q, i) => {
-        const typeLabel = q.type === 'MCQ' ? 'เลือกตอบ (MCQ)' : 'ถูก/ผิด';
+        const typeLabel = 'เลือกตอบ (4 ตัวเลือก)';
         return `<div class="qb-row" draggable="true" data-idx="${i}"
           style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;
                  border:1.5px solid var(--line-2);border-radius:9px;background:var(--surface-2);
@@ -567,20 +579,17 @@ if (searchInput) {
     sync();
   }
 
-  // ── choice list renderer ─────────────────────────────────────
+  // ── choice list renderer — เสมอ 4 ช่อง ไม่มีเพิ่ม/ลบ ─────────
   function renderChoices(choices, correct) {
     const wrap = document.getElementById('qb-choices');
     if (!wrap) return;
-    wrap.innerHTML = choices.map((c, i) => `
+    wrap.innerHTML = pad4(choices).map((c, i) => `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <input type="radio" name="qb-correct" value="${i}" ${i===correct?'checked':''}
                style="width:15px;height:15px;accent-color:var(--primary);flex:0 0 auto;cursor:pointer">
         <input class="input qb-choice" data-ci="${i}" value="${esc(c)}"
                placeholder="ตัวเลือก ${i+1}"
                style="flex:1;font-size:13px;padding:7px 10px">
-        ${choices.length > 2 ? `<button type="button" onclick="qbRmChoice(${i})"
-          style="width:24px;height:24px;border:none;border-radius:6px;background:#fee2e2;
-                 color:#ef4444;cursor:pointer;font-size:13px;display:grid;place-items:center">✕</button>` : ''}
       </div>`).join('');
   }
 
@@ -595,77 +604,26 @@ if (searchInput) {
 
     if (title) title.textContent = idx >= 0 ? `แก้ไขคำถามข้อ ${idx+1}` : 'เพิ่มคำถาม';
     document.getElementById('qb-text').value   = q.text || '';
-    document.getElementById('qb-type').value   = q.type || 'MCQ';
     document.getElementById('qb-points').value = q.points || 1;
-
-    updateTypeUI(q.type || 'MCQ', q.choices || ['','','',''], q.correct || 0);
+    renderChoices(q.choices, q.correct || 0);
 
     form.style.display   = 'block';
     if (addBtn) addBtn.style.display = 'none';
     document.getElementById('qb-text').focus();
   };
 
-  function updateTypeUI(type, choices, correct) {
-    const mcqWrap = document.getElementById('qb-mcq-wrap');
-    const tfWrap  = document.getElementById('qb-tf-wrap');
-    if (!mcqWrap || !tfWrap) return;
-    if (type === 'MCQ') {
-      mcqWrap.style.display = 'block';
-      tfWrap.style.display  = 'none';
-      renderChoices(choices && choices.length >= 2 ? choices : ['','','',''], correct || 0);
-    } else {
-      mcqWrap.style.display = 'none';
-      tfWrap.style.display  = 'block';
-      const isTrue = !choices || choices[0] !== 'false';
-      const t = document.getElementById('qb-tf-true');
-      const f = document.getElementById('qb-tf-false');
-      if (t) t.checked = isTrue;
-      if (f) f.checked = !isTrue;
-    }
-  }
-
-  window.qbTypeChange = function() {
-    const type = document.getElementById('qb-type').value;
-    // collect current choice values before re-rendering
-    const existingChoices = [...document.querySelectorAll('.qb-choice')].map(i => i.value);
-    const existingCorrect = +(document.querySelector('[name="qb-correct"]:checked')?.value || 0);
-    updateTypeUI(type, existingChoices.length >= 2 ? existingChoices : ['','','',''], existingCorrect);
-  };
-
-  window.qbAddChoice = function() {
-    const choices = [...document.querySelectorAll('.qb-choice')].map(i => i.value);
-    if (choices.length >= 5) return;
-    const correct = +(document.querySelector('[name="qb-correct"]:checked')?.value || 0);
-    renderChoices([...choices, ''], correct);
-  };
-
-  window.qbRmChoice = function(idx) {
-    const choices = [...document.querySelectorAll('.qb-choice')].map(i => i.value);
-    const correct = +(document.querySelector('[name="qb-correct"]:checked')?.value || 0);
-    choices.splice(idx, 1);
-    const newCorrect = correct >= idx && correct > 0 ? correct - 1 : correct;
-    renderChoices(choices, newCorrect);
-  };
-
   // ── save form → push to qs array ────────────────────────────
   window.qbSave = function() {
     const text   = (document.getElementById('qb-text').value || '').trim();
-    const type   = document.getElementById('qb-type').value;
     const points = Math.max(1, +(document.getElementById('qb-points').value) || 1);
     if (!text) { showToast('กรุณาพิมพ์ข้อคำถาม'); return; }
 
-    let choices = [], correct = 0;
-    if (type === 'MCQ') {
-      choices = [...document.querySelectorAll('.qb-choice')].map(i => i.value.trim());
-      correct = +(document.querySelector('[name="qb-correct"]:checked')?.value || 0);
-      if (choices.filter(c => c).length < 2) { showToast('กรุณาพิมพ์ตัวเลือกอย่างน้อย 2 ข้อ'); return; }
-    } else {
-      const t = document.getElementById('qb-tf-true');
-      choices = [t && t.checked ? 'true' : 'false'];
-      correct = 0;
-    }
+    const choices = [...document.querySelectorAll('.qb-choice')].map(i => i.value.trim());
+    const correct = +(document.querySelector('[name="qb-correct"]:checked')?.value || 0);
+    if (choices.filter(c => c).length < 4) { showToast('กรุณาพิมพ์ตัวเลือกให้ครบทั้ง 4 ข้อ'); return; }
+    if (!choices[correct]) { showToast('กรุณาเลือกคำตอบที่ถูกต้อง'); return; }
 
-    const q = { text, type, points, choices, correct };
+    const q = { text, type: 'MCQ', points, choices, correct };
     if (editIdx >= 0) { qs[editIdx] = q; } else { qs.push(q); }
     qbCancel(); render();
   };

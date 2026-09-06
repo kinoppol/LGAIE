@@ -8,6 +8,7 @@ if (!$a) { echo '<div class="empty"><h3>ไม่พบงาน</h3></div>'; re
 $c          = get_course((int)$a['course_id']);
 $role       = current_role();
 $uid        = current_user_id();
+$is_quiz    = is_quiz_assignment_type($a['assignment_type']);
 $subs       = get_submissions_for_assignment($assignment_id);
 $graded_cnt = count(array_filter($subs, fn($s) => $s['status'] === 'graded'));
 $better_cnt = count(array_filter($subs, fn($s) => $s['better_than_teacher']));
@@ -95,6 +96,191 @@ try {
     </div>
     <?php endif; ?>
   </div>
+
+  <?php if ($is_quiz):
+    $quiz_questions = get_quiz_questions($assignment_id);
+    $quiz_total_pts = array_sum(array_column($quiz_questions, 'points'));
+  ?>
+  <?php if (is_teacher()): ?>
+  <!-- ── Teacher: คำถามในแบบทดสอบ (พร้อมเฉลย) ─────────────────── -->
+  <div style="display:flex;align-items:center;gap:9px;margin-bottom:16px">
+    <?= icon('clipboard', 20, 'var(--primary)') ?>
+    <h2 style="font-size:18px">คำถามในแบบทดสอบ
+      <span class="subtle" style="font-size:15px;font-weight:600">(<?= count($quiz_questions) ?> ข้อ · <?= $quiz_total_pts ?> คะแนน)</span>
+    </h2>
+  </div>
+  <?php if (empty($quiz_questions)): ?>
+  <div class="empty"><div class="e-ic"><?= icon('clipboard', 30) ?></div><h3>ยังไม่มีคำถาม</h3><p>แก้ไขงานนี้เพื่อเพิ่มคำถามแบบเลือกตอบ 4 ตัวเลือก</p></div>
+  <?php endif; ?>
+  <?php foreach ($quiz_questions as $qi => $q): ?>
+  <div class="card card-pad" style="margin-bottom:12px">
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+      <span style="width:26px;height:26px;border-radius:8px;background:var(--primary);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;flex:0 0 auto"><?= $qi + 1 ?></span>
+      <div style="flex:1">
+        <div style="font-size:14.5px;font-weight:600;color:var(--heading);line-height:1.5"><?= h($q['question_text']) ?></div>
+        <div class="subtle" style="font-size:12px;margin-top:2px"><?= $q['points'] ?> คะแนน</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;padding-left:36px">
+      <?php foreach ($q['choices'] as $ch): ?>
+      <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;<?= $ch['is_correct'] ? 'color:var(--primary);font-weight:700' : 'color:var(--body)' ?>">
+        <?php if ($ch['is_correct']): ?>
+        <?= icon('check-circle', 15, 'var(--primary)') ?>
+        <?php else: ?>
+        <span style="width:15px;height:15px;border-radius:50%;border:1.5px solid var(--line-2);display:inline-block;flex:0 0 auto"></span>
+        <?php endif; ?>
+        <?= h($ch['choice_text']) ?>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endforeach; ?>
+
+  <hr class="divider" style="margin:28px 0">
+
+  <!-- ── ผลคะแนนนักเรียน ───────────────────────────────────────── -->
+  <div style="display:flex;align-items:center;margin-bottom:16px">
+    <h2 style="font-size:18px">ผลคะแนนนักเรียน
+      <span class="subtle" style="font-size:15px;font-weight:600">(<?= count($subs) ?>/<?= $total_enrolled ?> คน)</span>
+    </h2>
+    <?php if (count($subs) > 0 && $quiz_total_pts > 0):
+        $avg = round(array_sum(array_column($subs, 'grade')) / count($subs), 1);
+    ?>
+    <span class="chip" style="margin-left:auto">เฉลี่ย <?= $avg ?>/<?= $quiz_total_pts ?></span>
+    <?php endif; ?>
+  </div>
+  <?php if (empty($subs)): ?>
+  <div class="empty"><div class="e-ic"><?= icon('trophy', 30) ?></div><h3>ยังไม่มีนักเรียนทำแบบทดสอบ</h3></div>
+  <?php else: ?>
+  <div class="card">
+    <div style="padding:6px 10px">
+      <?php foreach ($subs as $s): ?>
+      <div style="display:flex;align-items:center;gap:13px;padding:12px;border-bottom:1px solid var(--line-1)">
+        <?= avatar(['avatar_class' => $s['avatar_class'], 'avatar_path' => $s['avatar_path'] ?? null, 'initials' => $s['initials']], 36) ?>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;color:var(--heading);font-size:13.5px"><?= h($s['student_name']) ?></div>
+          <div class="subtle" style="font-size:11.5px">ส่งเมื่อ <?= h(date('j M Y H:i', strtotime($s['submitted_at']))) ?></div>
+        </div>
+        <span class="badge <?= $quiz_total_pts > 0 && (int)$s['grade'] >= $quiz_total_pts * 0.5 ? 'green' : 'orange' ?>" style="font-size:12px;flex:0 0 auto">
+          <?= (int)$s['grade'] ?>/<?= $quiz_total_pts ?> คะแนน
+        </span>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endif; ?>
+
+  <?php else: /* ── นักเรียน ───────────────────────────────────── */ ?>
+  <?php if ($my_sub): ?>
+  <!-- ── ทำแล้ว: แสดงผลคะแนน + เฉลย ────────────────────────────── -->
+  <div class="card" style="border:2px solid var(--primary-soft-2);margin-bottom:20px">
+    <div class="card-head" style="background:var(--primary-soft);border-bottom:1px solid var(--primary-soft-2)">
+      <span style="width:34px;height:34px;border-radius:9px;background:#fff;color:var(--primary);display:grid;place-items:center"><?= icon('trophy', 18) ?></span>
+      <h3>ผลคะแนนของคุณ</h3>
+      <span class="badge green" style="margin-left:auto;font-size:13px"><?= (int)$my_sub['grade'] ?>/<?= $quiz_total_pts ?> คะแนน</span>
+    </div>
+  </div>
+  <?php
+    $my_responses = get_quiz_responses($assignment_id, $uid);
+  ?>
+  <?php foreach ($quiz_questions as $qi => $q):
+      $my_choice_id = (int)($my_responses[$q['id']]['choice_id'] ?? 0);
+  ?>
+  <div class="card card-pad" style="margin-bottom:12px">
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+      <span style="width:26px;height:26px;border-radius:8px;background:var(--primary);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;flex:0 0 auto"><?= $qi + 1 ?></span>
+      <div style="font-size:14.5px;font-weight:600;color:var(--heading);line-height:1.5"><?= h($q['question_text']) ?></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;padding-left:36px">
+      <?php foreach ($q['choices'] as $ch):
+          $is_mine    = (int)$ch['id'] === $my_choice_id;
+          $is_correct = (bool)$ch['is_correct'];
+          $color      = $is_correct ? 'var(--primary)' : ($is_mine ? 'var(--danger)' : 'var(--body)');
+      ?>
+      <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:<?= $color ?>;<?= ($is_correct || $is_mine) ? 'font-weight:700' : '' ?>">
+        <?php if ($is_correct): ?>
+        <?= icon('check-circle', 15, 'var(--primary)') ?>
+        <?php elseif ($is_mine): ?>
+        <?= icon('x', 15, 'var(--danger)') ?>
+        <?php else: ?>
+        <span style="width:15px;height:15px;border-radius:50%;border:1.5px solid var(--line-2);display:inline-block;flex:0 0 auto"></span>
+        <?php endif; ?>
+        <?= h($ch['choice_text']) ?>
+        <?php if ($is_mine && !$is_correct): ?><span class="subtle" style="font-size:11px">(คำตอบของคุณ)</span><?php endif; ?>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endforeach; ?>
+
+  <?php else: /* ยังไม่ทำ */ ?>
+  <!-- ── แบบฟอร์มทำแบบทดสอบ ────────────────────────────────────── -->
+  <div class="card" style="border:2px solid var(--accent-soft)">
+    <div class="card-head" style="background:var(--accent-soft);border-bottom:1px solid #d4e3fc">
+      <span style="width:34px;height:34px;border-radius:9px;background:#fff;color:var(--accent);display:grid;place-items:center"><?= icon('clipboard', 18) ?></span>
+      <h3 style="color:var(--accent-700)">ทำแบบทดสอบ</h3>
+      <span class="badge orange" style="margin-left:auto"><?= icon('clock', 13) ?> กำหนดส่ง <?= h($a['due_short']) ?></span>
+    </div>
+    <div class="card-pad">
+      <?php if (empty($quiz_questions)): ?>
+      <p class="subtle" style="font-size:13.5px">ครูยังไม่เพิ่มคำถามในแบบทดสอบนี้</p>
+      <?php else: ?>
+      <form id="quiz-form" onsubmit="return submitQuiz(event)">
+        <input type="hidden" name="assignment_id" value="<?= $assignment_id ?>">
+        <?php foreach ($quiz_questions as $qi => $q): ?>
+        <div style="margin-bottom:22px;padding-bottom:18px;<?= $qi < count($quiz_questions) - 1 ? 'border-bottom:1px solid var(--line-1)' : '' ?>">
+          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px">
+            <span style="width:26px;height:26px;border-radius:8px;background:var(--primary);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;flex:0 0 auto"><?= $qi + 1 ?></span>
+            <div style="font-size:14.5px;font-weight:600;color:var(--heading);line-height:1.5">
+              <?= h($q['question_text']) ?>
+              <span class="subtle" style="font-weight:400;font-size:12px"> (<?= $q['points'] ?> คะแนน)</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;padding-left:36px">
+            <?php foreach ($q['choices'] as $ch): ?>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:9px 12px;border:1.5px solid var(--line-2);border-radius:9px;transition:border-color .15s"
+                   onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--line-2)'">
+              <input type="radio" name="answers[<?= $q['id'] ?>]" value="<?= $ch['id'] ?>" required
+                     style="width:16px;height:16px;accent-color:var(--primary);flex:0 0 auto">
+              <span style="font-size:13.5px;color:var(--body)"><?= h($ch['choice_text']) ?></span>
+            </label>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        <?php endforeach; ?>
+        <button type="submit" class="btn btn-accent" id="quiz-submit-btn">
+          <?= icon('send', 17, '#fff') ?> ส่งคำตอบ
+        </button>
+      </form>
+      <script>
+      function submitQuiz(e) {
+        e.preventDefault();
+        if (!confirm('ยืนยันส่งคำตอบ? หลังส่งแล้วจะแก้ไขไม่ได้')) return false;
+        var btn = document.getElementById('quiz-submit-btn');
+        btn.disabled = true; btn.style.opacity = '.6';
+        var fd = new FormData(document.getElementById('quiz-form'));
+        fetch('api/submit_quiz.php', { method: 'POST', body: fd })
+          .then(r => r.json())
+          .then(res => {
+            if (res.ok) {
+              showToast(res.message || 'ส่งคำตอบแล้ว');
+              setTimeout(() => location.reload(), 900);
+            } else {
+              btn.disabled = false; btn.style.opacity = '1';
+              showToast(res.error || 'เกิดข้อผิดพลาด', true);
+            }
+          })
+          .catch(() => { btn.disabled = false; btn.style.opacity = '1'; showToast('เกิดข้อผิดพลาด — ตรวจสอบการเชื่อมต่อ', true); });
+        return false;
+      }
+      </script>
+      <?php endif; ?>
+    </div>
+  </div>
+  <?php endif; /* my_sub */ ?>
+  <?php endif; /* is_teacher */ ?>
+
+  <?php else: /* ── งานทั่วไป (ไม่ใช่แบบทดสอบ) ───────────────────── */ ?>
 
   <!-- Teacher prompt block -->
   <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
@@ -332,15 +518,22 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="row" style="gap:14px">
       <div class="field" style="flex:1">
         <label>ประเภทงาน</label>
-        <select class="input" name="assignment_type">
-          <?php foreach (['งาน', 'แบบทดสอบ', 'โปรเจกต์'] as $t): ?>
-          <option value="<?= $t ?>" <?= $a['assignment_type'] === $t ? 'selected' : '' ?>><?= $t ?></option>
+        <?php
+        $type_options = ['งาน', 'การบ้าน', 'โครงงาน', 'แบบทดสอบ', 'แบบทดสอบก่อนเรียน', 'แบบทดสอบหลังเรียน', 'ข้อสอบปลายภาค'];
+        if (!in_array($a['assignment_type'], $type_options, true)) $type_options[] = $a['assignment_type'];
+        ?>
+        <select class="input" name="assignment_type" id="ea-type-sel" onchange="easToggle(this.value)">
+          <?php foreach ($type_options as $t): ?>
+          <option value="<?= h($t) ?>" <?= $a['assignment_type'] === $t ? 'selected' : '' ?>><?= h($t) ?></option>
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="field" style="flex:0 0 110px">
+      <div class="field" id="ea-points-wrap" style="flex:0 0 110px;<?= $is_quiz ? 'display:none' : '' ?>">
         <label>คะแนนเต็ม</label>
         <input class="input" type="number" name="points" min="1" value="<?= $a['points'] ?>">
+        <?php if ($is_quiz): ?>
+        <div class="hint">คำนวณจากผลรวมคะแนนคำถามอัตโนมัติ</div>
+        <?php endif; ?>
       </div>
     </div>
     <div class="field">
@@ -369,6 +562,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <span>อนุญาตให้นักเรียนส่ง prompt ที่ดีกว่า</span>
       </label>
     </div>
+    <div id="ea-prompt-wrap" style="display:<?= $is_quiz ? 'none' : 'block' ?>">
     <div class="ai-tint-box" style="padding:16px 16px 6px;margin-top:6px">
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
         <span style="width:32px;height:32px;border-radius:9px;background:var(--card);color:var(--primary);display:grid;place-items:center"><?= icon('sparkle', 18) ?></span>
@@ -379,7 +573,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <div class="field">
         <label>ข้อความ Prompt <span style="color:var(--danger)">*</span></label>
-        <textarea class="textarea" name="prompt_text" style="font-family:ui-monospace,monospace;font-size:13px" required><?= h($ep['prompt_text'] ?? '') ?></textarea>
+        <textarea class="textarea" name="prompt_text" id="ea-prompt-txt" style="font-family:ui-monospace,monospace;font-size:13px" <?= $is_quiz ? '' : 'required' ?>><?= h($ep['prompt_text'] ?? '') ?></textarea>
       </div>
       <div class="row" style="gap:14px">
         <div class="field" style="flex:1">
@@ -401,6 +595,24 @@ document.addEventListener('DOMContentLoaded', function() {
         <textarea class="textarea" name="note_text" style="min-height:60px"><?= h($ep['note_text'] ?? '') ?></textarea>
       </div>
     </div>
+    </div>
+    <?php if ($is_quiz): ?>
+    <div class="note-box" style="font-size:13px">
+      <?= icon('info', 14, 'var(--sub)') ?> งานประเภทแบบทดสอบไม่ต้องระบุ Prompt AI — จัดการคำถามได้จากหน้ารายละเอียดงานนี้
+    </div>
+    <?php endif; ?>
+    <script>
+    function easToggle(type) {
+      var quizTypes = ['แบบทดสอบ', 'แบบทดสอบก่อนเรียน', 'แบบทดสอบหลังเรียน', 'ข้อสอบปลายภาค'];
+      var isQuiz = quizTypes.indexOf(type) !== -1;
+      var wrap     = document.getElementById('ea-prompt-wrap');
+      var txt      = document.getElementById('ea-prompt-txt');
+      var ptsWrap  = document.getElementById('ea-points-wrap');
+      if (wrap)    wrap.style.display    = isQuiz ? 'none' : 'block';
+      if (txt)     txt.required          = !isQuiz;
+      if (ptsWrap) ptsWrap.style.display = isQuiz ? 'none' : 'block';
+    }
+    </script>
 
     <!-- ── ลิงก์สื่อการสอน ──────────────────────── -->
     <div style="margin-top:12px;padding:14px 15px;border:1px solid var(--line-2);border-radius:10px">
@@ -804,6 +1016,8 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
   <?php endif; // my_sub ?>
   <?php endif; // is_teacher ?>
+
+  <?php endif; // is_quiz ?>
 </div>
 
 <script>
